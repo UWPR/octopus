@@ -7,7 +7,7 @@ import { groupByCovariates, getQualityLevel } from '../utils/utils';
  *
  * Focuses on two key aspects of plate randomization quality:
  * 1. Plate Balance Score (Proportional Accuracy)
- * 2. Row Clustering Score (Row-level Pattern Detection)
+ * 2. Clustering Score (Spatial Clustering - row, column, cross-row)
  */
 
 // Utility functions

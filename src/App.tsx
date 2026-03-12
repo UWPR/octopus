@@ -592,25 +592,40 @@ const App: React.FC = () => {
         />
 
         {/* Help Section */}
-        {/* <div style={styles.helpSection}>
+        <div style={styles.helpSection}>
           <div style={styles.helpLinks}>
             <a
-              href="https://github.com/uwpr/octopus-block-randomizer/blob/main/docs/block_randomization_updates.md"
+              href="/octopus-block-randomizer/octopus_doc.html"
               target="_blank"
               rel="noopener noreferrer"
               style={styles.helpLink}
             >
-              <i className="fa-regular fa-circle-question" style={{marginRight: '4px'}}></i> Documentation
+              <i className="fa-solid fa-book" style={{marginRight: '4px'}}></i> Documentation
             </a>
             <a
-              href="/test-data/simple-metadata.csv"
-              download="example-metadata.csv"
+              href="/octopus-block-randomizer/trx-phase1b-small.csv"
+              download="trx-phase1b-small.csv"
               style={styles.helpLink}
             >
-              <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i>Example Input File
+              <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i> Example Input File (Small)
+            </a>
+            <a
+              href="/octopus-block-randomizer/trx-phase1b-full.csv"
+              download="trx-phase1b-full.csv"
+              style={styles.helpLink}
+            >
+              <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i> Example Input File (Full)
+            </a>
+            <a
+              href="/octopus-block-randomizer/quick-start-guide.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.helpLink}
+            >
+              <i className="fa-regular fa-circle-question" style={{marginRight: '4px'}}></i> Quick Start Guide
             </a>
           </div>
-        </div> */}
+        </div>
 
       </div>
     </div>

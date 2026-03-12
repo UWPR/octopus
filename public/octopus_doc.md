@@ -1,8 +1,8 @@
-# Octopus Block Randomizer
+# Octopus Plate Designer
 
-## What is Octopus Block Randomizer?
+## What is Octopus Plate Designer?
 
-Octopus Block Randomizer is a web application designed to optimize the distribution of experimental samples across multiple plates (e.g., 96-well plates). The tool ensures that samples are distributed in a balanced and randomized manner, helping researchers minimize bias and maintain statistical validity in their experiments.
+Octopus Plate Designer is a web application designed to optimize the distribution of experimental samples across multiple plates (e.g., 96-well plates). The tool ensures that samples are distributed in a balanced and randomized manner, helping researchers minimize bias and maintain statistical validity in their experiments.
 
 ### Key Purposes
 
@@ -16,7 +16,7 @@ Octopus Block Randomizer is a web application designed to optimize the distribut
 
 ---
 
-## How Octopus Block Randomizer Works
+## How Octopus Plate Designer Works
 
 ### The Randomization Process
 
@@ -30,7 +30,7 @@ Octopus Block Randomizer is a web application designed to optimize the distribut
 
 ---
 
-## How to Use Octopus Block Randomizer
+## How to Use Octopus Plate Designer
 
 ### Step 1: Upload Your Data
 
@@ -144,13 +144,15 @@ Click **"Show/Hide Covariate Summary"** to display:
 
 **Overall Quality Button**: Shows experiment-wide quality score and level (Excellent, Good, Fair, Poor, or Bad)
 
-Click the quality button to open the **Quality Assessment Popup** showing:
-- Experiment summary with average balance and clustering scores
-- Individual scores for each plate
+Click the quality button to open the **Quality Assessment Modal** showing:
+- Overall quality score and level
+- Average balance and clustering scores across all plates
+- Individual scores for each plate with quality badges
 
 **Plate Headers**: Each plate displays:
 - **Bal**: Balance score (0-100) for that plate
 - **Clust**: Clustering score (0-100) for that plate
+- **Overall**: Combined score displayed with color-coded quality badge
 
 #### Plate Details Popup
 
@@ -175,7 +177,14 @@ Click the **"R"** button in any plate header to re-randomize only that specific 
 
 ### Step 6: Export Your Results
 
-Once satisfied with the distribution, click **"Export"** or **"Download CSV"** to save your plate assignments. The exported file includes all original sample data plus assigned plate numbers and well positions.
+Once satisfied with the distribution, click **"Download CSV"** or **"Download Excel"** to save your plate assignments.
+
+**CSV Export**: Includes all original sample data plus assigned plate numbers and well positions.
+
+**Excel Export**: Opens a modal allowing you to select which covariates to include in the Excel file. The exported file contains:
+- Color-coded plates matching the visual display
+- Selected covariate information for each sample
+- Plate and well position assignments
 
 ---
 
@@ -183,6 +192,16 @@ Once satisfied with the distribution, click **"Export"** or **"Download CSV"** t
 
 ### Balance Score (0-100)
 Measures how proportionally each covariate group is represented on each plate compared to the overall population. Higher scores indicate better balance.
+
+**Calculation:**
+For each covariate group on each plate:
+```
+Actual Proportion = Actual Count / Plate Capacity
+Expected Proportion = Group Size / Total Samples
+Relative Deviation = |Actual Proportion - Expected Proportion| / Expected Proportion
+```
+
+The overall plate balance uses weighted averaging based on global covariate group proportions, ensuring large groups influence the score proportionally while very rare groups have limited impact.
 
 ### Clustering Score (0-100)
 Measures spatial clustering by counting same-covariate group adjacencies across the entire plate. The score evaluates three types of adjacencies:
@@ -241,21 +260,20 @@ This system supports up to 72 unique covariate groups while maintaining visual d
 
 ### Algorithm Details
 
-**Balanced Block Randomization**
-- Distributes samples proportionally across plates and rows (larger groups are first placed proportionally, smaller groups handled in a later overflow placement phase)
-- Uses greedy spatial placement designed to minimize adjacency clustering
-
+**Balanced Randomization**
+- Distributes samples proportionally across plates and rows
+- Uses greedy spatial placement to minimize adjacency clustering
 
 Detailed Steps:
-1. Grouping: Samples are grouped by concatenated covariate values (e.g. `Treatment|Time|Dose`).
-2. Plate Capacity Assignment: Plate capacities are computed based on total sample count, plate size and whether empty wells are concentrated in the final plate or spread randomly.
-3. Expected Minimums (Plate Level): For every (plate, group) an expected minimum count is computed from `floor(groupSize / numPlates)` scaled by plate capacity ratio (for partial plates). Prevents early overfilling.
-4. Phase 1 Proportional Placement: Baseline expected minimum samples for each group are placed into plates. Remaining samples are tagged as either unplaced (group too small for baseline) or overflow (extras beyond baseline).
-5. Phase 2A (Unplaced Groups): Small groups are added to plates prioritizing those with the most remaining capacity—spreads rare groups.
-6. Phase 2B (Overflow Samples): Remaining samples of larger groups are added with a prioritization strategy: plate level prefers higher-capacity plates; row level prefers rows currently containing fewer of that group.
-7. Row Distribution: For each plate, rows are treated as mini-blocks; the same proportional + overflow logic is applied using row capacities.
-8. Greedy Spatial Placement: Within each populated row, samples are placed into columns minimizing a cluster score (penalties for same-group left/right/above and cross-row adjacency). Random tie-breaking preserves diversity.
-10. Final Spatial Metrics: Horizontal, vertical and cross-row cluster counts logged for diagnostic quality analysis.
+1. **Grouping**: Samples are grouped by concatenated covariate values (e.g. `Treatment|Time|Dose`).
+2. **Plate Capacity Assignment**: Plate capacities are computed based on total sample count, plate size and whether empty wells are concentrated in the final plate or spread across plates.
+3. **Expected Minimums (Plate Level)**: For every (plate, group) an expected minimum count is computed from `floor(groupSize / numPlates)` scaled by plate capacity ratio (for partial plates). Prevents early overfilling.
+4. **Phase 1 Proportional Placement**: Baseline expected minimum samples for each group are placed into plates. Remaining samples are tagged as either unplaced (group too small for baseline) or overflow (extras beyond baseline).
+5. **Phase 2A (Unplaced Groups)**: Small groups are added to plates prioritizing those with the most remaining capacity—spreads rare groups.
+6. **Phase 2B (Overflow Samples)**: Remaining samples of larger groups are added with a prioritization strategy: plate level prefers higher-capacity plates; row level prefers rows currently containing fewer of that group.
+7. **Row Distribution**: For each plate, rows are treated as mini-blocks; the same proportional + overflow logic is applied using row capacities.
+8. **Greedy Spatial Placement**: Within each populated row, samples are placed into columns minimizing a cluster score (penalties for same-group left/right/above and cross-row adjacency). Random tie-breaking preserves diversity.
+9. **Final Spatial Metrics**: Horizontal, vertical and cross-row cluster counts logged for diagnostic quality analysis.
 
 
 ### Quality Score Calculations
@@ -265,16 +283,18 @@ For each covariate group on each plate, the balance score evaluates how closely 
 
 ```
 Actual Proportion = Actual Count / Plate Capacity
-Expected Proportion = Treatment group Size / Total Samples
+Expected Proportion = Group Size / Total Samples
 Relative Deviation = |Actual Proportion - Expected Proportion| / Expected Proportion
 Balance Score = max(0, 100 - (Relative Deviation × 100))
 ```
 
-The overall plate balance uses weighted averaging based on global covariate group proportions. Each group's relative deviation is multiplied by its global expected proportion, ensuring large groups influence the score proportionally while very rare groups have limited impact. Formally:
+The overall plate balance uses weighted averaging based on global covariate group proportions. Each group's relative deviation is multiplied by its global expected proportion, ensuring large groups influence the score proportionally while very rare groups have limited impact:
 
+```
 WeightedDeviation(group) = RelativeDeviation(group) × GlobalExpectedProportion(group)
 OverallWeightedDeviation = Σ WeightedDeviation / Σ GlobalExpectedProportion
 PlateBalanceScore = max(0, 100 − (min(OverallWeightedDeviation, 1) × 100))
+```
 
 Group-level balance scores are listed separately to identify which combinations drive penalties.
 
