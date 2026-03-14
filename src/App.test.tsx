@@ -4,6 +4,6 @@ import App from './App';
 
 test('Renders the main title', () => {
   render(<App />);
-  const titleElement = screen.getByText("Octopus Block Randomization");
+  const titleElement = screen.getByText("Octopus Plate Designer");
   expect(titleElement).toBeInTheDocument();
 });

@@ -1,6 +1,6 @@
 # OCTOPUS Test Data Files
 
-This directory contains example CSV files for testing the OCTOPUS Block Randomizer application.
+This directory contains example CSV files for testing the OCTOPUS Plate Designer application.
 
 ## Available Test Files
 

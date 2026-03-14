@@ -1,5 +1,5 @@
 {
-  "name": "octopus-block-randomizer",
+  "name": "octopus-plate-designer",
   "version": "1.0.0",
   "private": true,
   "homepage": "https://uwpr.github.io/octopus-block-randomizer",
@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@playwright/test": "^1.58.2",
     "@types/papaparse": "^5.3.14",
     "gh-pages": "^6.1.1"
   }
