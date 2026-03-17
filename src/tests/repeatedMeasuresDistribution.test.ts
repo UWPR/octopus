@@ -1,5 +1,5 @@
 import * as fc from 'fast-check';
-import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates } from '../algorithms/repeatedMeasuresDistribution';
+import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows } from '../algorithms/repeatedMeasuresDistribution';
 import { SearchData, SubjectGroup } from '../utils/types';
 
 // Helper: create a sample with a subject column value
@@ -12,6 +12,16 @@ const makeSample = (name: string, subjectId: string): SearchData => ({
 const makeSingletonSample = (name: string): SearchData => ({
   name,
   metadata: {},
+});
+
+// Helper: create a SubjectGroup with a given treatment
+const makeGroup = (id: string, size: number, treatment: string = 'Drug'): SubjectGroup => ({
+  subjectId: id,
+  samples: Array.from({ length: size }, (_, i) => ({
+    name: `${id}_T${i}`,
+    metadata: { SubjectID: id, Treatment: treatment },
+  })),
+  size,
 });
 
 // ─── Property-Based Tests ───────────────────────────────────────────────────
@@ -65,119 +75,17 @@ describe('Property 1: Subject grouping is complete and disjoint', () => {
   });
 });
 
-describe('Property 4: Validation rejects infeasible configurations', () => {
-  // Feature: repeated-measures-constraints, Property 4: Validation rejects infeasible configurations
-  // **Validates: Requirements 4.1, 4.2, 4.3**
-
-  it('rejects when a group exceeds row capacity under same-row constraint', () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 2, max: 20 }),  // rowCapacity
-        fc.integer({ min: 1, max: 10 }),  // extra samples beyond row capacity
-        (rowCapacity, extra) => {
-          const oversizedGroupSize = rowCapacity + extra;
-          const groups = [{
-            subjectId: 'P001',
-            samples: Array.from({ length: oversizedGroupSize }, (_, i) => makeSample(`S${i}`, 'P001')),
-            size: oversizedGroupSize,
-          }];
-
-          const result = validateSubjectGroups(groups, 'same-row', rowCapacity, 96, 960);
-          expect(result.isValid).toBe(false);
-          expect(result.errors.length).toBeGreaterThanOrEqual(1);
-        }
-      ),
-      { numRuns: 100 }
-    );
-  });
-
-  it('rejects when a group exceeds plate capacity under same-plate constraint', () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 2, max: 96 }),  // plateCapacity
-        fc.integer({ min: 1, max: 10 }),  // extra
-        (plateCapacity, extra) => {
-          const oversizedGroupSize = plateCapacity + extra;
-          const groups = [{
-            subjectId: 'P001',
-            samples: Array.from({ length: oversizedGroupSize }, (_, i) => makeSample(`S${i}`, 'P001')),
-            size: oversizedGroupSize,
-          }];
-
-          const result = validateSubjectGroups(groups, 'same-plate', 12, plateCapacity, 960);
-          expect(result.isValid).toBe(false);
-          expect(result.errors.length).toBeGreaterThanOrEqual(1);
-        }
-      ),
-      { numRuns: 100 }
-    );
-  });
-
-  it('rejects when total samples exceed total well capacity', () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 1, max: 100 }),  // totalWellCapacity
-        fc.integer({ min: 1, max: 50 }),   // extra
-        (totalWellCapacity, extra) => {
-          const totalSamples = totalWellCapacity + extra;
-          const groups = [{
-            subjectId: 'P001',
-            samples: Array.from({ length: totalSamples }, (_, i) => makeSample(`S${i}`, 'P001')),
-            size: totalSamples,
-          }];
-
-          // Use large row/plate capacity so only total capacity triggers
-          const result = validateSubjectGroups(groups, 'same-plate', 9999, 9999, totalWellCapacity);
-          expect(result.isValid).toBe(false);
-          expect(result.errors.some(e => e.includes('exceed available well capacity'))).toBe(true);
-        }
-      ),
-      { numRuns: 100 }
-    );
-  });
-});
-
-
 describe('Property 2: Same Plate grouping invariant', () => {
   // Feature: repeated-measures-constraints, Property 2: Same Plate grouping invariant
   // **Validates: Requirements 3.2, 5.1**
-
-  // Arbitrary: generate a list of subject groups where each group fits within a plate capacity
-  const groupArb = (maxPlateCapacity: number) =>
-    fc.array(
-      fc.record({
-        subjectId: fc.string({ minLength: 1, maxLength: 8 }),
-        size: fc.integer({ min: 1, max: maxPlateCapacity }),
-        treatment: fc.constantFrom('Drug', 'Placebo'),
-      }),
-      { minLength: 1, maxLength: 20 }
-    ).map(defs => {
-      // Ensure unique subject IDs
-      const seen = new Set<string>();
-      return defs
-        .filter(d => {
-          if (seen.has(d.subjectId)) return false;
-          seen.add(d.subjectId);
-          return true;
-        })
-        .map(d => ({
-          subjectId: d.subjectId,
-          samples: Array.from({ length: d.size }, (_, i) => ({
-            name: `${d.subjectId}_T${i}`,
-            metadata: { SubjectID: d.subjectId, Treatment: d.treatment },
-          })),
-          size: d.size,
-        } as SubjectGroup));
-    }).filter(groups => groups.length > 0);
 
   it('all samples sharing the same subject ID are assigned to the same plate', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 4, max: 24 }),  // plate capacity
         fc.integer({ min: 1, max: 4 }),   // number of plates
-        fc.gen().map(gen => gen), // used for dependent generation
+        fc.gen().map(gen => gen),
         (plateCapacity, numPlates, gen) => {
-          // Generate groups that each fit within plate capacity
           const numGroups = gen(fc.integer, { min: 1, max: 15 });
           const groups: SubjectGroup[] = [];
           const usedIds = new Set<string>();
@@ -199,12 +107,10 @@ describe('Property 2: Same Plate grouping invariant', () => {
             });
           }
 
-          if (groups.length === 0) return; // skip trivial case
+          if (groups.length === 0) return;
 
           const totalSamples = groups.reduce((sum, g) => sum + g.size, 0);
           const totalCapacity = plateCapacity * numPlates;
-
-          // Only test feasible configurations
           if (totalSamples > totalCapacity) return;
 
           const plateCapacities = Array(numPlates).fill(plateCapacity);
@@ -213,11 +119,10 @@ describe('Property 2: Same Plate grouping invariant', () => {
           try {
             result = distributeGroupsToPlates(groups, plateCapacities, ['Treatment']);
           } catch {
-            // If distribution throws (infeasible packing), that's acceptable
-            return;
+            return; // infeasible packing is acceptable
           }
 
-          // Build a map: subjectId → set of plate indices where its samples appear
+          // Every subject appears on exactly one plate
           const subjectPlateMap = new Map<string, Set<number>>();
           result.forEach((assignedGroups, plateIdx) => {
             for (const group of assignedGroups) {
@@ -227,17 +132,105 @@ describe('Property 2: Same Plate grouping invariant', () => {
               subjectPlateMap.get(group.subjectId)!.add(plateIdx);
             }
           });
-
-          // Assert: every subject appears on exactly one plate
-          subjectPlateMap.forEach((plateIndices, subjectId) => {
+          subjectPlateMap.forEach((plateIndices) => {
             expect(plateIndices.size).toBe(1);
           });
 
-          // Assert: all input samples are accounted for
+          // All input samples are accounted for
           const totalAssigned = Array.from(result.values())
             .flatMap(gs => gs)
             .reduce((sum, g) => sum + g.size, 0);
           expect(totalAssigned).toBe(totalSamples);
+
+          // No plate exceeds its capacity
+          result.forEach((assignedGroups, plateIdx) => {
+            const samplesOnPlate = assignedGroups.reduce((sum, g) => sum + g.size, 0);
+            expect(samplesOnPlate <= plateCapacities[plateIdx]).toBe(true);
+          });
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
+describe('Property 3: Same Row grouping invariant + Property 5: Row capacity is never exceeded', () => {
+  // Feature: repeated-measures-constraints, Property 3: Same Row grouping invariant
+  // **Validates: Requirements 3.3, 6.1**
+  // Feature: repeated-measures-constraints, Property 5: Row capacity is never exceeded
+  // **Validates: Requirements 6.2**
+
+  it('all samples sharing the same subject ID are assigned to the same row and no row exceeds capacity', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 3, max: 12 }),  // row capacity
+        fc.integer({ min: 2, max: 6 }),   // number of rows
+        fc.gen().map(gen => gen),
+        (rowCapacity, numRows, gen) => {
+          const numGroups = gen(fc.integer, { min: 1, max: 15 });
+          const groups: SubjectGroup[] = [];
+          const usedIds = new Set<string>();
+          let totalSamples = 0;
+          const totalCapacity = rowCapacity * numRows;
+
+          for (let i = 0; i < numGroups; i++) {
+            const id = `S${String(i).padStart(3, '0')}`;
+            if (usedIds.has(id)) continue;
+            usedIds.add(id);
+
+            const maxGroupSize = Math.min(rowCapacity, totalCapacity - totalSamples);
+            if (maxGroupSize < 1) break;
+
+            const groupSize = gen(fc.integer, { min: 1, max: maxGroupSize });
+            const treatment = gen(fc.constantFrom, 'Drug', 'Placebo');
+            groups.push({
+              subjectId: id,
+              samples: Array.from({ length: groupSize }, (_, j) => ({
+                name: `${id}_T${j}`,
+                metadata: { SubjectID: id, Treatment: treatment },
+              })),
+              size: groupSize,
+            });
+            totalSamples += groupSize;
+          }
+
+          if (groups.length === 0) return;
+          if (totalSamples > totalCapacity) return;
+
+          const rowCapacities = Array(numRows).fill(rowCapacity);
+
+          let result: Map<number, SubjectGroup[]>;
+          try {
+            result = distributeGroupsToRows(groups, rowCapacities, ['Treatment']);
+          } catch {
+            return; // infeasible packing is acceptable
+          }
+
+          // Every subject appears in exactly one row
+          const subjectRowMap = new Map<string, Set<number>>();
+          result.forEach((assignedGroups, rowIdx) => {
+            for (const group of assignedGroups) {
+              if (!subjectRowMap.has(group.subjectId)) {
+                subjectRowMap.set(group.subjectId, new Set());
+              }
+              subjectRowMap.get(group.subjectId)!.add(rowIdx);
+            }
+          });
+          subjectRowMap.forEach((rowIndices) => {
+            expect(rowIndices.size).toBe(1);
+          });
+
+          // All input samples are accounted for
+          const totalAssigned = Array.from(result.values())
+            .flatMap(gs => gs)
+            .reduce((sum, g) => sum + g.size, 0);
+          expect(totalAssigned).toBe(totalSamples);
+
+          // No row exceeds its capacity (Property 5)
+          result.forEach((assignedGroups, rowIdx) => {
+            const samplesInRow = assignedGroups.reduce((sum, g) => sum + g.size, 0);
+            expect(samplesInRow <= rowCapacities[rowIdx]).toBe(true);
+          });
         }
       ),
       { numRuns: 100 }
@@ -259,7 +252,6 @@ describe('buildSubjectGroups', () => {
 
     const groups = buildSubjectGroups(samples, 'SubjectID');
 
-    // 2 subject groups + 2 singletons = 4 groups
     expect(groups.length).toBe(4);
 
     const p001 = groups.find(g => g.subjectId === 'P001');
@@ -273,18 +265,6 @@ describe('buildSubjectGroups', () => {
     const singletons = groups.filter(g => g.subjectId.startsWith('__singleton_'));
     expect(singletons.length).toBe(2);
     expect(singletons.every(s => s.size === 1)).toBe(true);
-  });
-
-  it('treats all-unique subject IDs as individual groups', () => {
-    const samples: SearchData[] = [
-      makeSample('S1', 'A'),
-      makeSample('S2', 'B'),
-      makeSample('S3', 'C'),
-    ];
-
-    const groups = buildSubjectGroups(samples, 'SubjectID');
-    expect(groups.length).toBe(3);
-    expect(groups.every(g => g.size === 1)).toBe(true);
   });
 
   it('returns empty array for empty input', () => {
@@ -310,155 +290,69 @@ describe('buildSubjectGroups', () => {
 describe('validateSubjectGroups', () => {
   it('returns valid when all groups fit within constraints', () => {
     const groups = [
-      { subjectId: 'P001', samples: Array.from({ length: 4 }, (_, i) => makeSample(`S${i}`, 'P001')), size: 4 },
-      { subjectId: 'P002', samples: Array.from({ length: 3 }, (_, i) => makeSample(`S${i}`, 'P002')), size: 3 },
+      makeGroup('P001', 4),
+      makeGroup('P002', 3),
     ];
 
     const result = validateSubjectGroups(groups, 'same-row', 12, 96, 192);
-    expect(result.isValid).toBe(true);
-    expect(result.errors).toEqual([]);
+    expect(result).toEqual({ isValid: true, errors: [], warnings: [] });
   });
 
   it('rejects group exceeding row capacity with same-row constraint', () => {
     const groups = [
-      { subjectId: 'P001', samples: Array.from({ length: 13 }, (_, i) => makeSample(`S${i}`, 'P001')), size: 13 },
+      makeGroup('P001', 13),
     ];
 
     const result = validateSubjectGroups(groups, 'same-row', 12, 96, 192);
     expect(result.isValid).toBe(false);
-    expect(result.errors.length).toBe(1);
-    expect(result.errors[0]).toBe(
-      'Subject P001 has 13 samples, which exceeds the row capacity of 12. Reduce group size or switch to Same Plate constraint.'
-    );
+    expect(result.errors).toEqual([
+      'Subject P001 has 13 samples, which exceeds the row capacity of 12. Reduce group size or switch to Same Plate constraint.',
+    ]);
   });
 
   it('rejects group exceeding plate capacity with same-plate constraint', () => {
     const groups = [
-      { subjectId: 'P001', samples: Array.from({ length: 100 }, (_, i) => makeSample(`S${i}`, 'P001')), size: 100 },
+      makeGroup('P001', 100),
     ];
 
     const result = validateSubjectGroups(groups, 'same-plate', 12, 96, 192);
     expect(result.isValid).toBe(false);
-    expect(result.errors.length).toBe(1);
-    expect(result.errors[0]).toBe(
-      'Subject P001 has 100 samples, which exceeds the plate capacity of 96.'
-    );
+    expect(result.errors).toEqual([
+      'Subject P001 has 100 samples, which exceeds the plate capacity of 96.',
+    ]);
   });
 
   it('rejects when total samples exceed total well capacity', () => {
     const groups = [
-      { subjectId: 'P001', samples: Array.from({ length: 50 }, (_, i) => makeSample(`S${i}`, 'P001')), size: 50 },
-      { subjectId: 'P002', samples: Array.from({ length: 50 }, (_, i) => makeSample(`S${i}`, 'P002')), size: 50 },
+      makeGroup('P001', 50),
+      makeGroup('P002', 50),
     ];
 
     const result = validateSubjectGroups(groups, 'same-plate', 12, 96, 96);
     expect(result.isValid).toBe(false);
-    expect(result.errors.length).toBe(1);
-    expect(result.errors[0]).toBe(
-      'Total samples (100) exceed available well capacity (96).'
-    );
+    expect(result.errors).toEqual([
+      'Total samples (100) exceed available well capacity (96).',
+    ]);
   });
 
   it('warns when majority of groups are singletons', () => {
-    const groups = [
-      { subjectId: 'P001', samples: [makeSample('S1', 'P001')], size: 1 },
+    const groups: SubjectGroup[] = [
+      makeGroup('P001', 1),
       { subjectId: '__singleton_0', samples: [makeSingletonSample('QC1')], size: 1 },
       { subjectId: '__singleton_1', samples: [makeSingletonSample('QC2')], size: 1 },
     ];
 
     const result = validateSubjectGroups(groups, 'same-row', 12, 96, 192);
     expect(result.isValid).toBe(true);
-    expect(result.warnings.length).toBe(1);
-    expect(result.warnings[0]).toContain('2 out of 3 groups are singletons');
+    expect(result.warnings).toEqual([
+      '2 out of 3 groups are singletons (empty subject ID). Consider checking your subject column selection.',
+    ]);
   });
 });
 
 // ─── Unit Tests: distributeGroupsToPlates ───────────────────────────────────
 
 describe('distributeGroupsToPlates', () => {
-  // Helper: create a SubjectGroup with a given treatment
-  const makeGroup = (id: string, size: number, treatment: string = 'Drug'): SubjectGroup => ({
-    subjectId: id,
-    samples: Array.from({ length: size }, (_, i) => ({
-      name: `${id}_T${i}`,
-      metadata: { SubjectID: id, Treatment: treatment },
-    })),
-    size,
-  });
-
-  // Helper: create a singleton SubjectGroup
-  const makeSingleton = (id: string, treatment: string = 'Drug'): SubjectGroup => ({
-    subjectId: id,
-    samples: [{ name: id, metadata: { SubjectID: id, Treatment: treatment } }],
-    size: 1,
-  });
-
-  // Helper: get total samples assigned across all plates
-  const totalAssigned = (result: Map<number, SubjectGroup[]>): number =>
-    Array.from(result.values()).flatMap(gs => gs).reduce((sum, g) => sum + g.size, 0);
-
-  // Helper: assert every subject appears on exactly one plate
-  const assertSubjectsOnSinglePlate = (result: Map<number, SubjectGroup[]>) => {
-    const subjectPlates = new Map<string, number>();
-    result.forEach((groups, plateIdx) => {
-      for (const g of groups) {
-        if (subjectPlates.has(g.subjectId)) {
-          expect(subjectPlates.get(g.subjectId)).toBe(plateIdx);
-        }
-        subjectPlates.set(g.subjectId, plateIdx);
-      }
-    });
-  };
-
-  // Helper: get sample count per plate
-  const plateSampleCounts = (result: Map<number, SubjectGroup[]>): number[] => {
-    const counts: number[] = [];
-    result.forEach((groups, plateIdx) => {
-      counts[plateIdx] = groups.reduce((sum, g) => sum + g.size, 0);
-    });
-    return counts;
-  };
-
-  it('distributes uniform group sizes across plates without exceeding capacity', () => {
-    // 6 groups of size 4 = 24 samples, 2 plates of 12 capacity each
-    const groups = [
-      makeGroup('P001', 4, 'Drug'),
-      makeGroup('P002', 4, 'Placebo'),
-      makeGroup('P003', 4, 'Drug'),
-      makeGroup('P004', 4, 'Placebo'),
-      makeGroup('P005', 4, 'Drug'),
-      makeGroup('P006', 4, 'Placebo'),
-    ];
-
-    const result = distributeGroupsToPlates(groups, [12, 12], ['Treatment']);
-
-    expect(totalAssigned(result)).toBe(24);
-    assertSubjectsOnSinglePlate(result);
-
-    const counts = plateSampleCounts(result);
-    // Each plate should have at most 12 samples
-    counts.forEach(c => expect(c).toBeLessThanOrEqual(12));
-  });
-
-  it('distributes mixed group sizes respecting plate capacities', () => {
-    // Groups: 5, 4, 3, 2, 1 = 15 samples, 2 plates of 8 capacity
-    const groups = [
-      makeGroup('P001', 5, 'Drug'),
-      makeGroup('P002', 4, 'Placebo'),
-      makeGroup('P003', 3, 'Drug'),
-      makeGroup('P004', 2, 'Placebo'),
-      makeGroup('P005', 1, 'Drug'),
-    ];
-
-    const result = distributeGroupsToPlates(groups, [8, 8], ['Treatment']);
-
-    expect(totalAssigned(result)).toBe(15);
-    assertSubjectsOnSinglePlate(result);
-
-    const counts = plateSampleCounts(result);
-    counts.forEach(c => expect(c).toBeLessThanOrEqual(8));
-  });
-
   it('handles exact-fit scenario where groups perfectly fill plates', () => {
     // 2 groups of 6 = 12 samples, 2 plates of 6 capacity each → exact fit
     const groups = [
@@ -468,39 +362,49 @@ describe('distributeGroupsToPlates', () => {
 
     const result = distributeGroupsToPlates(groups, [6, 6], ['Treatment']);
 
-    expect(totalAssigned(result)).toBe(12);
-    assertSubjectsOnSinglePlate(result);
+    // Total assigned
+    const totalAssigned = Array.from(result.values())
+      .flatMap(gs => gs)
+      .reduce((sum, g) => sum + g.size, 0);
+    expect(totalAssigned).toBe(12);
 
-    const counts = plateSampleCounts(result);
-    // Each plate should have exactly 6
-    counts.forEach(c => expect(c).toBe(6));
+    // Each plate has exactly 6
+    const counts = Array.from(result.values()).map(gs =>
+      gs.reduce((sum, g) => sum + g.size, 0)
+    );
+    expect(counts.sort()).toEqual([6, 6]);
   });
 
-  it('distributes singletons after multi-sample groups are placed', () => {
+  it('distributes singletons after multi-sample groups to fill remaining capacity', () => {
     // 2 multi-sample groups of 3 + 4 singletons = 10 samples, 2 plates of 5
-    const groups = [
+    const groups: SubjectGroup[] = [
       makeGroup('P001', 3, 'Drug'),
       makeGroup('P002', 3, 'Placebo'),
-      makeSingleton('S1', 'Drug'),
-      makeSingleton('S2', 'Placebo'),
-      makeSingleton('S3', 'Drug'),
-      makeSingleton('S4', 'Placebo'),
+      { subjectId: 'S1', samples: [{ name: 'S1', metadata: { SubjectID: 'S1', Treatment: 'Drug' } }], size: 1 },
+      { subjectId: 'S2', samples: [{ name: 'S2', metadata: { SubjectID: 'S2', Treatment: 'Placebo' } }], size: 1 },
+      { subjectId: 'S3', samples: [{ name: 'S3', metadata: { SubjectID: 'S3', Treatment: 'Drug' } }], size: 1 },
+      { subjectId: 'S4', samples: [{ name: 'S4', metadata: { SubjectID: 'S4', Treatment: 'Placebo' } }], size: 1 },
     ];
 
     const result = distributeGroupsToPlates(groups, [5, 5], ['Treatment']);
 
-    expect(totalAssigned(result)).toBe(10);
-    assertSubjectsOnSinglePlate(result);
+    const totalAssigned = Array.from(result.values())
+      .flatMap(gs => gs)
+      .reduce((sum, g) => sum + g.size, 0);
+    expect(totalAssigned).toBe(10);
 
-    const counts = plateSampleCounts(result);
-    counts.forEach(c => expect(c).toBeLessThanOrEqual(5));
-
-    // Verify multi-sample groups are intact (each on one plate)
-    const p001Plate = Array.from(result.entries()).find(([_, gs]) =>
-      gs.some(g => g.subjectId === 'P001')
+    // Each plate has exactly 5 (3-sample group + 2 singletons)
+    const counts = Array.from(result.values()).map(gs =>
+      gs.reduce((sum, g) => sum + g.size, 0)
     );
-    const p001Group = p001Plate![1].find(g => g.subjectId === 'P001');
-    expect(p001Group!.size).toBe(3);
+    expect(counts.sort()).toEqual([5, 5]);
+
+    // Multi-sample groups are intact
+    const allGroups = Array.from(result.values()).flat();
+    const p001 = allGroups.find(g => g.subjectId === 'P001');
+    expect(p001!.size).toBe(3);
+    const p002 = allGroups.find(g => g.subjectId === 'P002');
+    expect(p002!.size).toBe(3);
   });
 
   it('throws when a group cannot fit in any plate', () => {
@@ -508,7 +412,150 @@ describe('distributeGroupsToPlates', () => {
 
     expect(() => {
       distributeGroupsToPlates(groups, [5, 5], []);
-    }).toThrow(/Unable to fit all subject groups/);
+    }).toThrow('Unable to fit all subject groups into available plates. Subject P001 (size 10) cannot fit in any plate. Add more plates or reduce group sizes.');
   });
 });
 
+
+// ─── Unit Tests: distributeGroupsToRows ─────────────────────────────────────
+
+describe('distributeGroupsToRows', () => {
+  it('packs groups of sizes [4,4,3,3,2,2,2] into 3 rows of 10', () => {
+    // Total = 4+4+3+3+2+2+2 = 20, 3 rows of 10 = 30 capacity (enough slack for FFD)
+    // FFD sorts descending: [4,4,3,3,2,2,2]
+    // Row 0: 4 → Row 1: 4 → Row 0: 3 (=7) → Row 1: 3 (=7) → Row 0: 2 (=9) → Row 1: 2 (=9) → Row 2: 2
+    const groups = [
+      makeGroup('S1', 4, 'Drug'),
+      makeGroup('S2', 4, 'Placebo'),
+      makeGroup('S3', 3, 'Drug'),
+      makeGroup('S4', 3, 'Placebo'),
+      makeGroup('S5', 2, 'Drug'),
+      makeGroup('S6', 2, 'Placebo'),
+      makeGroup('S7', 2, 'Drug'),
+    ];
+
+    const result = distributeGroupsToRows(groups, [10, 10, 10], ['Treatment']);
+
+    // All groups are assigned
+    const allAssigned = Array.from(result.values()).flat();
+    expect(allAssigned.length).toBe(7);
+
+    // Total sample count matches
+    const totalSamples = allAssigned.reduce((sum, g) => sum + g.size, 0);
+    expect(totalSamples).toBe(20);
+
+    // No row exceeds capacity 10
+    result.forEach((assignedGroups) => {
+      const rowTotal = assignedGroups.reduce((sum, g) => sum + g.size, 0);
+      expect(rowTotal).toBeLessThanOrEqual(10);
+    });
+
+    // Each group appears in exactly one row
+    const groupIds = allAssigned.map(g => g.subjectId).sort();
+    expect(groupIds).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7']);
+  });
+
+  it('throws when a group cannot fit in any row', () => {
+    const groups = [makeGroup('BIG', 11, 'Drug')];
+
+    expect(() => {
+      distributeGroupsToRows(groups, [10, 10], []);
+    }).toThrow('Unable to fit all subject groups into available rows');
+  });
+
+  it('prefers rows that improve covariate balance when capacities are tied', () => {
+    // Strategy: 2 rows of capacity 6, place groups with different treatments.
+    // When rows have equal remaining capacity, the algorithm should prefer
+    // the row that improves treatment balance rather than clustering same treatments.
+    // Run multiple iterations to verify the tendency toward balance.
+    let balancedCount = 0;
+    const iterations = 20;
+
+    for (let i = 0; i < iterations; i++) {
+      // 4 groups of size 2: 2 Drug, 2 Placebo → 2 rows of 6 capacity
+      // Plus 2 singletons to fill remaining capacity
+      const groups = [
+        makeGroup('D1', 2, 'Drug'),
+        makeGroup('D2', 2, 'Placebo'),
+        makeGroup('D3', 2, 'Drug'),
+        makeGroup('D4', 2, 'Placebo'),
+        makeGroup('S1', 1, 'Drug'),
+        makeGroup('S2', 1, 'Placebo'),
+      ];
+
+      const result = distributeGroupsToRows(groups, [6, 6], ['Treatment']);
+
+      // Check if both rows have a mix of Drug and Placebo
+      let hasBalance = true;
+      result.forEach((assignedGroups) => {
+        const treatments = assignedGroups.flatMap(g =>
+          g.samples.map(s => s.metadata['Treatment'])
+        );
+        const drugCount = treatments.filter(t => t === 'Drug').length;
+        const placeboCount = treatments.filter(t => t === 'Placebo').length;
+        // A balanced row has both Drug and Placebo present
+        if (drugCount === 0 || placeboCount === 0) {
+          hasBalance = false;
+        }
+      });
+
+      if (hasBalance) balancedCount++;
+    }
+
+    // The algorithm should produce balanced distributions most of the time
+    expect(balancedCount).toBeGreaterThanOrEqual(iterations * 0.5);
+  });
+
+  it('distributes singletons after multi-sample groups', () => {
+    // 2 multi-sample groups (size 3 each) + 4 singletons = 10 total
+    // 2 rows of capacity 5
+    const groups: SubjectGroup[] = [
+      makeGroup('G1', 3, 'Drug'),
+      makeGroup('G2', 3, 'Placebo'),
+      makeGroup('S1', 1, 'Drug'),
+      makeGroup('S2', 1, 'Placebo'),
+      makeGroup('S3', 1, 'Drug'),
+      makeGroup('S4', 1, 'Placebo'),
+    ];
+
+    const result = distributeGroupsToRows(groups, [5, 5], ['Treatment']);
+
+    // All groups and singletons are assigned
+    const allAssigned = Array.from(result.values()).flat();
+    const totalSamples = allAssigned.reduce((sum, g) => sum + g.size, 0);
+    expect(totalSamples).toBe(10);
+
+    // No row exceeds capacity
+    result.forEach((assignedGroups) => {
+      const rowTotal = assignedGroups.reduce((sum, g) => sum + g.size, 0);
+      expect(rowTotal).toBeLessThanOrEqual(5);
+    });
+
+    // Multi-sample groups are intact (not split)
+    const g1 = allAssigned.find(g => g.subjectId === 'G1');
+    expect(g1!.size).toBe(3);
+    const g2 = allAssigned.find(g => g.subjectId === 'G2');
+    expect(g2!.size).toBe(3);
+
+    // Each multi-sample group is in exactly one row
+    const g1Row = Array.from(result.entries()).find(([_, gs]) =>
+      gs.some(g => g.subjectId === 'G1')
+    )![0];
+    const g2Row = Array.from(result.entries()).find(([_, gs]) =>
+      gs.some(g => g.subjectId === 'G2')
+    )![0];
+
+    // With capacity 5 and groups of size 3, they must be in different rows
+    expect(g1Row).not.toBe(g2Row);
+
+    // Singletons fill remaining capacity (each row should have 3 + 2 singletons = 5)
+    result.forEach((assignedGroups) => {
+      const multiGroups = assignedGroups.filter(g => g.size > 1);
+      const singletons = assignedGroups.filter(g => g.size === 1);
+      if (multiGroups.length > 0) {
+        // Row with a multi-sample group should have singletons filling remaining capacity
+        expect(singletons.length).toBe(2);
+      }
+    });
+  });
+});

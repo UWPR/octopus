@@ -297,3 +297,139 @@ export function distributeGroupsToPlates(
   return plateAssignments;
 }
 
+
+/**
+ * Distributes subject groups to rows within a plate using first-fit-decreasing bin packing.
+ *
+ * - Sorts groups by size descending, shuffling equal-sized groups
+ * - For each group, finds rows with enough remaining capacity
+ * - Among candidate rows, prefers the row that improves treatment covariate balance
+ * - After all multi-sample groups are placed, distributes singletons to fill remaining row capacity
+ *
+ * @param groups - Subject groups to distribute (including singletons)
+ * @param rowCapacities - Available capacity for each row (array index = row index)
+ * @param selectedCovariates - Treatment covariate column names for balance scoring
+ * @returns Map from row index to array of SubjectGroups assigned to that row
+ * @throws Error if a group cannot fit in any row
+ */
+export function distributeGroupsToRows(
+  groups: SubjectGroup[],
+  rowCapacities: number[],
+  selectedCovariates: string[]
+): Map<number, SubjectGroup[]> {
+  // Separate multi-sample groups from singletons
+  const multiGroups = groups.filter(g => g.size > 1);
+  const singletons = groups.filter(g => g.size === 1);
+
+  // Sort multi-sample groups by size descending with randomized tie-breaking
+  const sortedMultiGroups = sortGroupsByDescendingSize(multiGroups);
+
+  // Initialize row assignments and remaining capacities
+  const rowAssignments = new Map<number, SubjectGroup[]>();
+  const remainingCapacities = [...rowCapacities];
+  for (let i = 0; i < rowCapacities.length; i++) {
+    rowAssignments.set(i, []);
+  }
+
+  // Helper: get all samples currently assigned to a row
+  const getRowSamples = (rowIdx: number): SearchData[] => {
+    return rowAssignments.get(rowIdx)!.flatMap(g => g.samples);
+  };
+
+  // Place multi-sample groups using FFD
+  for (const group of sortedMultiGroups) {
+    // Find rows that can fit this group
+    const candidateRows: { rowIdx: number; remaining: number }[] = [];
+    for (let i = 0; i < remainingCapacities.length; i++) {
+      if (remainingCapacities[i] >= group.size) {
+        candidateRows.push({ rowIdx: i, remaining: remainingCapacities[i] });
+      }
+    }
+
+    if (candidateRows.length === 0) {
+      throw new Error(
+        `Unable to fit all subject groups into available rows. ` +
+        `Subject ${group.subjectId} (size ${group.size}) cannot fit in any row. ` +
+        `Consider using Same Plate constraint instead.`
+      );
+    }
+
+    // Sort candidates by remaining capacity descending
+    candidateRows.sort((a, b) => b.remaining - a.remaining);
+
+    // Find the max remaining capacity
+    const maxRemaining = candidateRows[0].remaining;
+    const tiedRows = candidateRows.filter(r => r.remaining === maxRemaining);
+
+    let bestRowIdx: number;
+    if (tiedRows.length === 1 || selectedCovariates.length === 0) {
+      bestRowIdx = shuffleArray(tiedRows)[0].rowIdx;
+    } else {
+      // Break tie by covariate balance
+      let bestScore = Infinity;
+      let bestCandidates: number[] = [];
+      for (const candidate of tiedRows) {
+        const currentSamples = getRowSamples(candidate.rowIdx);
+        const score = covariateImbalanceScore(currentSamples, group.samples, selectedCovariates);
+        if (score < bestScore) {
+          bestScore = score;
+          bestCandidates = [candidate.rowIdx];
+        } else if (score === bestScore) {
+          bestCandidates.push(candidate.rowIdx);
+        }
+      }
+      bestRowIdx = shuffleArray(bestCandidates)[0];
+    }
+
+    rowAssignments.get(bestRowIdx)!.push(group);
+    remainingCapacities[bestRowIdx] -= group.size;
+  }
+
+  // Distribute singletons to fill remaining row capacity, preferring covariate balance
+  const sortedSingletons = shuffleArray([...singletons]);
+  for (const singleton of sortedSingletons) {
+    const candidateRows: { rowIdx: number; remaining: number }[] = [];
+    for (let i = 0; i < remainingCapacities.length; i++) {
+      if (remainingCapacities[i] >= 1) {
+        candidateRows.push({ rowIdx: i, remaining: remainingCapacities[i] });
+      }
+    }
+
+    if (candidateRows.length === 0) {
+      throw new Error(
+        `Unable to fit all samples into available rows. ` +
+        `No remaining capacity for singleton sample.`
+      );
+    }
+
+    // Sort by remaining capacity descending
+    candidateRows.sort((a, b) => b.remaining - a.remaining);
+    const maxRemaining = candidateRows[0].remaining;
+    const tiedRows = candidateRows.filter(r => r.remaining === maxRemaining);
+
+    let bestRowIdx: number;
+    if (tiedRows.length === 1 || selectedCovariates.length === 0) {
+      bestRowIdx = shuffleArray(tiedRows)[0].rowIdx;
+    } else {
+      let bestScore = Infinity;
+      let bestCandidates: number[] = [];
+      for (const candidate of tiedRows) {
+        const currentSamples = getRowSamples(candidate.rowIdx);
+        const score = covariateImbalanceScore(currentSamples, singleton.samples, selectedCovariates);
+        if (score < bestScore) {
+          bestScore = score;
+          bestCandidates = [candidate.rowIdx];
+        } else if (score === bestScore) {
+          bestCandidates.push(candidate.rowIdx);
+        }
+      }
+      bestRowIdx = shuffleArray(bestCandidates)[0];
+    }
+
+    rowAssignments.get(bestRowIdx)!.push(singleton);
+    remainingCapacities[bestRowIdx] -= 1;
+  }
+
+  return rowAssignments;
+}
+
