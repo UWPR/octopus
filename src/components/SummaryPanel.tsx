@@ -70,6 +70,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
             return (
               <div
                 key={index}
+                data-testid={`summary-card-${index}`}
                 style={{
                   ...styles.summaryItem,
                   ...(selectedCombination === item.combination ? styles.summaryItemSelected : {}),

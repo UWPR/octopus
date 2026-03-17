@@ -1,4 +1,6 @@
-# Getting Started with Create React App
+# OCTOPUS Plate Designer
+
+A web application designed to optimize the distribution of experimental samples across multiple plates (e.g., 96-well plates). The tool ensures that samples are distributed in a balanced and randomized manner, helping researchers minimize bias and maintain statistical validity in their experiments.
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 

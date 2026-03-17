@@ -58,7 +58,7 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
   const { searches, randomizedPlates, covariateColors, treatmentCovariates, exportCovariates, numRows, numColumns, inputFileName } = options;
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Octopus Block Randomizer';
+  workbook.creator = 'Octopus Plate Designer';
   workbook.created = new Date();
 
   // Calculate optimal column width once for all plates

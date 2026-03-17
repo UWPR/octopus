@@ -412,7 +412,7 @@ const App: React.FC = () => {
     <div style={styles.container}>
       <div style={styles.content}>
         <h1 style={styles.heading}>
-          Octopus Block Randomization
+          Octopus Plate Designer
           {isDeveloperMode() && (
             <span style={styles.devIndicator}> Dev</span>
           )}
