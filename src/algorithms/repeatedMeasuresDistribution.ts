@@ -1,4 +1,5 @@
 import { SearchData, SubjectGroup, GroupingConstraint, GroupValidationResult } from '../utils/types';
+import { shuffleArray } from '../utils/utils';
 
 /**
  * Groups samples by the selected subject column value.
@@ -95,3 +96,204 @@ export function validateSubjectGroups(
     warnings,
   };
 }
+
+/**
+ * Calculates a covariate imbalance score for a set of samples.
+ * Lower score = better balance. The score is the sum of squared deviations
+ * from the expected proportion for each covariate value.
+ */
+function covariateImbalanceScore(
+  currentSamples: SearchData[],
+  candidateSamples: SearchData[],
+  selectedCovariates: string[]
+): number {
+  if (selectedCovariates.length === 0) return 0;
+
+  const combined = [...currentSamples, ...candidateSamples];
+  if (combined.length === 0) return 0;
+
+  // Count occurrences of each covariate combination
+  const counts = new Map<string, number>();
+  for (const sample of combined) {
+    const key = selectedCovariates.map(c => sample.metadata[c] ?? '').join('|');
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  // Ideal: each covariate combination has equal proportion
+  const total = combined.length;
+  const numGroups = counts.size;
+  if (numGroups <= 1) return 0;
+
+  const expectedProportion = 1 / numGroups;
+  let score = 0;
+  counts.forEach(count => {
+    const actualProportion = count / total;
+    const deviation = actualProportion - expectedProportion;
+    score += deviation * deviation;
+  });
+
+  return score;
+}
+
+/**
+ * Sorts subject groups by size descending, shuffling groups of equal size
+ * for randomness (first-fit-decreasing strategy).
+ */
+function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup[] {
+  // Group by size
+  const sizeMap = new Map<number, SubjectGroup[]>();
+  for (const group of groups) {
+    if (!sizeMap.has(group.size)) {
+      sizeMap.set(group.size, []);
+    }
+    sizeMap.get(group.size)!.push(group);
+  }
+
+  // Sort sizes descending, shuffle within each size
+  const sortedSizes = Array.from(sizeMap.keys()).sort((a, b) => b - a);
+  const result: SubjectGroup[] = [];
+  for (const size of sortedSizes) {
+    result.push(...shuffleArray(sizeMap.get(size)!));
+  }
+  return result;
+}
+
+/**
+ * Distributes subject groups to plates using first-fit-decreasing bin packing.
+ *
+ * - Sorts groups by size descending, shuffling equal-sized groups
+ * - For each group, finds the plate with most remaining capacity that fits the group
+ * - Among equal-capacity plates, prefers the one that improves treatment covariate balance
+ * - After all multi-sample groups are placed, distributes singletons to fill remaining capacity
+ *
+ * @param groups - Subject groups to distribute (including singletons)
+ * @param plateCapacities - Available capacity for each plate (array index = plate index)
+ * @param selectedCovariates - Treatment covariate column names for balance scoring
+ * @returns Map from plate index to array of SubjectGroups assigned to that plate
+ * @throws Error if a group cannot fit in any plate
+ */
+export function distributeGroupsToPlates(
+  groups: SubjectGroup[],
+  plateCapacities: number[],
+  selectedCovariates: string[]
+): Map<number, SubjectGroup[]> {
+  // Separate multi-sample groups from singletons
+  const multiGroups = groups.filter(g => g.size > 1);
+  const singletons = groups.filter(g => g.size === 1);
+
+  // Sort multi-sample groups by size descending with randomized tie-breaking
+  const sortedMultiGroups = sortGroupsByDescendingSize(multiGroups);
+
+  // Initialize plate assignments and remaining capacities
+  const plateAssignments = new Map<number, SubjectGroup[]>();
+  const remainingCapacities = [...plateCapacities];
+  for (let i = 0; i < plateCapacities.length; i++) {
+    plateAssignments.set(i, []);
+  }
+
+  // Helper: get all samples currently assigned to a plate
+  const getPlateSamples = (plateIdx: number): SearchData[] => {
+    return plateAssignments.get(plateIdx)!.flatMap(g => g.samples);
+  };
+
+  // Place multi-sample groups using FFD
+  for (const group of sortedMultiGroups) {
+    // Find plates that can fit this group, sorted by remaining capacity descending
+    const candidatePlates: { plateIdx: number; remaining: number }[] = [];
+    for (let i = 0; i < remainingCapacities.length; i++) {
+      if (remainingCapacities[i] >= group.size) {
+        candidatePlates.push({ plateIdx: i, remaining: remainingCapacities[i] });
+      }
+    }
+
+    if (candidatePlates.length === 0) {
+      throw new Error(
+        `Unable to fit all subject groups into available plates. ` +
+        `Subject ${group.subjectId} (size ${group.size}) cannot fit in any plate. ` +
+        `Add more plates or reduce group sizes.`
+      );
+    }
+
+    // Sort candidates by remaining capacity descending
+    candidatePlates.sort((a, b) => b.remaining - a.remaining);
+
+    // Find the max remaining capacity
+    const maxRemaining = candidatePlates[0].remaining;
+    const tiedPlates = candidatePlates.filter(p => p.remaining === maxRemaining);
+
+    let bestPlateIdx: number;
+    if (tiedPlates.length === 1 || selectedCovariates.length === 0) {
+      // No tie or no covariates to break tie — pick from tied plates randomly
+      bestPlateIdx = shuffleArray(tiedPlates)[0].plateIdx;
+    } else {
+      // Break tie by covariate balance: pick the plate where adding this group
+      // results in the lowest imbalance score
+      let bestScore = Infinity;
+      let bestCandidates: number[] = [];
+      for (const candidate of tiedPlates) {
+        const currentSamples = getPlateSamples(candidate.plateIdx);
+        const score = covariateImbalanceScore(currentSamples, group.samples, selectedCovariates);
+        if (score < bestScore) {
+          bestScore = score;
+          bestCandidates = [candidate.plateIdx];
+        } else if (score === bestScore) {
+          bestCandidates.push(candidate.plateIdx);
+        }
+      }
+      // Randomize among equally-scored plates
+      bestPlateIdx = shuffleArray(bestCandidates)[0];
+    }
+
+    plateAssignments.get(bestPlateIdx)!.push(group);
+    remainingCapacities[bestPlateIdx] -= group.size;
+  }
+
+  // Distribute singletons to fill remaining capacity, preferring covariate balance
+  const sortedSingletons = shuffleArray([...singletons]);
+  for (const singleton of sortedSingletons) {
+    // Find plates with remaining capacity
+    const candidatePlates: { plateIdx: number; remaining: number }[] = [];
+    for (let i = 0; i < remainingCapacities.length; i++) {
+      if (remainingCapacities[i] >= 1) {
+        candidatePlates.push({ plateIdx: i, remaining: remainingCapacities[i] });
+      }
+    }
+
+    if (candidatePlates.length === 0) {
+      throw new Error(
+        `Unable to fit all samples into available plates. ` +
+        `No remaining capacity for singleton sample.`
+      );
+    }
+
+    // Sort by remaining capacity descending
+    candidatePlates.sort((a, b) => b.remaining - a.remaining);
+    const maxRemaining = candidatePlates[0].remaining;
+    const tiedPlates = candidatePlates.filter(p => p.remaining === maxRemaining);
+
+    let bestPlateIdx: number;
+    if (tiedPlates.length === 1 || selectedCovariates.length === 0) {
+      bestPlateIdx = shuffleArray(tiedPlates)[0].plateIdx;
+    } else {
+      let bestScore = Infinity;
+      let bestCandidates: number[] = [];
+      for (const candidate of tiedPlates) {
+        const currentSamples = getPlateSamples(candidate.plateIdx);
+        const score = covariateImbalanceScore(currentSamples, singleton.samples, selectedCovariates);
+        if (score < bestScore) {
+          bestScore = score;
+          bestCandidates = [candidate.plateIdx];
+        } else if (score === bestScore) {
+          bestCandidates.push(candidate.plateIdx);
+        }
+      }
+      bestPlateIdx = shuffleArray(bestCandidates)[0];
+    }
+
+    plateAssignments.get(bestPlateIdx)!.push(singleton);
+    remainingCapacities[bestPlateIdx] -= 1;
+  }
+
+  return plateAssignments;
+}
+
