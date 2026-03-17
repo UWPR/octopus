@@ -52,7 +52,7 @@
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@playwright/test": "^1.58.2",
     "@types/papaparse": "^5.3.14",
-    "fast-check": "^4.6.0",
+    "fast-check": "^3.23.2",
     "gh-pages": "^6.1.1"
   }
 }
