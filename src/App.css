@@ -36,3 +36,11 @@
     transform: rotate(360deg);
   }
 }
+
+/* Highlighted well class — used as a test hook for Playwright.
+   Visual styling is handled by inline styles in Plate.tsx. */
+.well-highlighted,
+.well-highlighted-compact {
+  /* test hook only — visual styles are inline */
+  pointer-events: auto;
+}

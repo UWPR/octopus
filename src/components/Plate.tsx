@@ -232,7 +232,7 @@ const Plate: React.FC<PlateProps> = ({
   }, [compact, renderCompactCell, renderFullCell]);
 
   return (
-    <div style={currentStyles.plate}>
+    <div style={currentStyles.plate} data-testid={`plate-${plateIndex}`}>
       <div style={currentStyles.plateHeader}>
         <div style={currentStyles.plateTitleRow}>
           <div style={currentStyles.plateHeading}>Plate {plateIndex + 1}</div>
@@ -311,7 +311,7 @@ const Plate: React.FC<PlateProps> = ({
           </div>
         )}
       </div>
-      <div style={currentStyles.grid}>
+      <div style={currentStyles.grid} data-testid={`plate-grid-${plateIndex}`}>
         <div style={currentStyles.columnLabels}>
           <div style={currentStyles.emptyCell} />
           {columns.map((column) => (
@@ -330,6 +330,7 @@ const Plate: React.FC<PlateProps> = ({
               return (
                 <div
                   key={columnIndex}
+                  className={isHighlighted ? (compact ? 'well-highlighted-compact' : 'well-highlighted') : undefined}
                   style={{
                     ...(search ? currentStyles.searchWell : currentStyles.emptyWell),
                     ...(isHighlighted ? currentStyles.highlightedWell : {})
@@ -697,7 +698,7 @@ const compactStyles = {
   searchDivider: baseStyles.searchDivider,
   searchMetadata: baseStyles.searchMetadata,
   highlightedWell: {
-    border: '4px solid #2196f3',
+    border: '4px solid rgba(33, 150, 243, 0.5)',
     boxShadow: '0 0 12px rgba(33, 150, 243, 0.8), inset 0 0 0 1px rgba(33, 150, 243, 0.3)',
     transform: 'scale(1.05)',
   },

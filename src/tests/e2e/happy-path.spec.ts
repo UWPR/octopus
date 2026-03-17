@@ -138,16 +138,16 @@ test.describe('Happy Path Workflow', () => {
     await expect(page.getByText('QC/Reference Column:')).toBeVisible();
     await expect(page.getByText('Treatment Covariates:')).toBeVisible();
 
-    // Scrape each summary card: extract covariate key and sample count
+    // Scrape each summary card using data-testid: extract covariate key and sample count
     const summaryCards = await page.evaluate(() => {
       const cards: { key: string; count: number }[] = [];
-      const allDivs = Array.from(document.querySelectorAll('div'));
+      const cardElements = document.querySelectorAll('[data-testid^="summary-card-"]');
 
-      allDivs.forEach(div => {
-        // Each summary card has child detail divs like "Condition: Training"
-        const detailDivs = Array.from(div.querySelectorAll(':scope > div > div'));
+      cardElements.forEach(card => {
         const covariateValues: Record<string, string> = {};
 
+        // Each card has detail divs like "Condition: Training"
+        const detailDivs = card.querySelectorAll('div');
         detailDivs.forEach(d => {
           const text = d.textContent?.trim() || '';
           const match = text.match(/^(.+?):\s*(.+)$/);
@@ -156,9 +156,8 @@ test.describe('Happy Path Workflow', () => {
           }
         });
 
-        // Must have all 3 covariates to be a valid summary card
         if (covariateValues['Condition'] && covariateValues['Radiaion Dose_cGy'] && covariateValues['Focus Area']) {
-          const spans = Array.from(div.querySelectorAll('span'));
+          const spans = Array.from(card.querySelectorAll('span'));
           const countSpan = spans.find(s => /^\d+$/.test(s.textContent?.trim() || ''));
           const count = parseInt(countSpan?.textContent?.trim() || '0');
           const key = `${covariateValues['Condition']}|${covariateValues['Radiaion Dose_cGy']}|${covariateValues['Focus Area']}`;
