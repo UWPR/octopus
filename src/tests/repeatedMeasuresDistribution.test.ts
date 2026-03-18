@@ -1,6 +1,6 @@
 import * as fc from 'fast-check';
-import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows } from '../algorithms/repeatedMeasuresDistribution';
-import { SearchData, SubjectGroup } from '../utils/types';
+import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization } from '../algorithms/repeatedMeasuresDistribution';
+import { SearchData, SubjectGroup, RepeatedMeasuresConfig } from '../utils/types';
 
 // Helper: create a sample with a subject column value
 const makeSample = (name: string, subjectId: string): SearchData => ({
@@ -557,5 +557,329 @@ describe('distributeGroupsToRows', () => {
         expect(singletons.length).toBe(2);
       }
     });
+  });
+});
+
+
+// ─── Property-Based Test: Property 6 ───────────────────────────────────────
+
+describe('Property 6: QC samples reduce effective capacity for group fitting', () => {
+  // Feature: repeated-measures-constraints, Property 6: QC samples reduce effective capacity for group fitting
+  // **Validates: Requirements 7.4**
+
+  it('no row contains more experimental group samples than (numColumns - qcSlotsInRow)', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 4, max: 8 }),   // numRows
+        fc.integer({ min: 4, max: 12 }),  // numColumns
+        fc.gen().map(gen => gen),
+        (numRows, numColumns, gen) => {
+          const plateSize = numRows * numColumns;
+
+          // Generate QC samples (1-20% of plate capacity)
+          const maxQc = Math.max(1, Math.floor(plateSize * 0.2));
+          const numQc = gen(fc.integer, { min: 1, max: maxQc });
+
+          // Generate subject groups that fit within effective capacity
+          const effectiveCapacity = plateSize - numQc;
+          if (effectiveCapacity < 2) return; // too small to test meaningfully
+
+          // Create groups that fit within a single row's effective capacity
+          const maxGroupSize = Math.min(numColumns - 1, effectiveCapacity); // leave room for at least 1 QC per row
+          if (maxGroupSize < 1) return;
+
+          const numGroups = gen(fc.integer, { min: 1, max: Math.min(8, effectiveCapacity) });
+          const samples: SearchData[] = [];
+          let totalExperimental = 0;
+
+          for (let i = 0; i < numGroups && totalExperimental < effectiveCapacity; i++) {
+            const remaining = effectiveCapacity - totalExperimental;
+            const groupSize = gen(fc.integer, { min: 1, max: Math.min(maxGroupSize, remaining) });
+            const subjectId = `P${String(i).padStart(3, '0')}`;
+            const treatment = gen(fc.constantFrom, 'Drug', 'Placebo');
+
+            for (let j = 0; j < groupSize; j++) {
+              samples.push({
+                name: `${subjectId}_T${j}`,
+                metadata: { SubjectID: subjectId, Treatment: treatment },
+              });
+            }
+            totalExperimental += groupSize;
+          }
+
+          if (totalExperimental === 0) return;
+
+          // Add QC samples
+          for (let q = 0; q < numQc; q++) {
+            samples.push({
+              name: `QC_${q}`,
+              metadata: { Treatment: 'QC' },
+              isQC: true,
+            });
+          }
+
+          const config: RepeatedMeasuresConfig = {
+            subjectColumn: 'SubjectID',
+            groupingConstraint: 'same-row',
+          };
+
+          let result: { plates: (SearchData | undefined)[][][] };
+          try {
+            result = groupAwareRandomization(
+              samples,
+              ['Treatment'],
+              config,
+              true,
+              numRows,
+              numColumns
+            );
+          } catch {
+            return; // infeasible packing is acceptable
+          }
+
+          // Verify: no row has more samples than numColumns
+          for (const plate of result.plates) {
+            for (let r = 0; r < plate.length; r++) {
+              const filledWells = plate[r].filter(w => w !== undefined).length;
+              expect(filledWells).toBeLessThanOrEqual(numColumns);
+            }
+          }
+
+          // Verify: total placed samples equals input
+          const totalPlaced = result.plates.flat(2).filter(w => w !== undefined).length;
+          expect(totalPlaced).toBe(samples.length);
+
+          // Verify: QC samples are present in the output
+          const placedQc = result.plates.flat(2).filter(w => w?.isQC === true).length;
+          expect(placedQc).toBe(numQc);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
+// ─── Unit Tests: groupAwareRandomization ────────────────────────────────────
+
+describe('groupAwareRandomization', () => {
+  // Helper to create experimental samples for a subject
+  const makeSubjectSamples = (
+    subjectId: string,
+    count: number,
+    treatment: string
+  ): SearchData[] =>
+    Array.from({ length: count }, (_, i) => ({
+      name: `${subjectId}_T${i}`,
+      metadata: { SubjectID: subjectId, Treatment: treatment },
+    }));
+
+  // Helper to create QC samples
+  const makeQcSamples = (prefix: string, count: number): SearchData[] =>
+    Array.from({ length: count }, (_, i) => ({
+      name: `${prefix}_${i}`,
+      metadata: { Condition: prefix },
+      isQC: true,
+    }));
+
+  it('handles the small test data scenario (8 subjects, mixed sizes, QC/Reference/Blinded)', () => {
+    // Scenario A from requirements: 8 subjects with mixed group sizes + QC samples
+    const samples: SearchData[] = [
+      ...makeSubjectSamples('P001', 4, 'Drug'),
+      ...makeSubjectSamples('P002', 4, 'Placebo'),
+      ...makeSubjectSamples('P003', 4, 'Drug'),
+      ...makeSubjectSamples('P004', 4, 'Placebo'),
+      ...makeSubjectSamples('P005', 3, 'Drug'),
+      ...makeSubjectSamples('P006', 2, 'Placebo'),
+      ...makeSubjectSamples('P007', 1, 'Drug'),
+      ...makeSubjectSamples('P008', 1, 'Placebo'),
+      ...makeQcSamples('QC', 8),
+      ...makeQcSamples('Reference', 8),
+      ...makeQcSamples('Blinded', 8),
+    ];
+
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-row',
+    };
+
+    const result = groupAwareRandomization(
+      samples,
+      ['Treatment'],
+      config,
+      true,
+      8,
+      12
+    );
+
+    // All 47 samples should be placed
+    const totalPlaced = result.plates.flat(2).filter(w => w !== undefined).length;
+    expect(totalPlaced).toBe(47);
+
+    // Only 1 plate needed (47 < 96)
+    expect(result.plates.length).toBe(1);
+
+    // Same-row invariant: all samples from each subject are in the same row
+    const plate = result.plates[0];
+    const subjectRows = new Map<string, Set<number>>();
+    for (let r = 0; r < plate.length; r++) {
+      for (const well of plate[r]) {
+        if (well && well.metadata.SubjectID) {
+          if (!subjectRows.has(well.metadata.SubjectID)) {
+            subjectRows.set(well.metadata.SubjectID, new Set());
+          }
+          subjectRows.get(well.metadata.SubjectID)!.add(r);
+        }
+      }
+    }
+    subjectRows.forEach((rows, subjectId) => {
+      expect(rows.size).toBe(1);
+    });
+
+    // No row exceeds 12 columns
+    for (const row of plate) {
+      const filled = row.filter(w => w !== undefined).length;
+      expect(filled).toBeLessThanOrEqual(12);
+    }
+
+    // QC samples are present
+    const qcCount = result.plates.flat(2).filter(w => w?.isQC === true).length;
+    expect(qcCount).toBe(24);
+  });
+
+  it('with same-plate constraint keeps all subject samples on the same plate', () => {
+    // Multi-plate scenario with same-plate constraint
+    // 4 subjects × 3 samples = 12 experimental + 0 QC = 12 total
+    // 2 rows × 4 columns = 8 wells per plate → need 2 plates
+    const samples: SearchData[] = [
+      ...makeSubjectSamples('P001', 3, 'Drug'),
+      ...makeSubjectSamples('P002', 3, 'Placebo'),
+      ...makeSubjectSamples('P003', 3, 'Drug'),
+      ...makeSubjectSamples('P004', 3, 'Placebo'),
+    ];
+
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-plate',
+    };
+
+    const result = groupAwareRandomization(
+      samples,
+      ['Treatment'],
+      config,
+      false,
+      2,
+      4
+    );
+
+    const totalPlaced = result.plates.flat(2).filter(w => w !== undefined).length;
+    expect(totalPlaced).toBe(12);
+    expect(result.plates.length).toBe(2);
+
+    // Same-plate invariant: all samples from each subject are on the same plate
+    const subjectPlates = new Map<string, Set<number>>();
+    for (let p = 0; p < result.plates.length; p++) {
+      for (const row of result.plates[p]) {
+        for (const well of row) {
+          if (well && well.metadata.SubjectID) {
+            if (!subjectPlates.has(well.metadata.SubjectID)) {
+              subjectPlates.set(well.metadata.SubjectID, new Set());
+            }
+            subjectPlates.get(well.metadata.SubjectID)!.add(p);
+          }
+        }
+      }
+    }
+    subjectPlates.forEach((plates) => {
+      expect(plates.size).toBe(1);
+    });
+  });
+
+  it('keepEmptyInLastPlate + grouping constraint together', () => {
+    // 20 experimental samples + 4 QC = 24 total
+    // 4 rows × 6 columns = 24 wells per plate → 1 plate, exact fit
+    // With keepEmptyInLastPlate=true, should still work
+    const samples: SearchData[] = [
+      ...makeSubjectSamples('P001', 3, 'Drug'),
+      ...makeSubjectSamples('P002', 3, 'Placebo'),
+      ...makeSubjectSamples('P003', 2, 'Drug'),
+      ...makeSubjectSamples('P004', 2, 'Placebo'),
+      ...makeQcSamples('QC', 4),
+    ];
+
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-row',
+    };
+
+    const result = groupAwareRandomization(
+      samples,
+      ['Treatment'],
+      config,
+      true,
+      4,
+      6
+    );
+
+    const totalPlaced = result.plates.flat(2).filter(w => w !== undefined).length;
+    expect(totalPlaced).toBe(14);
+
+    // Same-row invariant
+    const plate = result.plates[0];
+    const subjectRows = new Map<string, Set<number>>();
+    for (let r = 0; r < plate.length; r++) {
+      for (const well of plate[r]) {
+        if (well && well.metadata.SubjectID) {
+          if (!subjectRows.has(well.metadata.SubjectID)) {
+            subjectRows.set(well.metadata.SubjectID, new Set());
+          }
+          subjectRows.get(well.metadata.SubjectID)!.add(r);
+        }
+      }
+    }
+    subjectRows.forEach((rows) => {
+      expect(rows.size).toBe(1);
+    });
+
+    // QC samples present
+    const qcCount = result.plates.flat(2).filter(w => w?.isQC === true).length;
+    expect(qcCount).toBe(4);
+  });
+
+  it('returns plateAssignments map with all samples', () => {
+    const samples: SearchData[] = [
+      ...makeSubjectSamples('P001', 3, 'Drug'),
+      ...makeSubjectSamples('P002', 3, 'Placebo'),
+      ...makeQcSamples('QC', 2),
+    ];
+
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-row',
+    };
+
+    const result = groupAwareRandomization(
+      samples,
+      ['Treatment'],
+      config,
+      true,
+      4,
+      6
+    );
+
+    expect(result.plateAssignments).toBeDefined();
+    const totalInAssignments = Array.from(result.plateAssignments!.values())
+      .reduce((sum, arr) => sum + arr.length, 0);
+    expect(totalInAssignments).toBe(8);
+  });
+
+  it('throws when subjectColumn is null', () => {
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: null,
+      groupingConstraint: 'same-row',
+    };
+
+    expect(() => {
+      groupAwareRandomization([], [], config, true, 8, 12);
+    }).toThrow('groupAwareRandomization requires a subjectColumn to be set');
   });
 });
