@@ -1,8 +1,9 @@
-import { SearchData, RandomizationAlgorithm, CovariateConfig } from './types';
+import { SearchData, RandomizationAlgorithm, CovariateConfig, RepeatedMeasuresConfig } from './types';
 import { QualityLevel, QUALITY_LEVEL_CONFIG } from './configs';
 import Papa from 'papaparse';
 import { balancedBlockRandomization } from '../algorithms/balancedRandomization';
 import { greedyRandomization } from '../algorithms/greedyRandomization';
+import { groupAwareRandomization } from '../algorithms/repeatedMeasuresDistribution';
 
 // Utility functions
 export function shuffleArray<T>(array: T[]): T[] {
@@ -130,11 +131,23 @@ export function randomizeSearches(
   algorithm: RandomizationAlgorithm = 'balanced',
   keepEmptyInLastPlate: boolean = true,
   numRows: number = 8,
-  numColumns: number = 12
+  numColumns: number = 12,
+  repeatedMeasuresConfig?: RepeatedMeasuresConfig
 ): {
   plates: (SearchData | undefined)[][][];
   plateAssignments?: Map<number, SearchData[]>;
 } {
+  // When a subject column is set, use group-aware randomization
+  if (repeatedMeasuresConfig?.subjectColumn) {
+    return groupAwareRandomization(
+      searches,
+      selectedCovariates,
+      repeatedMeasuresConfig,
+      keepEmptyInLastPlate,
+      numRows,
+      numColumns
+    );
+  }
 
   switch (algorithm) {
     case 'balanced':

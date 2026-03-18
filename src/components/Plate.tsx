@@ -54,15 +54,19 @@ const createTooltipText = (
   search: SearchData,
   rowIndex: number,
   columnIndex: number,
-  selectedCovariates: string[]
+  selectedCovariates: string[],
+  subjectColumn?: string
 ): string => {
   const position = `${getRowLabel(rowIndex)}${columnIndex + 1}`;
+  const subjectInfo = subjectColumn && search.metadata[subjectColumn]
+    ? `\n${subjectColumn}: ${search.metadata[subjectColumn]}`
+    : '';
   const covariateInfo = selectedCovariates.length > 0
     ? '\n' + selectedCovariates
       .map(cov => `${cov}: ${search.metadata[cov] || 'N/A'}`)
       .join(', ')
     : '';
-  return `${search.name} (${position})${covariateInfo}`;
+  return `${search.name} (${position})${subjectInfo}${covariateInfo}`;
 };
 
 interface PlateProps {
@@ -79,6 +83,7 @@ interface PlateProps {
   onShowDetails?: (plateIndex: number) => void;
   plateQuality?: PlateQualityScore;
   onReRandomizePlate?: (plateIndex: number) => void;
+  subjectColumn?: string;
 }
 
 const Plate: React.FC<PlateProps> = ({
@@ -94,7 +99,8 @@ const Plate: React.FC<PlateProps> = ({
   numColumns = 12,
   onShowDetails,
   plateQuality,
-  onReRandomizePlate
+  onReRandomizePlate,
+  subjectColumn
 }) => {
 
 
@@ -214,6 +220,11 @@ const Plate: React.FC<PlateProps> = ({
           </h3>
         </div>
         <div style={{ padding: '12px' }}>
+          {subjectColumn && search.metadata[subjectColumn] && (
+            <div key="subject-id" style={currentStyles.searchMetadata}>
+              {`${subjectColumn}: ${search.metadata[subjectColumn]}`}
+            </div>
+          )}
           {selectedCovariates.map((covariate: string) =>
             search.metadata[covariate] ? (
               <div key={covariate} style={currentStyles.searchMetadata}>
@@ -224,7 +235,7 @@ const Plate: React.FC<PlateProps> = ({
         </div>
       </div>
     );
-  }, [covariateColors, selectedCovariates, currentStyles, onDragStart, compact]);
+  }, [covariateColors, selectedCovariates, currentStyles, onDragStart, compact, subjectColumn]);
 
   // Unified cell renderer
   const renderSearchCell = useCallback((search: SearchData, isHighlighted: boolean) => {
@@ -339,7 +350,7 @@ const Plate: React.FC<PlateProps> = ({
                   onDrop={(event) => handleDrop(event, rowIndex, columnIndex)}
                   title={
                     compact && search
-                      ? createTooltipText(search, rowIndex, columnIndex, selectedCovariates)
+                      ? createTooltipText(search, rowIndex, columnIndex, selectedCovariates, subjectColumn)
                       : undefined
                   }
                 >

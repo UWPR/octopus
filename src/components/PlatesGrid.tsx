@@ -29,6 +29,7 @@ interface PlatesGridProps {
   onShowDetails?: (plateIndex: number) => void;
   onReRandomizePlate?: (plateIndex: number) => void;
   qualityMetrics?: QualityMetrics;
+  subjectColumn?: string;
 }
 
 const PlatesGrid: React.FC<PlatesGridProps> = ({
@@ -44,6 +45,7 @@ const PlatesGrid: React.FC<PlatesGridProps> = ({
   onShowDetails,
   onReRandomizePlate,
   qualityMetrics,
+  subjectColumn,
 }) => {
   if (randomizedPlates.length === 0) return null;
 
@@ -65,6 +67,7 @@ const PlatesGrid: React.FC<PlatesGridProps> = ({
             onShowDetails={onShowDetails}
             onReRandomizePlate={onReRandomizePlate}
             plateQuality={qualityMetrics?.plateDiversity.plateScores.find(score => score.plateIndex === plateIndex)}
+            subjectColumn={subjectColumn}
           />
         </div>
       ))}

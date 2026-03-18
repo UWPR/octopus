@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { SearchData, RandomizationAlgorithm } from '../utils/types';
+import { SearchData, RandomizationAlgorithm, RepeatedMeasuresConfig } from '../utils/types';
 import { randomizeSearches } from '../utils/utils';
 import { greedyPlaceInRow } from '../algorithms/greedySpatialPlacement';
+import { groupAwareRandomization } from '../algorithms/repeatedMeasuresDistribution';
 
 export function useRandomization() {
   const [isProcessed, setIsProcessed] = useState<boolean>(false);
@@ -14,7 +15,8 @@ export function useRandomization() {
     selectedAlgorithm: RandomizationAlgorithm,
     keepEmptyInLastPlate: boolean,
     plateRows: number,
-    plateColumns: number
+    plateColumns: number,
+    repeatedMeasuresConfig?: RepeatedMeasuresConfig
   ) => {
     if (searches.length > 0 && selectedCovariates.length > 0) {
       const result = randomizeSearches(
@@ -23,7 +25,8 @@ export function useRandomization() {
         selectedAlgorithm,
         keepEmptyInLastPlate,
         plateRows,
-        plateColumns
+        plateColumns,
+        repeatedMeasuresConfig
       );
       setRandomizedPlates(result.plates);
       setPlateAssignments(result.plateAssignments);
@@ -39,7 +42,8 @@ export function useRandomization() {
     selectedAlgorithm: RandomizationAlgorithm,
     keepEmptyInLastPlate: boolean,
     plateRows: number,
-    plateColumns: number
+    plateColumns: number,
+    repeatedMeasuresConfig?: RepeatedMeasuresConfig
   ) => {
     if (searches.length > 0 && selectedCovariates.length > 0) {
       const result = randomizeSearches(
@@ -48,7 +52,8 @@ export function useRandomization() {
         selectedAlgorithm,
         keepEmptyInLastPlate,
         plateRows,
-        plateColumns
+        plateColumns,
+        repeatedMeasuresConfig
       );
       setRandomizedPlates(result.plates);
       setPlateAssignments(result.plateAssignments);
@@ -122,7 +127,8 @@ export function useRandomization() {
     selectedAlgorithm: RandomizationAlgorithm,
     keepEmptyInLastPlate: boolean,
     plateRows: number,
-    plateColumns: number
+    plateColumns: number,
+    repeatedMeasuresConfig?: RepeatedMeasuresConfig
   ) => {
     if (!plateAssignments) return false;
 
@@ -135,26 +141,45 @@ export function useRandomization() {
     if (plateSamples.length === 0) return false;
 
     if (selectedAlgorithm === 'balanced') {
-      // For balanced randomization: use row-level greedy spatial placement
-      console.log(`Re-randomizing plate ${plateIndex + 1} using greedy spatial placement`);
+      // When grouping constraint is active, use groupAwareRandomization on just the plate's samples
+      if (repeatedMeasuresConfig?.subjectColumn) {
+        console.log(`Re-randomizing plate ${plateIndex + 1} using group-aware randomization`);
 
-      // Create a new empty plate
-      const newPlate: (SearchData | undefined)[][] = Array(plateRows)
-        .fill(null)
-        .map(() => Array(plateColumns).fill(undefined));
+        const result = groupAwareRandomization(
+          plateSamples,
+          selectedCovariates,
+          repeatedMeasuresConfig,
+          false, // Don't keep empty in last plate for single-plate re-randomization
+          plateRows,
+          plateColumns
+        );
 
-      // Process each row using greedy placement
-      currentPlate.forEach((row, rowIdx) => {
-        // Get all non-undefined samples in this row
-        const rowSamples = row.filter(sample => sample !== undefined) as SearchData[];
-
-        if (rowSamples.length > 0) {
-          // Use greedy spatial placement for this row
-          greedyPlaceInRow(rowSamples, newPlate, rowIdx, plateColumns);
+        // The result should produce exactly 1 plate since we're passing just this plate's samples
+        if (result.plates.length > 0) {
+          updatedRandomizedPlates[plateIndex] = result.plates[0];
         }
-      });
+      } else {
+        // For balanced randomization without grouping: use row-level greedy spatial placement
+        console.log(`Re-randomizing plate ${plateIndex + 1} using greedy spatial placement`);
 
-      updatedRandomizedPlates[plateIndex] = newPlate;
+        // Create a new empty plate
+        const newPlate: (SearchData | undefined)[][] = Array(plateRows)
+          .fill(null)
+          .map(() => Array(plateColumns).fill(undefined));
+
+        // Process each row using greedy placement
+        currentPlate.forEach((row, rowIdx) => {
+          // Get all non-undefined samples in this row
+          const rowSamples = row.filter(sample => sample !== undefined) as SearchData[];
+
+          if (rowSamples.length > 0) {
+            // Use greedy spatial placement for this row
+            greedyPlaceInRow(rowSamples, newPlate, rowIdx, plateColumns);
+          }
+        });
+
+        updatedRandomizedPlates[plateIndex] = newPlate;
+      }
     } else {
       // For other algorithms (greedy): shuffle the entire plate
       console.log(`Re-randomizing plate ${plateIndex + 1} using simple shuffling with ${plateSamples.length} samples`);

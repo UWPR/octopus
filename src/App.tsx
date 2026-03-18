@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import FileUploadSection from './components/FileUploadSection';
 import ConfigurationForm from './components/ConfigurationForm';
 import SummaryPanel from './components/SummaryPanel';
@@ -7,7 +7,7 @@ import ExcelExportModal from './components/ExcelExportModal';
 import PlatesGrid from './components/PlatesGrid';
 import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
-import { SearchData, RandomizationAlgorithm } from './utils/types';
+import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig } from './utils/types';
 import { downloadCSV, buildCovariateKey, getCovariateKey, getQualityLevelColor, formatScore } from './utils/utils';
 import { exportToExcel } from './utils/excelExport';
 import { useFileUpload } from './hooks/useFileUpload';
@@ -17,6 +17,7 @@ import { useCovariateColors } from './hooks/useCovariateColors';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useQualityMetrics } from './hooks/useQualityMetrics';
 import { isDeveloperMode } from './utils/configs';
+import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 
 
 
@@ -108,6 +109,17 @@ const App: React.FC = () => {
   const [selectedPlateIndex, setSelectedPlateIndex] = useState<number | null>(null);
   const [showExcelExportModal, setShowExcelExportModal] = useState<boolean>(false);
 
+  // Repeated-measures state
+  const [subjectColumn, setSubjectColumn] = useState<string>('');
+  const [groupingConstraint, setGroupingConstraint] = useState<GroupingConstraint>('none');
+  const [groupValidation, setGroupValidation] = useState<GroupValidationResult | null>(null);
+
+  // Compute subject groups whenever subject column or searches change
+  const subjectGroups = useMemo(() => {
+    if (!subjectColumn || searches.length === 0) return [];
+    return buildSubjectGroups(searches, subjectColumn);
+  }, [subjectColumn, searches]);
+
 
   // Calculate quality metrics when randomization completes or plates change
   useEffect(() => {
@@ -116,10 +128,11 @@ const App: React.FC = () => {
         searches,
         randomizedPlates,
         plateAssignments,
-        selectedCovariates
+        selectedCovariates,
+        groupingConstraint !== 'none' ? groupingConstraint : undefined
       );
     }
-  }, [isProcessed, randomizedPlates, plateAssignments, selectedCovariates, searches, calculateMetrics]);
+  }, [isProcessed, randomizedPlates, plateAssignments, selectedCovariates, searches, calculateMetrics, groupingConstraint]);
 
   // Reset all state when a new file is uploaded (but not on initial load)
   useEffect(() => {
@@ -137,6 +150,11 @@ const App: React.FC = () => {
       setQcColumnValues([]);
       setSelectedQcValues([]);
 
+      // Reset repeated-measures state
+      setSubjectColumn('');
+      setGroupingConstraint('none');
+      setGroupValidation(null);
+
       // Reset algorithm selection (keep defaults)
       setSelectedAlgorithm(defaultAlgorithm);
       setKeepEmptyInLastPlate(true);
@@ -153,6 +171,21 @@ const App: React.FC = () => {
       setSelectedPlateIndex(null);
     }
   }, [selectedFileName, searches.length]); // Trigger when filename changes or searches are loaded
+
+  // Run validation whenever subject column, grouping constraint, or plate dimensions change
+  useEffect(() => {
+    if (subjectColumn && searches.length > 0 && groupingConstraint !== 'none') {
+      const groups = buildSubjectGroups(searches, subjectColumn);
+      const rowCapacity = plateColumns;
+      const plateCapacity = plateRows * plateColumns;
+      const numPlates = Math.ceil(searches.length / plateCapacity);
+      const totalWellCapacity = numPlates * plateCapacity;
+      const result = validateSubjectGroups(groups, groupingConstraint, rowCapacity, plateCapacity, totalWellCapacity);
+      setGroupValidation(result);
+    } else {
+      setGroupValidation(null);
+    }
+  }, [subjectColumn, groupingConstraint, plateRows, plateColumns, searches]);
 
   const resetCovariateState = () => {
     resetRandomization();
@@ -199,6 +232,14 @@ const App: React.FC = () => {
   const handleCovariateChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedOptions = Array.from(event.target.selectedOptions, (option) => option.value);
     setSelectedCovariates(selectedOptions);
+
+    // Conflict resolution: clear subject column if it's now a selected covariate
+    if (subjectColumn && selectedOptions.includes(subjectColumn)) {
+      setSubjectColumn('');
+      setGroupingConstraint('none');
+      setGroupValidation(null);
+    }
+
     resetCovariateState();
   };
 
@@ -210,7 +251,16 @@ const App: React.FC = () => {
 
   // QC column change handler
   const handleQcColumnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setQcColumn(event.target.value);
+    const newQcColumn = event.target.value;
+    setQcColumn(newQcColumn);
+
+    // Conflict resolution: clear subject column if it matches the new QC column
+    if (subjectColumn && newQcColumn === subjectColumn) {
+      setSubjectColumn('');
+      setGroupingConstraint('none');
+      setGroupValidation(null);
+    }
+
     resetCovariateState();
   };
 
@@ -223,6 +273,38 @@ const App: React.FC = () => {
         return [...prev, value];
       }
     });
+    resetCovariateState();
+  };
+
+  // Subject column change handler with mutual exclusivity conflict resolution
+  const handleSubjectColumnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSubjectColumn = event.target.value;
+    setSubjectColumn(newSubjectColumn);
+
+    if (newSubjectColumn) {
+      // Conflict resolution: deselect if new subject column is a selected covariate
+      if (selectedCovariates.includes(newSubjectColumn)) {
+        setSelectedCovariates(prev => prev.filter(c => c !== newSubjectColumn));
+      }
+      // Conflict resolution: clear QC column if it matches
+      if (qcColumn === newSubjectColumn) {
+        setQcColumn('');
+        setQcColumnValues([]);
+        setSelectedQcValues([]);
+      }
+    }
+
+    // Reset grouping constraint to none when subject column is cleared
+    if (!newSubjectColumn) {
+      setGroupingConstraint('none');
+    }
+
+    resetCovariateState();
+  };
+
+  // Grouping constraint change handler
+  const handleGroupingConstraintChange = (constraint: GroupingConstraint) => {
+    setGroupingConstraint(constraint);
     resetCovariateState();
   };
 
@@ -259,6 +341,10 @@ const App: React.FC = () => {
       // Process metadata and set the covariateKey
       processMetadata(searches);
 
+      // Build repeated measures config
+      const repeatedMeasuresConfig: RepeatedMeasuresConfig | undefined =
+        subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
+
       // Process randomization
       const success = processRandomization(
         searches,
@@ -266,7 +352,8 @@ const App: React.FC = () => {
         selectedAlgorithm,
         keepEmptyInLastPlate,
         plateRows,
-        plateColumns
+        plateColumns,
+        repeatedMeasuresConfig
       );
 
       if (success) {
@@ -324,6 +411,10 @@ const App: React.FC = () => {
       // Process metadata and set the covariateKey
       processMetadata(searches);
 
+      // Build repeated measures config
+      const repeatedMeasuresConfig: RepeatedMeasuresConfig | undefined =
+        subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
+
       // Re-randomize - colors are already generated, so we don't need to regenerate them
       reRandomize(
         searches,
@@ -331,7 +422,8 @@ const App: React.FC = () => {
         selectedAlgorithm,
         keepEmptyInLastPlate,
         plateRows,
-        plateColumns
+        plateColumns,
+        repeatedMeasuresConfig
       );
     }
   };
@@ -342,6 +434,10 @@ const App: React.FC = () => {
       // Process metadata and set the covariateKey
       processMetadata(searches);
 
+      // Build repeated measures config
+      const repeatedMeasuresConfig: RepeatedMeasuresConfig | undefined =
+        subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
+
       reRandomizeSinglePlate(
         plateIndex,
         searches,
@@ -349,7 +445,8 @@ const App: React.FC = () => {
         selectedAlgorithm,
         keepEmptyInLastPlate,
         plateRows,
-        plateColumns
+        plateColumns,
+        repeatedMeasuresConfig
       );
       // Quality metrics will be recalculated automatically via useEffect
     }
@@ -406,7 +503,8 @@ const App: React.FC = () => {
 
 
 
-  const canProcess = selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0;
+  const canProcess = selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0
+    && (groupValidation === null || groupValidation.isValid);
 
   return (
     <div style={styles.container}>
@@ -446,6 +544,12 @@ const App: React.FC = () => {
           onPlateRowsChange={setPlateRows}
           onPlateColumnsChange={setPlateColumns}
           onResetCovariateState={resetCovariateState}
+          subjectColumn={subjectColumn}
+          onSubjectColumnChange={handleSubjectColumnChange}
+          groupingConstraint={groupingConstraint}
+          onGroupingConstraintChange={handleGroupingConstraintChange}
+          groupValidation={groupValidation}
+          subjectGroups={subjectGroups}
         />
 
 
@@ -549,6 +653,7 @@ const App: React.FC = () => {
                 onShowDetails={handleShowPlateDetails}
                 onReRandomizePlate={handleReRandomizePlate}
                 qualityMetrics={metrics ?? undefined}
+                subjectColumn={subjectColumn || undefined}
               />
             </>
           )}

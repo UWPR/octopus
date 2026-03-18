@@ -1,4 +1,4 @@
-import { SearchData, QualityMetrics, PlateDiversityMetrics, PlateQualityScore, OverallQualityAssessment } from '../utils/types';
+import { SearchData, QualityMetrics, PlateDiversityMetrics, PlateQualityScore, OverallQualityAssessment, GroupingConstraint } from '../utils/types';
    import { DEFAULT_QUALITY_DISPLAY_CONFIG, QualityDisplayConfig } from '../utils/configs';
 import { groupByCovariates, getQualityLevel } from '../utils/utils';
 
@@ -563,9 +563,18 @@ export const calculatePlateDiversityMetrics = (
  */
 export const calculateOverallQuality = (
   plateDiversity: PlateDiversityMetrics,
-  displayConfig: QualityDisplayConfig = DEFAULT_QUALITY_DISPLAY_CONFIG
+  displayConfig: QualityDisplayConfig = DEFAULT_QUALITY_DISPLAY_CONFIG,
+  groupingConstraint?: GroupingConstraint
 ): OverallQualityAssessment => {
   const recommendations: string[] = [];
+
+  // Add recommendation when grouping constraints are active
+  if (groupingConstraint && groupingConstraint !== 'none') {
+    const constraintLabel = groupingConstraint === 'same-row' ? 'Same Row' : 'Same Plate';
+    recommendations.push(
+      `Grouping constraint "${constraintLabel}" is active. Covariate balance may be limited compared to unconstrained randomization.`
+    );
+  }
 
   // Calculate overall score based on display configuration
   let scoreCount = 1;
@@ -600,7 +609,8 @@ export const calculateQualityMetrics = (
   plateAssignments: Map<number, SearchData[]>,
   randomizedPlates: (SearchData | undefined)[][][],
   selectedCovariates: string[],
-  displayConfig: QualityDisplayConfig = DEFAULT_QUALITY_DISPLAY_CONFIG
+  displayConfig: QualityDisplayConfig = DEFAULT_QUALITY_DISPLAY_CONFIG,
+  groupingConstraint?: GroupingConstraint
 ): QualityMetrics => {
   const plateDiversity = calculatePlateDiversityMetrics(
     searches,
@@ -610,7 +620,7 @@ export const calculateQualityMetrics = (
     displayConfig
   );
 
-  const overallQuality = calculateOverallQuality(plateDiversity, displayConfig);
+  const overallQuality = calculateOverallQuality(plateDiversity, displayConfig, groupingConstraint);
 
   return {
     plateDiversity,
