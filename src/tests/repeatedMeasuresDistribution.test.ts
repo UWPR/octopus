@@ -1,5 +1,5 @@
 import * as fc from 'fast-check';
-import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization, covariateImbalanceScore, computeGlobalProportions } from '../algorithms/repeatedMeasuresDistribution';
+import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization, covariateImbalanceScore, computeGlobalProportions, distributeQcByCovariate } from '../algorithms/repeatedMeasuresDistribution';
 import { SearchData, SubjectGroup, RepeatedMeasuresConfig } from '../utils/types';
 
 // Helper: create a sample with a subject column value
@@ -1785,5 +1785,506 @@ describe('Preservation Property: covariateImbalanceScore edge-case and multi-gro
       }),
       { numRuns: 200 }
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Feature: qc-covariate-balanced-distribution
+// Property 2: Plate-level proportional balance per QC covariate group
+// ---------------------------------------------------------------------------
+describe('Feature: qc-covariate-balanced-distribution, Property 2: Plate-level proportional balance per QC covariate group', () => {
+  /** Arbitrary that generates a random QC sample with a random covariateKey */
+  const qcSampleArb = fc.record({
+    name: fc.string({ minLength: 1, maxLength: 10 }),
+    covariateKey: fc.oneof(
+      fc.constant(undefined),
+      fc.constant(''),
+      fc.string({ minLength: 1, maxLength: 20 })
+    ),
+  }).map(({ name, covariateKey }): SearchData => ({
+    name,
+    metadata: {},
+    isQC: true,
+    ...(covariateKey !== undefined ? { covariateKey } : {}),
+  }));
+
+  it('per-group plate counts satisfy max-min ≤ 1 and total conservation', () => {
+    fc.assert(
+      fc.property(
+        fc.array(qcSampleArb, { minLength: 0, maxLength: 50 }),
+        fc.integer({ min: 1, max: 6 }),
+        fc.integer({ min: 1, max: 8 }),
+        (qcSamples, numPlates, numRows) => {
+          const result = distributeQcByCovariate(qcSamples, numPlates, numRows);
+
+          // Build expected group counts from input
+          const expectedGroups = new Map<string, number>();
+          for (const s of qcSamples) {
+            const key = s.covariateKey || '';
+            expectedGroups.set(key, (expectedGroups.get(key) ?? 0) + 1);
+          }
+
+          // For each covariate group, collect per-plate counts from the output
+          for (const [groupKey, expectedTotal] of Array.from(expectedGroups.entries())) {
+            const plateCounts: number[] = [];
+            for (let p = 0; p < numPlates; p++) {
+              let count = 0;
+              for (let r = 0; r < numRows; r++) {
+                count += result[p][r].filter(s => (s.covariateKey || '') === groupKey).length;
+              }
+              plateCounts.push(count);
+            }
+
+            // Total conservation: sum across plates equals input group count
+            const totalAcrossPlates = plateCounts.reduce((a, b) => a + b, 0);
+            expect(totalAcrossPlates).toBe(expectedTotal);
+
+            // Proportional balance: max - min ≤ 1
+            const maxCount = Math.max(...plateCounts);
+            const minCount = Math.min(...plateCounts);
+            expect(maxCount - minCount).toBeLessThanOrEqual(1);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Feature: qc-covariate-balanced-distribution
+// Property 1: QC grouping is complete and disjoint
+// ---------------------------------------------------------------------------
+describe('Feature: qc-covariate-balanced-distribution, Property 1: QC grouping is complete and disjoint', () => {
+  /** Arbitrary that generates a random QC sample with a random covariateKey */
+  const qcSampleArb = fc.record({
+    name: fc.string({ minLength: 1, maxLength: 10 }),
+    covariateKey: fc.oneof(
+      fc.constant(undefined),
+      fc.constant(''),
+      fc.string({ minLength: 1, maxLength: 20 })
+    ),
+  }).map(({ name, covariateKey }): SearchData => ({
+    name,
+    metadata: {},
+    isQC: true,
+    ...(covariateKey !== undefined ? { covariateKey } : {}),
+  }));
+
+  it('union of all output samples equals the input set exactly (no loss, no duplication)', () => {
+    fc.assert(
+      fc.property(
+        fc.array(qcSampleArb, { minLength: 0, maxLength: 50 }),
+        fc.integer({ min: 1, max: 6 }),
+        fc.integer({ min: 1, max: 8 }),
+        (qcSamples, numPlates, numRows) => {
+          const result = distributeQcByCovariate(qcSamples, numPlates, numRows);
+
+          // Collect every sample from the 3D output
+          const outputSamples: SearchData[] = [];
+          for (let p = 0; p < result.length; p++) {
+            for (let r = 0; r < result[p].length; r++) {
+              outputSamples.push(...result[p][r]);
+            }
+          }
+
+          // Total count must match
+          expect(outputSamples.length).toBe(qcSamples.length);
+
+          // Every input sample must appear exactly once in the output (by reference)
+          // Every input sample must appear exactly once in the output (by reference)
+          const outputSet = new Set(outputSamples);
+          expect(outputSet.size).toBe(outputSamples.length); // no duplicates
+          qcSamples.forEach(s => {
+            expect(outputSet.has(s)).toBe(true);
+          });
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Feature: qc-covariate-balanced-distribution
+// Property 3: Row-level proportional balance per QC covariate group within each plate
+// ---------------------------------------------------------------------------
+describe('Feature: qc-covariate-balanced-distribution, Property 3: Row-level proportional balance per QC covariate group within each plate', () => {
+  /** Arbitrary that generates a random QC sample with a random covariateKey */
+  const qcSampleArb = fc.record({
+    name: fc.string({ minLength: 1, maxLength: 10 }),
+    covariateKey: fc.oneof(
+      fc.constant(undefined),
+      fc.constant(''),
+      fc.string({ minLength: 1, maxLength: 20 })
+    ),
+  }).map(({ name, covariateKey }): SearchData => ({
+    name,
+    metadata: {},
+    isQC: true,
+    ...(covariateKey !== undefined ? { covariateKey } : {}),
+  }));
+
+  it('per-group row counts within each plate satisfy max-min ≤ 1 and total conservation', () => {
+    fc.assert(
+      fc.property(
+        fc.array(qcSampleArb, { minLength: 0, maxLength: 50 }),
+        fc.integer({ min: 1, max: 6 }),
+        fc.integer({ min: 1, max: 8 }),
+        (qcSamples, numPlates, numRows) => {
+          const result = distributeQcByCovariate(qcSamples, numPlates, numRows);
+
+          // For each plate, build per-group row counts and verify balance
+          for (let p = 0; p < numPlates; p++) {
+            // Collect all covariate groups present on this plate
+            const plateGroupCounts = new Map<string, number>();
+            for (let r = 0; r < numRows; r++) {
+              for (const s of result[p][r]) {
+                const key = s.covariateKey || '';
+                plateGroupCounts.set(key, (plateGroupCounts.get(key) ?? 0) + 1);
+              }
+            }
+
+            // For each group on this plate, check row-level balance
+            plateGroupCounts.forEach((plateTotal, groupKey) => {
+              const rowCounts: number[] = [];
+              for (let r = 0; r < numRows; r++) {
+                rowCounts.push(
+                  result[p][r].filter(s => (s.covariateKey || '') === groupKey).length
+                );
+              }
+
+              // Total conservation: sum across rows equals plate allocation for this group
+              const totalAcrossRows = rowCounts.reduce((a, b) => a + b, 0);
+              expect(totalAcrossRows).toBe(plateTotal);
+
+              // Proportional balance: max - min ≤ 1
+              const maxCount = Math.max(...rowCounts);
+              const minCount = Math.min(...rowCounts);
+              expect(maxCount - minCount).toBeLessThanOrEqual(1);
+            });
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Feature: qc-covariate-balanced-distribution
+// Property 4: Effective row capacity equals columns minus QC allocation
+// ---------------------------------------------------------------------------
+describe('Feature: qc-covariate-balanced-distribution, Property 4: Effective row capacity equals columns minus QC allocation', () => {
+  /**
+   * Generator that produces a valid input for groupAwareRandomization:
+   * - Random experimental samples (small subject groups, size 1-2)
+   * - Random QC samples with multiple covariate groups
+   * - Plate dimensions that can fit all samples
+   *
+   * Constraints are guaranteed by construction so the generator never
+   * needs to filter/reject inputs.
+   */
+  const validInputArb = fc.gen().map(gen => {
+    const numRows = gen(fc.integer, { min: 2, max: 6 });
+    const numColumns = gen(fc.integer, { min: 4, max: 12 });
+    const plateSize = numRows * numColumns;
+
+    // QC samples: 0-30% of plate capacity, split across 1-3 covariate groups
+    const maxQc = Math.floor(plateSize * 0.3);
+    const numQcGroups = gen(fc.integer, { min: 1, max: 3 });
+    const qcGroupNames = ['QC', 'Reference', 'Blinded'].slice(0, numQcGroups);
+    const qcSamples: SearchData[] = [];
+    for (const groupName of qcGroupNames) {
+      const groupCount = gen(fc.integer, { min: 0, max: Math.floor(maxQc / numQcGroups) });
+      for (let i = 0; i < groupCount; i++) {
+        qcSamples.push({
+          name: `${groupName}_${i}`,
+          metadata: { Condition: groupName },
+          isQC: true,
+          covariateKey: `${groupName}|na|na`,
+        });
+      }
+    }
+
+    // Experimental samples: small subject groups (size 1-2) filling 30-60% of plate
+    const remainingCapacity = plateSize - qcSamples.length;
+    const expTarget = gen(fc.integer, {
+      min: Math.max(1, Math.floor(remainingCapacity * 0.3)),
+      max: Math.floor(remainingCapacity * 0.6),
+    });
+    const experimentalSamples: SearchData[] = [];
+    let expCount = 0;
+    let subjectIdx = 0;
+    while (expCount < expTarget) {
+      const groupSize = gen(fc.integer, { min: 1, max: Math.min(2, expTarget - expCount, numColumns) });
+      const treatment = gen(fc.constantFrom, 'Drug', 'Placebo');
+      const subjectId = `S${subjectIdx}`;
+      for (let i = 0; i < groupSize; i++) {
+        experimentalSamples.push({
+          name: `${subjectId}_T${i}`,
+          metadata: { SubjectID: subjectId, Treatment: treatment },
+          covariateKey: treatment,
+        });
+      }
+      expCount += groupSize;
+      subjectIdx++;
+    }
+
+    if (experimentalSamples.length === 0) return null;
+
+    const allSamples = [...experimentalSamples, ...qcSamples];
+    return { allSamples, numRows, numColumns };
+  });
+
+  function nonNull<T>(arb: fc.Arbitrary<T | null>): fc.Arbitrary<T> {
+    return arb.filter((v): v is T => v !== null);
+  }
+
+  it('no row exceeds numColumns total samples and QC + experimental per row ≤ numColumns', () => {
+    fc.assert(
+      fc.property(nonNull(validInputArb), ({ allSamples, numRows, numColumns }) => {
+        const config: RepeatedMeasuresConfig = {
+          subjectColumn: 'SubjectID',
+          groupingConstraint: 'same-row',
+        };
+
+        const result = groupAwareRandomization(
+          allSamples,
+          ['Treatment'],
+          config,
+          true,
+          numRows,
+          numColumns
+        );
+
+        for (const plate of result.plates) {
+          for (let r = 0; r < plate.length; r++) {
+            const row = plate[r];
+            // Count defined (occupied) wells in this row
+            const totalInRow = row.filter(w => w !== undefined).length;
+            // Row must not exceed numColumns
+            expect(totalInRow).toBeLessThanOrEqual(numColumns);
+
+            // Count QC and experimental separately
+            const qcInRow = row.filter(w => w !== undefined && w.isQC === true).length;
+            const expInRow = row.filter(w => w !== undefined && w.isQC !== true).length;
+            // QC + experimental must equal total
+            expect(qcInRow + expInRow).toBe(totalInRow);
+            // Experimental must not exceed columns minus QC
+            expect(expInRow).toBeLessThanOrEqual(numColumns - qcInRow);
+          }
+        }
+      }),
+      { numRuns: 100 }
+    );
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// Task 5.1: Unit test for the 192-sample reference dataset scenario
+// Validates: Requirements 6.1, 6.2, 6.3
+// ---------------------------------------------------------------------------
+describe('192-sample reference dataset: 16 QC + 16 Reference + 16 Blinded + 144 experimental', () => {
+  it('places exactly 8 QC, 8 Reference, 8 Blinded per plate and 1 of each per row', () => {
+    // Build 144 experimental samples: 144 unique subjects, alternating Drug/Placebo
+    const experimentalSamples: SearchData[] = [];
+    for (let i = 0; i < 144; i++) {
+      const subjectId = `EXP${String(i).padStart(3, '0')}`;
+      const treatment = i % 2 === 0 ? 'Drug' : 'Placebo';
+      experimentalSamples.push({
+        name: `${subjectId}_T0`,
+        metadata: { SubjectID: subjectId, Treatment: treatment },
+        covariateKey: treatment,
+      });
+    }
+
+    // Build 16 QC samples
+    const qcSamples: SearchData[] = Array.from({ length: 16 }, (_, i) => ({
+      name: `QC_${i}`,
+      metadata: { Condition: 'QC' },
+      isQC: true,
+      covariateKey: 'QC|na|na',
+    }));
+
+    // Build 16 Reference samples
+    const refSamples: SearchData[] = Array.from({ length: 16 }, (_, i) => ({
+      name: `Reference_${i}`,
+      metadata: { Condition: 'Reference' },
+      isQC: true,
+      covariateKey: 'Reference|na|na',
+    }));
+
+    // Build 16 Blinded samples
+    const blindedSamples: SearchData[] = Array.from({ length: 16 }, (_, i) => ({
+      name: `Blinded_${i}`,
+      metadata: { Condition: 'Blinded' },
+      isQC: true,
+      covariateKey: 'Blinded|na|na',
+    }));
+
+    const allSamples = [...experimentalSamples, ...qcSamples, ...refSamples, ...blindedSamples];
+    // Total: 144 + 16 + 16 + 16 = 192
+
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-row',
+    };
+
+    const result = groupAwareRandomization(
+      allSamples,
+      ['Treatment'],
+      config,
+      true,
+      8,   // numRows
+      12   // numColumns
+    );
+
+    // Should produce exactly 2 plates (192 / 96 = 2)
+    expect(result.plates.length).toBe(2);
+
+    // All 192 samples should be placed
+    const totalPlaced = result.plates.flat(2).filter(w => w !== undefined).length;
+    expect(totalPlaced).toBe(192);
+
+    // Verify per-plate QC type counts: exactly 8 QC, 8 Reference, 8 Blinded per plate
+    for (let p = 0; p < 2; p++) {
+      const plateSamples = result.plates[p].flat().filter((w): w is SearchData => w !== undefined);
+
+      const qcOnPlate = plateSamples.filter(s => s.isQC === true && s.covariateKey === 'QC|na|na').length;
+      const refOnPlate = plateSamples.filter(s => s.isQC === true && s.covariateKey === 'Reference|na|na').length;
+      const blindedOnPlate = plateSamples.filter(s => s.isQC === true && s.covariateKey === 'Blinded|na|na').length;
+
+      expect(qcOnPlate).toBe(8);
+      expect(refOnPlate).toBe(8);
+      expect(blindedOnPlate).toBe(8);
+    }
+
+    // Verify per-row QC type counts: exactly 1 QC, 1 Reference, 1 Blinded per row
+    for (let p = 0; p < 2; p++) {
+      for (let r = 0; r < 8; r++) {
+        const rowSamples = result.plates[p][r].filter((w): w is SearchData => w !== undefined);
+
+        const qcInRow = rowSamples.filter(s => s.isQC === true && s.covariateKey === 'QC|na|na').length;
+        const refInRow = rowSamples.filter(s => s.isQC === true && s.covariateKey === 'Reference|na|na').length;
+        const blindedInRow = rowSamples.filter(s => s.isQC === true && s.covariateKey === 'Blinded|na|na').length;
+
+        expect(qcInRow).toBe(1);
+        expect(refInRow).toBe(1);
+        expect(blindedInRow).toBe(1);
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5.2: Unit test for single QC covariate group
+// Validates: Requirements 2.1, 2.3
+// ---------------------------------------------------------------------------
+describe('Single QC covariate group degenerates to even distribution', () => {
+  it('distributes evenly across plates and rows with max-min ≤ 1', () => {
+    // 10 QC samples all sharing the same covariateKey
+    const qcSamples: SearchData[] = Array.from({ length: 10 }, (_, i) => ({
+      name: `QC_${i}`,
+      metadata: { Condition: 'QC' },
+      isQC: true,
+      covariateKey: 'QC|na|na',
+    }));
+
+    const numPlates = 3;
+    const numRows = 4;
+
+    const result = distributeQcByCovariate(qcSamples, numPlates, numRows);
+
+    // Total conservation: all 10 samples accounted for
+    const totalOutput = result.flat(2).length;
+    expect(totalOutput).toBe(10);
+
+    // Plate-level balance: floor(10/3)=3, remainder=1 → counts are [3,3,4] or similar
+    // max-min ≤ 1
+    const plateCounts = result.map(plate =>
+      plate.reduce((sum, row) => sum + row.length, 0)
+    );
+    const plateMax = Math.max(...plateCounts);
+    const plateMin = Math.min(...plateCounts);
+    expect(plateMax - plateMin).toBeLessThanOrEqual(1);
+    expect(plateCounts.reduce((a, b) => a + b, 0)).toBe(10);
+
+    // Row-level balance within each plate: max-min ≤ 1
+    for (let p = 0; p < numPlates; p++) {
+      const rowCounts = result[p].map(row => row.length);
+      const rowMax = Math.max(...rowCounts);
+      const rowMin = Math.min(...rowCounts);
+      expect(rowMax - rowMin).toBeLessThanOrEqual(1);
+      // Row counts sum to plate count
+      expect(rowCounts.reduce((a, b) => a + b, 0)).toBe(plateCounts[p]);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5.3: Unit test for zero QC samples edge case
+// Validates: Requirements 5.1, 5.2
+// ---------------------------------------------------------------------------
+describe('Zero QC samples edge case', () => {
+  it('distributeQcByCovariate returns empty allocations for zero QC samples', () => {
+    const numPlates = 2;
+    const numRows = 4;
+
+    const result = distributeQcByCovariate([], numPlates, numRows);
+
+    // Structure: 2 plates × 4 rows, all empty
+    expect(result.length).toBe(numPlates);
+    for (let p = 0; p < numPlates; p++) {
+      expect(result[p].length).toBe(numRows);
+      for (let r = 0; r < numRows; r++) {
+        expect(result[p][r]).toEqual([]);
+      }
+    }
+  });
+
+  it('groupAwareRandomization with 0 QC samples distributes experimental samples normally', () => {
+    // 16 experimental samples, no QC
+    const experimentalSamples: SearchData[] = [];
+    for (let i = 0; i < 16; i++) {
+      const subjectId = `S${String(i).padStart(3, '0')}`;
+      const treatment = i % 2 === 0 ? 'Drug' : 'Placebo';
+      experimentalSamples.push({
+        name: `${subjectId}_T0`,
+        metadata: { SubjectID: subjectId, Treatment: treatment },
+        covariateKey: treatment,
+      });
+    }
+
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-row',
+    };
+
+    const result = groupAwareRandomization(
+      experimentalSamples,
+      ['Treatment'],
+      config,
+      true,
+      4,   // numRows
+      6    // numColumns
+    );
+
+    // All 16 experimental samples placed
+    const totalPlaced = result.plates.flat(2).filter(w => w !== undefined).length;
+    expect(totalPlaced).toBe(16);
+
+    // No QC samples in output
+    const qcCount = result.plates.flat(2).filter(w => w !== undefined && w.isQC === true).length;
+    expect(qcCount).toBe(0);
+
+    // No row exceeds column count
+    for (const plate of result.plates) {
+      for (const row of plate) {
+        const filled = row.filter(w => w !== undefined).length;
+        expect(filled).toBeLessThanOrEqual(6);
+      }
+    }
   });
 });

@@ -1,8 +1,7 @@
-import { SearchData, SubjectGroup, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig } from '../utils/types';
-import { shuffleArray } from '../utils/utils';
+import { SearchData, SubjectGroup, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig, BlockType } from '../utils/types';
+import { shuffleArray, groupByCovariates } from '../utils/utils';
 import { greedyPlaceInRow } from './greedySpatialPlacement';
-import { assignBlockCapacities } from './balancedRandomization';
-import { BlockType } from '../utils/types';
+import { distributeToBlocks, calculateExpectedMinimums } from './balancedRandomization';
 
 /**
  * Groups samples by the selected subject column value.
@@ -562,6 +561,78 @@ export function distributeGroupsToRows(
   return rowAssignments;
 }
 
+/**
+ * Distributes `count` items across `numBuckets` buckets proportionally.
+ * Each bucket gets floor(count / numBuckets). Remainder is distributed
+ * one-per-bucket to randomly selected buckets.
+ *
+ * @returns Array of length numBuckets with the count allocated to each.
+ */
+function distributeProportionally(count: number, numBuckets: number): number[] {
+  const base = Math.floor(count / numBuckets);
+  const remainder = count % numBuckets;
+  const result = new Array(numBuckets).fill(base);
+
+  // Distribute remainder one-per-bucket to randomly selected buckets
+  const indices = shuffleArray(Array.from({ length: numBuckets }, (_, i) => i));
+  for (let i = 0; i < remainder; i++) {
+    result[indices[i]] += 1;
+  }
+
+  return result;
+}
+
+/**
+ * Distributes QC samples proportionally by covariateKey across plates and rows.
+ *
+ * For each QC covariate group:
+ *   - Plate level: each plate gets floor(groupCount / numPlates), remainder
+ *     distributed randomly (one extra per plate).
+ *   - Row level: within each plate, each row gets floor(plateAlloc / numRows),
+ *     remainder distributed randomly (one extra per row).
+ *
+ * @param qcSamples - All QC samples (isQC === true), already shuffled
+ * @param numPlates - Number of plates
+ * @param numRows - Number of rows per plate
+ * @returns 3D array [plate][row] → SearchData[] of QC samples assigned to that slot
+ */
+export function distributeQcByCovariate(
+  qcSamples: SearchData[],
+  numPlates: number,
+  numRows: number
+): SearchData[][][] {
+  // Initialize empty 3D structure
+  const result: SearchData[][][] = Array.from({ length: numPlates }, () =>
+    Array.from({ length: numRows }, () => [])
+  );
+
+  if (qcSamples.length === 0) return result;
+
+  // Group QC samples by covariateKey (undefined/empty → "")
+  const groups = new Map<string, SearchData[]>();
+  for (const sample of qcSamples) {
+    const key = sample.covariateKey || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(sample);
+  }
+
+  // For each covariate group, distribute across plates then rows
+  groups.forEach((groupSamples) => {
+    const plateCounts = distributeProportionally(groupSamples.length, numPlates);
+
+    let sampleIdx = 0;
+    for (let p = 0; p < numPlates; p++) {
+      const rowCounts = distributeProportionally(plateCounts[p], numRows);
+      for (let r = 0; r < numRows; r++) {
+        for (let q = 0; q < rowCounts[r]; q++) {
+          result[p][r].push(groupSamples[sampleIdx++]);
+        }
+      }
+    }
+  });
+
+  return result;
+}
 
 
 /**
@@ -598,33 +669,27 @@ export function groupAwareRandomization(
   console.log(`Starting group-aware randomization for ${totalSamples} samples, ` +
     `${numPlates} plate(s), constraint: ${groupingConstraint}`);
 
-  // Step 1: Separate QC samples from experimental samples
+  // Step 1: Separate QC samples from experimental samples and distribute by covariate
   const qcSamples = shuffleArray(searches.filter(s => s.isQC === true));
   const experimentalSamples = searches.filter(s => s.isQC !== true);
 
   console.log(`QC samples: ${qcSamples.length}, Experimental samples: ${experimentalSamples.length}`);
 
+  // Ensure covariateKey is set on experimental samples (needed for groupByCovariates in same-plate branch)
+  for (const sample of experimentalSamples) {
+    if (!sample.covariateKey && selectedCovariates.length > 0) {
+      sample.covariateKey = selectedCovariates.map(cov => sample.metadata[cov] || 'N/A').join('|');
+    }
+  }
+
+  // Distribute QC samples proportionally by covariateKey across plates and rows
+  const qcPerPlateRow = distributeQcByCovariate(qcSamples, numPlates, numRows);
+
   // Step 2: Build subject groups from experimental samples
   const subjectGroups = buildSubjectGroups(experimentalSamples, subjectColumn);
 
-  // Step 3: Calculate total rows across all plates and pre-allocate QC slots per row
-  const totalRows = numPlates * numRows;
-  const qcPerRow = Math.floor(qcSamples.length / totalRows);
-  const qcRemainder = qcSamples.length % totalRows;
-
-  // Distribute QC remainder randomly across rows
-  const rowIndicesForExtraQc = new Set(
-    shuffleArray(Array.from({ length: totalRows }, (_, i) => i)).slice(0, qcRemainder)
-  );
-
-  // Build per-row QC allocation (flat array across all plates)
-  const qcPerRowArray: number[] = [];
-  for (let i = 0; i < totalRows; i++) {
-    qcPerRowArray.push(qcPerRow + (rowIndicesForExtraQc.has(i) ? 1 : 0));
-  }
-
-  // Step 4: Calculate effective capacities (subtract QC slots)
-  // Effective row capacity = numColumns - qcSlotsForThisRow
+  // Step 4: Calculate effective capacities (subtract covariate-aware QC allocations)
+  // Effective row capacity = numColumns - qcPerPlateRow[p][r].length
   // Effective plate capacity = sum of effective row capacities for that plate
   const effectivePlateCapacities: number[] = [];
   const effectiveRowCapacitiesPerPlate: number[][] = [];
@@ -633,8 +698,7 @@ export function groupAwareRandomization(
     const rowCaps: number[] = [];
     let plateCap = 0;
     for (let r = 0; r < numRows; r++) {
-      const flatRowIdx = p * numRows + r;
-      const effectiveRowCap = numColumns - qcPerRowArray[flatRowIdx];
+      const effectiveRowCap = numColumns - qcPerPlateRow[p][r].length;
       rowCaps.push(effectiveRowCap);
       plateCap += effectiveRowCap;
     }
@@ -674,22 +738,7 @@ export function groupAwareRandomization(
   );
   const plateAssignments = new Map<number, SearchData[]>();
 
-  // Step 8: Distribute QC samples into a queue per plate-row
-  let qcIdx = 0;
-  const qcPerPlateRow: SearchData[][][] = Array.from({ length: numPlates }, () =>
-    Array.from({ length: numRows }, () => [])
-  );
-  for (let p = 0; p < numPlates; p++) {
-    for (let r = 0; r < numRows; r++) {
-      const flatRowIdx = p * numRows + r;
-      const count = qcPerRowArray[flatRowIdx];
-      for (let q = 0; q < count && qcIdx < qcSamples.length; q++) {
-        qcPerPlateRow[p][r].push(qcSamples[qcIdx++]);
-      }
-    }
-  }
-
-  // Step 9: For each plate, distribute groups to rows, then place in columns
+  // Step 8: For each plate, distribute groups to rows, then place in columns
   for (let plateIdx = 0; plateIdx < numPlates; plateIdx++) {
     const plateGroups = plateGroupAssignments.get(plateIdx) ?? [];
     const allPlateSamples: SearchData[] = [];
@@ -720,34 +769,42 @@ export function groupAwareRandomization(
         );
       }
     } else {
-      // Same-plate constraint: groups are on the same plate but rows are flexible
-      // Flatten all plate groups into samples, then distribute to rows using
-      // assignBlockCapacities for row capacity calculation
-      const experimentalPlateSamples = plateGroups.flatMap(g => g.samples);
-      const qcForPlate = qcPerPlateRow[plateIdx].flat();
-      const allSamplesForPlate = [...experimentalPlateSamples, ...qcForPlate];
+      // Same-plate constraint: groups are on the same plate but rows are flexible.
+      // Use the same distributeToBlocks logic as balanced block randomization
+      // for covariate-balanced row distribution.
+      const experimentalPlateSamples = shuffleArray(plateGroups.flatMap(g => g.samples));
+      const plateGroups2 = groupByCovariates(experimentalPlateSamples, selectedCovariates);
 
-      // Use assignBlockCapacities to determine row capacities
-      const rowCapacities = assignBlockCapacities(
-        allSamplesForPlate.length,
-        numColumns,
-        keepEmptyInLastPlate,
-        numRows,
+      // Use the effective row capacities that already account for QC allocations
+      // (not assignBlockCapacities, which assumes full numColumns per row)
+      const rowCapacities = effectiveRowCapacitiesPerPlate[plateIdx];
+
+      const maxEffectiveRowCapacity = Math.max(...rowCapacities);
+      const expectedRowMinimums = calculateExpectedMinimums(
+        rowCapacities,
+        plateGroups2,
+        maxEffectiveRowCapacity,
         BlockType.ROW
       );
 
-      // Simple row distribution: shuffle and fill rows sequentially
-      const shuffled = shuffleArray([...allSamplesForPlate]);
-      let sampleIdx = 0;
-      for (let rowIdx = 0; rowIdx < rowCapacities.length; rowIdx++) {
-        const rowSamples: SearchData[] = [];
-        for (let c = 0; c < rowCapacities[rowIdx] && sampleIdx < shuffled.length; c++) {
-          rowSamples.push(shuffled[sampleIdx++]);
-        }
-        allPlateSamples.push(...rowSamples);
+      const rowAssignments = distributeToBlocks(
+        plateGroups2,
+        rowCapacities,
+        maxEffectiveRowCapacity,
+        selectedCovariates,
+        BlockType.ROW,
+        expectedRowMinimums
+      );
+
+      for (let rowIdx = 0; rowIdx < numRows; rowIdx++) {
+        const rowSamples = rowAssignments.get(rowIdx) ?? [];
+        const qcForRow = qcPerPlateRow[plateIdx][rowIdx];
+        const allRowSamples = [...rowSamples, ...qcForRow];
+
+        allPlateSamples.push(...allRowSamples);
 
         greedyPlaceInRow(
-          rowSamples,
+          allRowSamples,
           plates[plateIdx],
           rowIdx,
           numColumns,
