@@ -883,3 +883,638 @@ describe('groupAwareRandomization', () => {
     }).toThrow('groupAwareRandomization requires a subjectColumn to be set');
   });
 });
+
+// ─── Fix-Checking Property Tests: Valid packings never throw after fix ───────
+
+describe('Fix Checking: Valid packings never throw after fix', () => {
+  // Property 1: Fix Checking — for any input where a valid bin-packing exists (by construction),
+  // distributeGroupsToRows() SHALL find a valid assignment without throwing.
+  // Validates: Requirements 2.1, 2.2, 2.3, 3.3, 3.4
+
+  /**
+   * Helper: assert that distributeGroupsToRows succeeds and produces a valid assignment.
+   */
+  const assertValid = (
+    groups: SubjectGroup[],
+    rowCapacities: number[],
+    result: Map<number, SubjectGroup[]>
+  ) => {
+    const assignedGroups = Array.from(result.values()).flat();
+    const assignedIds = assignedGroups.map(g => g.subjectId).sort();
+    const inputIds = groups.map(g => g.subjectId).sort();
+    expect(assignedIds).toEqual(inputIds);
+
+    for (let rowIdx = 0; rowIdx < rowCapacities.length; rowIdx++) {
+      const rowGroups = result.get(rowIdx) ?? [];
+      const rowTotal = rowGroups.reduce((sum, g) => sum + g.size, 0);
+      expect(rowTotal).toBeLessThanOrEqual(rowCapacities[rowIdx]);
+    }
+  };
+
+  // Strategy: generate a valid assignment first, then extract groups and row capacities from it.
+  // This guarantees a valid packing exists by construction.
+  it('PBT: constructed-feasible inputs never throw (by-construction generator)', () => {
+    // Arbitrary that builds a valid assignment, then derives groups + rowCapacities
+    const feasibleInputArb = fc.gen().map(gen => {
+      const numRows = gen(fc.integer, { min: 2, max: 8 });
+      const numGroups = gen(fc.integer, { min: 1, max: 20 });
+
+      // Assign each group to a random row and pick a size
+      const assignments: { row: number; size: number; id: string; treatment: string }[] = [];
+      for (let i = 0; i < numGroups; i++) {
+        const row = gen(fc.integer, { min: 0, max: numRows - 1 });
+        const size = gen(fc.integer, { min: 1, max: 6 });
+        const treatment = gen(fc.constantFrom, 'Drug', 'Placebo');
+        assignments.push({ row, size, id: `G${i}`, treatment });
+      }
+
+      // Compute row capacities from the assignment (with optional slack)
+      const rowCapacities = new Array(numRows).fill(0);
+      for (const a of assignments) {
+        rowCapacities[a.row] += a.size;
+      }
+      // Add 0-3 slack per row so packing isn't always trivially tight
+      for (let r = 0; r < numRows; r++) {
+        rowCapacities[r] += gen(fc.integer, { min: 0, max: 3 });
+      }
+
+      const groups = assignments.map(a => makeGroup(a.id, a.size, a.treatment));
+      return { groups, rowCapacities };
+    });
+
+    fc.assert(
+      fc.property(feasibleInputArb, ({ groups, rowCapacities }) => {
+        const result = distributeGroupsToRows(groups, rowCapacities, ['Treatment']);
+        assertValid(groups, rowCapacities, result);
+      }),
+      { numRuns: 200 }
+    );
+  });
+
+  // Tight packings: total group size === total capacity (zero slack)
+  it('PBT: tight packings (total = capacity) never throw', () => {
+    const tightInputArb = fc.gen().map(gen => {
+      const numRows = gen(fc.integer, { min: 2, max: 6 });
+      const numGroups = gen(fc.integer, { min: numRows, max: numRows * 3 });
+
+      // Build a valid assignment where each row is exactly filled
+      const assignments: { row: number; size: number; id: string; treatment: string }[] = [];
+      // Distribute groups round-robin, then set capacity = sum per row
+      for (let i = 0; i < numGroups; i++) {
+        const row = i % numRows;
+        const size = gen(fc.integer, { min: 1, max: 4 });
+        const treatment = gen(fc.constantFrom, 'Drug', 'Placebo');
+        assignments.push({ row, size, id: `T${i}`, treatment });
+      }
+
+      const rowCapacities = new Array(numRows).fill(0);
+      for (const a of assignments) {
+        rowCapacities[a.row] += a.size;
+      }
+      // No slack — exact fit
+
+      const groups = assignments.map(a => makeGroup(a.id, a.size, a.treatment));
+      return { groups, rowCapacities };
+    });
+
+    fc.assert(
+      fc.property(tightInputArb, ({ groups, rowCapacities }) => {
+        const result = distributeGroupsToRows(groups, rowCapacities, ['Treatment']);
+        assertValid(groups, rowCapacities, result);
+      }),
+      { numRuns: 200 }
+    );
+  });
+
+  // Uneven row capacities (mimics QC pre-allocation reducing some rows more than others)
+  it('PBT: uneven row capacities with feasible packing never throw', () => {
+    const unevenInputArb = fc.gen().map(gen => {
+      const numRows = gen(fc.integer, { min: 2, max: 8 });
+      // Each row gets a different capacity (simulating uneven QC allocation)
+      const rowCapacities: number[] = [];
+      for (let r = 0; r < numRows; r++) {
+        rowCapacities.push(gen(fc.integer, { min: 3, max: 12 }));
+      }
+
+      // Build groups that fit by construction: assign each to a row that can hold it
+      const groups: SubjectGroup[] = [];
+      const remaining = [...rowCapacities];
+      let gIdx = 0;
+
+      // Fill rows with groups until we've placed at least a few
+      const targetGroups = gen(fc.integer, { min: 1, max: 15 });
+      for (let i = 0; i < targetGroups; i++) {
+        // Pick a row that still has capacity
+        const availableRows = remaining
+          .map((cap, idx) => ({ idx, cap }))
+          .filter(r => r.cap >= 1);
+        if (availableRows.length === 0) break;
+
+        const chosen = availableRows[gen(fc.integer, { min: 0, max: availableRows.length - 1 })];
+        const maxSize = Math.min(chosen.cap, 6);
+        const size = gen(fc.integer, { min: 1, max: maxSize });
+        const treatment = gen(fc.constantFrom, 'Drug', 'Placebo');
+        groups.push(makeGroup(`U${gIdx}`, size, treatment));
+        remaining[chosen.idx] -= size;
+        gIdx++;
+      }
+
+      if (groups.length === 0) return null;
+      return { groups, rowCapacities };
+    });
+
+    fc.assert(
+      fc.property(feasibleInputArb_filter(unevenInputArb), (input) => {
+        const result = distributeGroupsToRows(input.groups, input.rowCapacities, ['Treatment']);
+        assertValid(input.groups, input.rowCapacities, result);
+      }),
+      { numRuns: 200 }
+    );
+  });
+
+  // Mix of large and small groups (the pattern that triggers the original bug)
+  it('PBT: mixed large/small groups with feasible packing never throw', () => {
+    const mixedInputArb = fc.gen().map(gen => {
+      const numRows = gen(fc.integer, { min: 2, max: 8 });
+      const rowCap = gen(fc.integer, { min: 6, max: 12 });
+      // Uneven capacities: some rows get -1 or -2 (simulating QC)
+      const rowCapacities = Array.from({ length: numRows }, (_, i) =>
+        rowCap - gen(fc.integer, { min: 0, max: 2 })
+      );
+
+      // Build groups by construction: assign large groups first, then small
+      const groups: SubjectGroup[] = [];
+      const remaining = [...rowCapacities];
+      let gIdx = 0;
+
+      // Phase 1: place large groups (size 3-6)
+      const numLarge = gen(fc.integer, { min: 1, max: numRows * 2 });
+      for (let i = 0; i < numLarge; i++) {
+        const availableRows = remaining
+          .map((cap, idx) => ({ idx, cap }))
+          .filter(r => r.cap >= 3);
+        if (availableRows.length === 0) break;
+        const chosen = availableRows[gen(fc.integer, { min: 0, max: availableRows.length - 1 })];
+        const maxSize = Math.min(chosen.cap, 6);
+        const size = gen(fc.integer, { min: 3, max: maxSize });
+        groups.push(makeGroup(`L${gIdx}`, size, gen(fc.constantFrom, 'Drug', 'Placebo')));
+        remaining[chosen.idx] -= size;
+        gIdx++;
+      }
+
+      // Phase 2: place small groups (size 1-2) in remaining space
+      const numSmall = gen(fc.integer, { min: 0, max: 10 });
+      for (let i = 0; i < numSmall; i++) {
+        const availableRows = remaining
+          .map((cap, idx) => ({ idx, cap }))
+          .filter(r => r.cap >= 1);
+        if (availableRows.length === 0) break;
+        const chosen = availableRows[gen(fc.integer, { min: 0, max: availableRows.length - 1 })];
+        const size = gen(fc.integer, { min: 1, max: Math.min(2, chosen.cap) });
+        groups.push(makeGroup(`S${gIdx}`, size, gen(fc.constantFrom, 'Drug', 'Placebo')));
+        remaining[chosen.idx] -= size;
+        gIdx++;
+      }
+
+      if (groups.length === 0) return null;
+      return { groups, rowCapacities };
+    });
+
+    fc.assert(
+      fc.property(feasibleInputArb_filter(mixedInputArb), (input) => {
+        const result = distributeGroupsToRows(input.groups, input.rowCapacities, ['Treatment']);
+        assertValid(input.groups, input.rowCapacities, result);
+      }),
+      { numRuns: 200 }
+    );
+  });
+
+  // Requirement 3.3: group size > max row capacity still throws
+  it('PBT: group exceeding max row capacity always throws', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 2, max: 6 }),   // numRows
+        fc.integer({ min: 3, max: 10 }),  // maxRowCap
+        (numRows, maxRowCap) => {
+          const rowCapacities = Array.from({ length: numRows }, () => maxRowCap);
+          const oversizedGroup = makeGroup('BIG', maxRowCap + 1, 'Drug');
+
+          expect(() => {
+            distributeGroupsToRows([oversizedGroup], rowCapacities, []);
+          }).toThrow('Unable to fit all subject groups');
+        }
+      ),
+      { numRuns: 50 }
+    );
+  });
+
+  // Requirement 3.4: total size > total capacity still throws
+  it('PBT: total group size exceeding total capacity always throws', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 2, max: 4 }),   // numRows
+        fc.integer({ min: 3, max: 8 }),   // rowCap
+        (numRows, rowCap) => {
+          const rowCapacities = Array.from({ length: numRows }, () => rowCap);
+          const totalCapacity = numRows * rowCap;
+          // Create groups that exceed total capacity
+          const numGroups = totalCapacity + 1; // one more singleton than capacity
+          const groups = Array.from({ length: numGroups }, (_, i) =>
+            makeGroup(`X${i}`, 1, 'Drug')
+          );
+
+          expect(() => {
+            distributeGroupsToRows(groups, rowCapacities, []);
+          }).toThrow();
+        }
+      ),
+      { numRuns: 50 }
+    );
+  });
+});
+
+// Helper to filter out null values from generators that may produce null for empty groups
+function feasibleInputArb_filter<T>(arb: fc.Arbitrary<T | null>): fc.Arbitrary<T> {
+  return arb.filter((v): v is T => v !== null);
+}
+
+// ─── Preservation Property Tests: Greedy-success inputs produce identical structure ───
+
+describe('Preservation Property: Greedy-success inputs produce identical structure', () => {
+  // Property 2: Preservation — for inputs where the greedy FFD succeeds,
+  // distributeGroupsToRows() produces valid assignments with all groups assigned,
+  // no row over capacity, and correct structural invariants.
+  // **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6**
+
+  /**
+   * Helper: assert structural invariants on a distributeGroupsToRows result.
+   */
+  const assertPreservation = (
+    groups: SubjectGroup[],
+    rowCapacities: number[],
+    result: Map<number, SubjectGroup[]>
+  ) => {
+    const assignedGroups = Array.from(result.values()).flat();
+
+    // All groups assigned to exactly one row
+    const assignedIds = assignedGroups.map(g => g.subjectId).sort();
+    const inputIds = groups.map(g => g.subjectId).sort();
+    expect(assignedIds).toEqual(inputIds);
+
+    // No row exceeds capacity
+    for (let rowIdx = 0; rowIdx < rowCapacities.length; rowIdx++) {
+      const rowGroups = result.get(rowIdx) ?? [];
+      const rowTotal = rowGroups.reduce((sum, g) => sum + g.size, 0);
+      expect(rowTotal).toBeLessThanOrEqual(rowCapacities[rowIdx]);
+    }
+
+    // Total assigned equals total input
+    const totalAssigned = assignedGroups.reduce((sum, g) => sum + g.size, 0);
+    const totalInput = groups.reduce((sum, g) => sum + g.size, 0);
+    expect(totalAssigned).toBe(totalInput);
+  };
+
+  // 1. Greedy-success structural invariants
+  // Generate random group configs where FFD is likely to succeed (small groups, plenty of slack).
+  it('PBT: greedy-success structural invariants hold for slack inputs', () => {
+    const slackInputArb = fc.gen().map(gen => {
+      const numRows = gen(fc.integer, { min: 2, max: 8 });
+      const rowCap = gen(fc.integer, { min: 6, max: 12 });
+      const rowCapacities = Array.from({ length: numRows }, () => rowCap);
+      const totalCapacity = numRows * rowCap;
+
+      // Generate small groups (size 1-3) that use at most 60% of total capacity
+      // so FFD will succeed easily
+      const maxTotal = Math.floor(totalCapacity * 0.6);
+      const groups: SubjectGroup[] = [];
+      let used = 0;
+      let gIdx = 0;
+
+      while (used < maxTotal) {
+        const remaining = maxTotal - used;
+        if (remaining < 1) break;
+        const size = gen(fc.integer, { min: 1, max: Math.min(3, remaining, rowCap) });
+        const treatment = gen(fc.constantFrom, 'Drug', 'Placebo');
+        groups.push(makeGroup(`GS${gIdx}`, size, treatment));
+        used += size;
+        gIdx++;
+        if (gIdx >= 20) break; // cap number of groups
+      }
+
+      if (groups.length === 0) return null;
+      return { groups, rowCapacities };
+    });
+
+    fc.assert(
+      fc.property(feasibleInputArb_filter(slackInputArb), (input) => {
+        const result = distributeGroupsToRows(input.groups, input.rowCapacities, ['Treatment']);
+        assertPreservation(input.groups, input.rowCapacities, result);
+      }),
+      { numRuns: 200 }
+    );
+  });
+
+  // 2. Singleton distribution preservation (Req 3.1)
+  // All-singleton inputs continue to distribute correctly.
+  it('PBT: singleton distribution preservation — all singletons distribute correctly', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 2, max: 8 }),   // numRows
+        fc.integer({ min: 4, max: 12 }),  // rowCap
+        fc.integer({ min: 1, max: 30 }),  // numSingletons
+        (numRows, rowCap, numSingletons) => {
+          const totalCapacity = numRows * rowCap;
+          if (numSingletons > totalCapacity) return; // skip infeasible
+
+          const rowCapacities = Array.from({ length: numRows }, () => rowCap);
+          const groups: SubjectGroup[] = Array.from({ length: numSingletons }, (_, i) =>
+            makeGroup(`Sing${i}`, 1, i % 2 === 0 ? 'Drug' : 'Placebo')
+          );
+
+          const result = distributeGroupsToRows(groups, rowCapacities, ['Treatment']);
+          assertPreservation(groups, rowCapacities, result);
+        }
+      ),
+      { numRuns: 200 }
+    );
+  });
+
+  // 3. Error preservation — group exceeds max row (Req 3.3)
+  it('PBT: error preservation — group exceeding max row capacity always throws', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 2, max: 6 }),   // numRows
+        fc.integer({ min: 3, max: 10 }),  // maxRowCap
+        fc.integer({ min: 1, max: 5 }),   // excess
+        (numRows, maxRowCap, excess) => {
+          const rowCapacities = Array.from({ length: numRows }, () => maxRowCap);
+          const oversizedGroup = makeGroup('TOOBIG', maxRowCap + excess, 'Drug');
+
+          expect(() => {
+            distributeGroupsToRows([oversizedGroup], rowCapacities, []);
+          }).toThrow();
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  // 4. Error preservation — total exceeds capacity (Req 3.4)
+  it('PBT: error preservation — total group size exceeding total capacity always throws', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 2, max: 4 }),   // numRows
+        fc.integer({ min: 3, max: 8 }),   // rowCap
+        fc.integer({ min: 1, max: 5 }),   // excess singletons beyond capacity
+        (numRows, rowCap, excess) => {
+          const rowCapacities = Array.from({ length: numRows }, () => rowCap);
+          const totalCapacity = numRows * rowCap;
+          // Create exactly totalCapacity + excess singletons
+          const numGroups = totalCapacity + excess;
+          const groups = Array.from({ length: numGroups }, (_, i) =>
+            makeGroup(`OV${i}`, 1, 'Drug')
+          );
+
+          expect(() => {
+            distributeGroupsToRows(groups, rowCapacities, []);
+          }).toThrow();
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  // 5. Covariate balance preservation (Req 3.6)
+  // Over many runs, rows tend to have a mix of treatments (statistical tendency).
+  it('PBT: covariate balance preservation — rows tend to have mixed treatments', () => {
+    // Run a fixed scenario many times and check that the majority of runs produce
+    // at least one mixed row. This tests the statistical tendency of covariate balancing.
+    const numRuns = 50;
+    let runsWithMixedRows = 0;
+
+    for (let run = 0; run < numRuns; run++) {
+      // 4 rows of capacity 8, 6 Drug groups + 6 Placebo groups of size 2 = 24 total, capacity 32
+      const rowCapacities = [8, 8, 8, 8];
+      const groups: SubjectGroup[] = [];
+      for (let i = 0; i < 6; i++) {
+        groups.push(makeGroup(`D${run}_${i}`, 2, 'Drug'));
+        groups.push(makeGroup(`P${run}_${i}`, 2, 'Placebo'));
+      }
+
+      let result: Map<number, SubjectGroup[]>;
+      try {
+        result = distributeGroupsToRows(groups, rowCapacities, ['Treatment']);
+      } catch {
+        continue;
+      }
+
+      // Count rows that have a mix of treatments
+      let mixedRows = 0;
+      result.forEach((rowGroups) => {
+        const treatments = new Set(
+          rowGroups.flatMap(g => g.samples.map(s => s.metadata['Treatment']))
+        );
+        if (treatments.size > 1) mixedRows++;
+      });
+
+      if (mixedRows >= 1) runsWithMixedRows++;
+    }
+
+    // With covariate balancing active, the majority of runs should produce mixed rows
+    expect(runsWithMixedRows).toBeGreaterThanOrEqual(numRuns * 0.5);
+  });
+
+  // 6. Mixed multi-sample and singleton preservation (Req 3.1, 3.2)
+  // Multi-sample groups are intact (not split), singletons fill remaining capacity.
+  it('PBT: mixed multi-sample and singleton preservation', () => {
+    const mixedInputArb = fc.gen().map(gen => {
+      const numRows = gen(fc.integer, { min: 2, max: 6 });
+      const rowCap = gen(fc.integer, { min: 6, max: 12 });
+      const rowCapacities = Array.from({ length: numRows }, () => rowCap);
+      const totalCapacity = numRows * rowCap;
+
+      // Phase 1: multi-sample groups (size 2-4) using ~40% capacity
+      const multiTarget = Math.floor(totalCapacity * 0.4);
+      const multiGroups: SubjectGroup[] = [];
+      let used = 0;
+      let gIdx = 0;
+
+      while (used < multiTarget) {
+        const remaining = multiTarget - used;
+        if (remaining < 2) break;
+        const size = gen(fc.integer, { min: 2, max: Math.min(4, remaining, rowCap) });
+        const treatment = gen(fc.constantFrom, 'Drug', 'Placebo');
+        multiGroups.push(makeGroup(`M${gIdx}`, size, treatment));
+        used += size;
+        gIdx++;
+        if (gIdx >= 10) break;
+      }
+
+      // Phase 2: singletons using ~20% capacity
+      const singletonTarget = Math.floor(totalCapacity * 0.2);
+      const singletons: SubjectGroup[] = [];
+      for (let i = 0; i < singletonTarget && (used + i + 1) <= totalCapacity; i++) {
+        const treatment = gen(fc.constantFrom, 'Drug', 'Placebo');
+        singletons.push(makeGroup(`Sng${i}`, 1, treatment));
+      }
+
+      const groups = [...multiGroups, ...singletons];
+      if (groups.length === 0) return null;
+      return { groups, rowCapacities, multiGroupIds: multiGroups.map(g => g.subjectId) };
+    });
+
+    fc.assert(
+      fc.property(feasibleInputArb_filter(mixedInputArb), (input) => {
+        const result = distributeGroupsToRows(input.groups, input.rowCapacities, ['Treatment']);
+
+        // Basic structural invariants
+        assertPreservation(input.groups, input.rowCapacities, result);
+
+        // Multi-sample groups are intact (not split across rows)
+        const allAssigned = Array.from(result.values()).flat();
+        for (const mId of input.multiGroupIds) {
+          const group = allAssigned.find(g => g.subjectId === mId);
+          expect(group).toBeDefined();
+          // The group's size should match the original
+          const original = input.groups.find(g => g.subjectId === mId)!;
+          expect(group!.size).toBe(original.size);
+          // The group should appear in exactly one row
+          const rowsContaining = Array.from(result.entries())
+            .filter(([_, gs]) => gs.some(g => g.subjectId === mId));
+          expect(rowsContaining.length).toBe(1);
+        }
+      }),
+      { numRuns: 200 }
+    );
+  });
+});
+
+// ─── Bug Condition Exploration: Greedy FFD fails on valid packings ───────────
+
+describe('Bug Condition Exploration: Greedy FFD fails on valid packings', () => {
+  // Property 1: Bug Condition — the greedy FFD throws on inputs where a valid bin-packing exists.
+  // These tests encode the EXPECTED behavior (no throw, all groups assigned, no row overflow).
+  // On UNFIXED code, they MUST FAIL — failure confirms the bug exists.
+  // After the fix is implemented, they will PASS — confirming the fix works.
+
+  /**
+   * Helper: assert that distributeGroupsToRows succeeds and produces a valid assignment.
+   * - No throw
+   * - Every group appears in exactly one row
+   * - No row exceeds its capacity
+   */
+  const assertValidDistribution = (
+    groups: SubjectGroup[],
+    rowCapacities: number[],
+    result: Map<number, SubjectGroup[]>
+  ) => {
+    // All groups assigned to exactly one row
+    const assignedGroups = Array.from(result.values()).flat();
+    const assignedIds = assignedGroups.map(g => g.subjectId).sort();
+    const inputIds = groups.map(g => g.subjectId).sort();
+    expect(assignedIds).toEqual(inputIds);
+
+    // No row exceeds capacity
+    for (let rowIdx = 0; rowIdx < rowCapacities.length; rowIdx++) {
+      const rowGroups = result.get(rowIdx) ?? [];
+      const rowTotal = rowGroups.reduce((sum, g) => sum + g.size, 0);
+      expect(rowTotal).toBeLessThanOrEqual(rowCapacities[rowIdx]);
+    }
+  };
+
+  // Test case 1 (minimal): Groups [4,4,3,3] into rows [8,6]
+  // Valid packing: row0=[4,4]=8, row1=[3,3]=6
+  // FFD places one 4 per row, leaving row1 with remainder 2, too small for the 3s.
+  it('test case 1 (minimal): groups [4,4,3,3] into rows [8,6] should not throw', () => {
+    const groups = [
+      makeGroup('S1', 4, 'Drug'),
+      makeGroup('S2', 4, 'Placebo'),
+      makeGroup('S3', 3, 'Drug'),
+      makeGroup('S4', 3, 'Placebo'),
+    ];
+    const rowCapacities = [8, 6];
+
+    // Should NOT throw — a valid packing exists
+    const result = distributeGroupsToRows(groups, rowCapacities, ['Treatment']);
+    assertValidDistribution(groups, rowCapacities, result);
+  });
+
+  // Test case 2 (scaled): Groups [4,4,4,4,3,3,3,3] into rows [8,8,6,6]
+  // Valid packing: rows[8]=[4,4], rows[6]=[3,3]
+  // FFD spreads 4s across all rows including capacity-6 rows, blocking the 3s.
+  it('test case 2 (scaled): groups [4,4,4,4,3,3,3,3] into rows [8,8,6,6] should not throw', () => {
+    const groups = [
+      makeGroup('S1', 4, 'Drug'),
+      makeGroup('S2', 4, 'Placebo'),
+      makeGroup('S3', 4, 'Drug'),
+      makeGroup('S4', 4, 'Placebo'),
+      makeGroup('S5', 3, 'Drug'),
+      makeGroup('S6', 3, 'Placebo'),
+      makeGroup('S7', 3, 'Drug'),
+      makeGroup('S8', 3, 'Placebo'),
+    ];
+    const rowCapacities = [8, 8, 6, 6];
+
+    const result = distributeGroupsToRows(groups, rowCapacities, ['Treatment']);
+    assertValidDistribution(groups, rowCapacities, result);
+  });
+
+  // Test case 3 (production-like): Mixed size-4 and size-3 groups across 8 rows
+  // with effective capacities [10,10,10,10,9,9,9,9], matching the reported P011 scenario.
+  it('test case 3 (production-like): mixed groups across 8 rows with uneven capacities should not throw', () => {
+    // 10 size-4 groups + 8 size-3 groups = 40 + 24 = 64
+    // Total capacity = 4*10 + 4*9 = 76, so there's slack, but FFD can still fail
+    const groups = [
+      makeGroup('P001', 4, 'Drug'),
+      makeGroup('P002', 4, 'Placebo'),
+      makeGroup('P003', 4, 'Drug'),
+      makeGroup('P004', 4, 'Placebo'),
+      makeGroup('P005', 4, 'Drug'),
+      makeGroup('P006', 4, 'Placebo'),
+      makeGroup('P007', 4, 'Drug'),
+      makeGroup('P008', 4, 'Placebo'),
+      makeGroup('P009', 4, 'Drug'),
+      makeGroup('P010', 4, 'Placebo'),
+      makeGroup('P011', 3, 'Drug'),
+      makeGroup('P012', 3, 'Placebo'),
+      makeGroup('P013', 3, 'Drug'),
+      makeGroup('P014', 3, 'Placebo'),
+      makeGroup('P015', 3, 'Drug'),
+      makeGroup('P016', 3, 'Placebo'),
+      makeGroup('P017', 3, 'Drug'),
+      makeGroup('P018', 3, 'Placebo'),
+    ];
+    const rowCapacities = [10, 10, 10, 10, 9, 9, 9, 9];
+
+    const result = distributeGroupsToRows(groups, rowCapacities, ['Treatment']);
+    assertValidDistribution(groups, rowCapacities, result);
+  });
+
+  // Test case 4 (non-deterministic): Run a borderline input 50+ times to observe
+  // that some runs throw due to shuffle randomness while a valid packing exists.
+  // Uses the minimal [4,4,3,3] / [8,6] case which is most likely to fail consistently.
+  it('test case 4 (non-deterministic): borderline input succeeds across 50 runs', () => {
+    const groups = [
+      makeGroup('S1', 4, 'Drug'),
+      makeGroup('S2', 4, 'Placebo'),
+      makeGroup('S3', 3, 'Drug'),
+      makeGroup('S4', 3, 'Placebo'),
+    ];
+    const rowCapacities = [8, 6];
+
+    const failures: string[] = [];
+    const runs = 50;
+
+    for (let i = 0; i < runs; i++) {
+      try {
+        const result = distributeGroupsToRows(groups, rowCapacities, ['Treatment']);
+        assertValidDistribution(groups, rowCapacities, result);
+      } catch (e: any) {
+        failures.push(`Run ${i + 1}: ${e.message}`);
+      }
+    }
+
+    // Expect zero failures — if any run throws, the bug is confirmed
+    expect(failures).toEqual([]);
+  });
+});

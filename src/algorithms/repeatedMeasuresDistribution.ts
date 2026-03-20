@@ -339,53 +339,123 @@ export function distributeGroupsToRows(
     return rowAssignments.get(rowIdx)!.flatMap(g => g.samples);
   };
 
-  // Place multi-sample groups using FFD
-  for (const group of sortedMultiGroups) {
-    // Find rows that can fit this group
-    const candidateRows: { rowIdx: number; remaining: number }[] = [];
-    for (let i = 0; i < remainingCapacities.length; i++) {
-      if (remainingCapacities[i] >= group.size) {
-        candidateRows.push({ rowIdx: i, remaining: remainingCapacities[i] });
-      }
-    }
-
-    if (candidateRows.length === 0) {
-      throw new Error(
-        `Unable to fit all subject groups into available rows. ` +
-        `Subject ${group.subjectId} (size ${group.size}) cannot fit in any row. ` +
-        `Consider using Same Plate constraint instead.`
-      );
-    }
-
-    // Sort candidates by remaining capacity descending
-    candidateRows.sort((a, b) => b.remaining - a.remaining);
-
-    // Find the max remaining capacity
-    const maxRemaining = candidateRows[0].remaining;
-    const tiedRows = candidateRows.filter(r => r.remaining === maxRemaining);
-
-    let bestRowIdx: number;
-    if (tiedRows.length === 1 || selectedCovariates.length === 0) {
-      bestRowIdx = shuffleArray(tiedRows)[0].rowIdx;
-    } else {
-      // Break tie by covariate balance
-      let bestScore = Infinity;
-      let bestCandidates: number[] = [];
-      for (const candidate of tiedRows) {
-        const currentSamples = getRowSamples(candidate.rowIdx);
-        const score = covariateImbalanceScore(currentSamples, group.samples, selectedCovariates);
-        if (score < bestScore) {
-          bestScore = score;
-          bestCandidates = [candidate.rowIdx];
-        } else if (score === bestScore) {
-          bestCandidates.push(candidate.rowIdx);
+  // Attempt greedy FFD placement; fall back to backtracking if it fails
+  let greedySucceeded = true;
+  try {
+    // Place multi-sample groups using FFD
+    for (const group of sortedMultiGroups) {
+      // Find rows that can fit this group
+      const candidateRows: { rowIdx: number; remaining: number }[] = [];
+      for (let i = 0; i < remainingCapacities.length; i++) {
+        if (remainingCapacities[i] >= group.size) {
+          candidateRows.push({ rowIdx: i, remaining: remainingCapacities[i] });
         }
       }
-      bestRowIdx = shuffleArray(bestCandidates)[0];
+
+      if (candidateRows.length === 0) {
+        throw new Error(
+          `Unable to fit all subject groups into available rows. ` +
+          `Subject ${group.subjectId} (size ${group.size}) cannot fit in any row. ` +
+          `Consider using Same Plate constraint instead.`
+        );
+      }
+
+      // Sort candidates by remaining capacity descending
+      candidateRows.sort((a, b) => b.remaining - a.remaining);
+
+      // Find the max remaining capacity
+      const maxRemaining = candidateRows[0].remaining;
+      const tiedRows = candidateRows.filter(r => r.remaining === maxRemaining);
+
+      let bestRowIdx: number;
+      if (tiedRows.length === 1 || selectedCovariates.length === 0) {
+        bestRowIdx = shuffleArray(tiedRows)[0].rowIdx;
+      } else {
+        // Break tie by covariate balance
+        let bestScore = Infinity;
+        let bestCandidates: number[] = [];
+        for (const candidate of tiedRows) {
+          const currentSamples = getRowSamples(candidate.rowIdx);
+          const score = covariateImbalanceScore(currentSamples, group.samples, selectedCovariates);
+          if (score < bestScore) {
+            bestScore = score;
+            bestCandidates = [candidate.rowIdx];
+          } else if (score === bestScore) {
+            bestCandidates.push(candidate.rowIdx);
+          }
+        }
+        bestRowIdx = shuffleArray(bestCandidates)[0];
+      }
+
+      rowAssignments.get(bestRowIdx)!.push(group);
+      remainingCapacities[bestRowIdx] -= group.size;
+    }
+  } catch (greedyError) {
+    // Greedy FFD failed — attempt backtracking fallback
+    greedySucceeded = false;
+
+    // Reset row assignments and capacities for the backtracking attempt
+    for (let i = 0; i < rowCapacities.length; i++) {
+      rowAssignments.set(i, []);
+    }
+    for (let i = 0; i < rowCapacities.length; i++) {
+      remainingCapacities[i] = rowCapacities[i];
     }
 
-    rowAssignments.get(bestRowIdx)!.push(group);
-    remainingCapacities[bestRowIdx] -= group.size;
+    // Backtracking bin-packing search
+    const btGroups = sortGroupsByDescendingSize(multiGroups);
+    const assignment: number[] = new Array(btGroups.length).fill(-1);
+    const btCapacities = [...rowCapacities];
+    const ITERATION_LIMIT = 100_000;
+    let iterations = 0;
+
+    // Precompute suffix sums of group sizes for feasibility pruning
+    const suffixSums = new Array(btGroups.length + 1).fill(0);
+    for (let i = btGroups.length - 1; i >= 0; i--) {
+      suffixSums[i] = suffixSums[i + 1] + btGroups[i].size;
+    }
+
+    const backtrack = (idx: number): boolean => {
+      if (idx === btGroups.length) return true; // all groups placed
+      const groupSize = btGroups[idx].size;
+
+      // Feasibility prune: remaining total capacity must fit remaining groups
+      const totalRemainingCap = btCapacities.reduce((s, c) => s + c, 0);
+      if (totalRemainingCap < suffixSums[idx]) return false;
+
+      // Track which capacity values we've already tried to prune symmetric rows
+      const triedCapacities = new Set<number>();
+      for (let r = 0; r < btCapacities.length; r++) {
+        if (++iterations > ITERATION_LIMIT) return false;
+        if (btCapacities[r] < groupSize) continue;
+        // Prune: skip rows with identical remaining capacity (symmetric)
+        if (triedCapacities.has(btCapacities[r])) continue;
+        triedCapacities.add(btCapacities[r]);
+
+        btCapacities[r] -= groupSize;
+        assignment[idx] = r;
+        if (backtrack(idx + 1)) return true;
+        btCapacities[r] += groupSize;
+        assignment[idx] = -1;
+      }
+      return false;
+    };
+
+    if (!backtrack(0)) {
+      // Backtracking also failed — throw the original greedy error
+      throw greedyError;
+    }
+
+    // Rebuild rowAssignments and remainingCapacities from backtracking solution
+    for (let i = 0; i < rowCapacities.length; i++) {
+      rowAssignments.set(i, []);
+      remainingCapacities[i] = rowCapacities[i];
+    }
+    for (let i = 0; i < btGroups.length; i++) {
+      const rowIdx = assignment[i];
+      rowAssignments.get(rowIdx)!.push(btGroups[i]);
+      remainingCapacities[rowIdx] -= btGroups[i].size;
+    }
   }
 
   // Distribute singletons to fill remaining row capacity, preferring covariate balance
