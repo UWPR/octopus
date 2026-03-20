@@ -342,6 +342,44 @@ export function distributeGroupsToRows(
   const multiGroups = groups.filter(g => g.size > 1);
   const singletons = groups.filter(g => g.size === 1);
 
+  // Early feasibility checks with informative error messages
+  const maxRowCap = Math.max(...rowCapacities);
+  const oversizedGroup = multiGroups.find(g => g.size > maxRowCap);
+  if (oversizedGroup) {
+    throw new Error(
+      `Subject ${oversizedGroup.subjectId} has ${oversizedGroup.size} samples, ` +
+      `but the largest row only has ${maxRowCap} available slots (after QC allocation). ` +
+      `Try using Same Plate constraint, increasing the plate size, or reducing QC samples.`
+    );
+  }
+
+  const totalMultiGroupSamples = multiGroups.reduce((sum, g) => sum + g.size, 0);
+  const totalCapacity = rowCapacities.reduce((sum, c) => sum + c, 0);
+  const totalSamples = totalMultiGroupSamples + singletons.length;
+  if (totalSamples > totalCapacity) {
+    throw new Error(
+      `Total samples (${totalSamples}) exceed total row capacity (${totalCapacity}). ` +
+      `Try increasing the plate size or adding more plates.`
+    );
+  }
+
+  // Check if there are enough row "slots" for all multi-sample groups.
+  // Each row can hold at most floor(capacity / groupSize) groups of a given size.
+  const groupsBySize = new Map<number, number>();
+  for (const g of multiGroups) {
+    groupsBySize.set(g.size, (groupsBySize.get(g.size) ?? 0) + 1);
+  }
+  for (const [groupSize, groupCount] of Array.from(groupsBySize.entries())) {
+    const totalSlots = rowCapacities.reduce((sum, cap) => sum + Math.floor(cap / groupSize), 0);
+    if (groupCount > totalSlots) {
+      throw new Error(
+        `Cannot fit ${groupCount} subject groups of size ${groupSize} into the available rows. ` +
+        `The rows can hold at most ${totalSlots} groups of this size (max ${Math.floor(maxRowCap / groupSize)} per row). ` +
+        `Try using Same Plate constraint, increasing the plate size, or reducing QC samples.`
+      );
+    }
+  }
+
   // Sort multi-sample groups by size descending with randomized tie-breaking
   const sortedMultiGroups = sortGroupsByDescendingSize(multiGroups);
 
@@ -561,7 +599,7 @@ export function groupAwareRandomization(
     `${numPlates} plate(s), constraint: ${groupingConstraint}`);
 
   // Step 1: Separate QC samples from experimental samples
-  const qcSamples = searches.filter(s => s.isQC === true);
+  const qcSamples = shuffleArray(searches.filter(s => s.isQC === true));
   const experimentalSamples = searches.filter(s => s.isQC !== true);
 
   console.log(`QC samples: ${qcSamples.length}, Experimental samples: ${experimentalSamples.length}`);

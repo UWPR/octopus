@@ -108,6 +108,7 @@ const App: React.FC = () => {
   const [showPlateDetails, setShowPlateDetails] = useState<boolean>(false);
   const [selectedPlateIndex, setSelectedPlateIndex] = useState<number | null>(null);
   const [showExcelExportModal, setShowExcelExportModal] = useState<boolean>(false);
+  const [randomizationError, setRandomizationError] = useState<string | null>(null);
 
   // Repeated-measures state
   const [subjectColumn, setSubjectColumn] = useState<string>('');
@@ -140,6 +141,7 @@ const App: React.FC = () => {
     if (selectedFileName && searches.length > 0) {
       // Reset all application state except the file upload state
       resetRandomization();
+      setRandomizationError(null);
       resetColors();
       resetMetrics();
       resetModalPosition();
@@ -189,6 +191,7 @@ const App: React.FC = () => {
 
   const resetCovariateState = () => {
     resetRandomization();
+    setRandomizationError(null);
     resetColors();
     resetMetrics();
     setShowSummary(false);
@@ -338,6 +341,9 @@ const App: React.FC = () => {
   // Main processing handler
   const handleProcessRandomization = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
+      // Clear any previous error
+      setRandomizationError(null);
+
       // Process metadata and set the covariateKey
       processMetadata(searches);
 
@@ -345,34 +351,38 @@ const App: React.FC = () => {
       const repeatedMeasuresConfig: RepeatedMeasuresConfig | undefined =
         subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
 
-      // Process randomization
-      const success = processRandomization(
-        searches,
-        selectedCovariates,
-        selectedAlgorithm,
-        keepEmptyInLastPlate,
-        plateRows,
-        plateColumns,
-        repeatedMeasuresConfig
-      );
-
-      if (success) {
-        // Generate colors (pass QC info for proper color assignment)
-        const colors = generateCovariateColors(
+      try {
+        // Process randomization
+        const success = processRandomization(
           searches,
           selectedCovariates,
-          qcColumn,
-          selectedQcValues
+          selectedAlgorithm,
+          keepEmptyInLastPlate,
+          plateRows,
+          plateColumns,
+          repeatedMeasuresConfig
         );
 
-        // Generate summary data
-        generateSummaryData(
-          colors,
-          searches,
-          selectedCovariates,
-          qcColumn,
-          selectedQcValues
-        );
+        if (success) {
+          // Generate colors (pass QC info for proper color assignment)
+          const colors = generateCovariateColors(
+            searches,
+            selectedCovariates,
+            qcColumn,
+            selectedQcValues
+          );
+
+          // Generate summary data
+          generateSummaryData(
+            colors,
+            searches,
+            selectedCovariates,
+            qcColumn,
+            selectedQcValues
+          );
+        }
+      } catch (err: any) {
+        setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
       }
     }
   };
@@ -567,6 +577,26 @@ const App: React.FC = () => {
             >
               Generate Randomized Plates
             </button>
+          )}
+
+          {/* Randomization error message */}
+          {randomizationError && (
+            <div style={{
+              margin: '12px 0',
+              padding: '12px 16px',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fca5a5',
+              borderRadius: '6px',
+              color: '#991b1b',
+              fontSize: '14px',
+              lineHeight: '1.5',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+            }}>
+              <span style={{ fontWeight: 600, flexShrink: 0 }}>⚠</span>
+              <span>{randomizationError}</span>
+            </div>
           )}
 
           {/* Plates Visualization */}

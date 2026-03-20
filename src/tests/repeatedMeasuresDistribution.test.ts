@@ -465,7 +465,7 @@ describe('distributeGroupsToRows', () => {
 
     expect(() => {
       distributeGroupsToRows(groups, [10, 10], EMPTY_PROPORTIONS);
-    }).toThrow('Unable to fit all subject groups into available rows');
+    }).toThrow('but the largest row only has');
   });
 
   it('prefers rows that improve covariate balance when capacities are tied', () => {
@@ -1115,7 +1115,7 @@ describe('Fix Checking: Valid packings never throw after fix', () => {
 
           expect(() => {
             distributeGroupsToRows([oversizedGroup], rowCapacities, EMPTY_PROPORTIONS);
-          }).toThrow('Unable to fit all subject groups');
+          }).toThrow('but the largest row only has');
         }
       ),
       { numRuns: 50 }
