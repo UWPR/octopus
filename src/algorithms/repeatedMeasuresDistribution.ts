@@ -103,39 +103,57 @@ export function validateSubjectGroups(
 /**
  * Calculates a covariate imbalance score for a set of samples.
  * Lower score = better balance. The score is the sum of squared deviations
- * from the expected proportion for each covariate value.
+ * from the global expected proportion for each covariate value.
+ *
+ * @param currentSamples - Samples already assigned to the row/plate
+ * @param candidateSamples - Samples being considered for assignment
+ * @param globalProportions - Map of covariateKey → proportion across ALL experimental samples
  */
-function covariateImbalanceScore(
+export function covariateImbalanceScore(
   currentSamples: SearchData[],
   candidateSamples: SearchData[],
-  selectedCovariates: string[]
+  globalProportions: Map<string, number>
 ): number {
-  if (selectedCovariates.length === 0) return 0;
+  if (globalProportions.size <= 1) return 0;
 
   const combined = [...currentSamples, ...candidateSamples];
   if (combined.length === 0) return 0;
 
-  // Count occurrences of each covariate combination
+  // Count occurrences of each covariate key in the combined set
   const counts = new Map<string, number>();
   for (const sample of combined) {
-    const key = selectedCovariates.map(c => sample.metadata[c] ?? '').join('|');
+    const key = sample.covariateKey ?? '';
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
 
-  // Ideal: each covariate combination has equal proportion
   const total = combined.length;
-  const numGroups = counts.size;
-  if (numGroups <= 1) return 0;
-
-  const expectedProportion = 1 / numGroups;
   let score = 0;
-  counts.forEach(count => {
-    const actualProportion = count / total;
+  globalProportions.forEach((expectedProportion, key) => {
+    const actualProportion = (counts.get(key) ?? 0) / total;
     const deviation = actualProportion - expectedProportion;
     score += deviation * deviation;
   });
 
   return score;
+}
+
+/**
+ * Computes the global proportion of each covariate key across all samples.
+ * Returns a Map of covariateKey → proportion (count / total).
+ */
+export function computeGlobalProportions(samples: SearchData[]): Map<string, number> {
+  if (samples.length === 0) return new Map();
+  const counts = new Map<string, number>();
+  for (const sample of samples) {
+    const key = sample.covariateKey ?? '';
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const total = samples.length;
+  const proportions = new Map<string, number>();
+  counts.forEach((count, key) => {
+    proportions.set(key, count / total);
+  });
+  return proportions;
 }
 
 /**
@@ -171,14 +189,14 @@ function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup[] {
  *
  * @param groups - Subject groups to distribute (including singletons)
  * @param plateCapacities - Available capacity for each plate (array index = plate index)
- * @param selectedCovariates - Treatment covariate column names for balance scoring
+ * @param globalProportions - Map of covariateKey → proportion across all experimental samples
  * @returns Map from plate index to array of SubjectGroups assigned to that plate
  * @throws Error if a group cannot fit in any plate
  */
 export function distributeGroupsToPlates(
   groups: SubjectGroup[],
   plateCapacities: number[],
-  selectedCovariates: string[]
+  globalProportions: Map<string, number>
 ): Map<number, SubjectGroup[]> {
   // Separate multi-sample groups from singletons
   const multiGroups = groups.filter(g => g.size > 1);
@@ -225,7 +243,7 @@ export function distributeGroupsToPlates(
     const tiedPlates = candidatePlates.filter(p => p.remaining === maxRemaining);
 
     let bestPlateIdx: number;
-    if (tiedPlates.length === 1 || selectedCovariates.length === 0) {
+    if (tiedPlates.length === 1 || globalProportions.size === 0) {
       // No tie or no covariates to break tie — pick from tied plates randomly
       bestPlateIdx = shuffleArray(tiedPlates)[0].plateIdx;
     } else {
@@ -235,7 +253,7 @@ export function distributeGroupsToPlates(
       let bestCandidates: number[] = [];
       for (const candidate of tiedPlates) {
         const currentSamples = getPlateSamples(candidate.plateIdx);
-        const score = covariateImbalanceScore(currentSamples, group.samples, selectedCovariates);
+        const score = covariateImbalanceScore(currentSamples, group.samples, globalProportions);
         if (score < bestScore) {
           bestScore = score;
           bestCandidates = [candidate.plateIdx];
@@ -275,14 +293,14 @@ export function distributeGroupsToPlates(
     const tiedPlates = candidatePlates.filter(p => p.remaining === maxRemaining);
 
     let bestPlateIdx: number;
-    if (tiedPlates.length === 1 || selectedCovariates.length === 0) {
+    if (tiedPlates.length === 1 || globalProportions.size === 0) {
       bestPlateIdx = shuffleArray(tiedPlates)[0].plateIdx;
     } else {
       let bestScore = Infinity;
       let bestCandidates: number[] = [];
       for (const candidate of tiedPlates) {
         const currentSamples = getPlateSamples(candidate.plateIdx);
-        const score = covariateImbalanceScore(currentSamples, singleton.samples, selectedCovariates);
+        const score = covariateImbalanceScore(currentSamples, singleton.samples, globalProportions);
         if (score < bestScore) {
           bestScore = score;
           bestCandidates = [candidate.plateIdx];
@@ -311,14 +329,14 @@ export function distributeGroupsToPlates(
  *
  * @param groups - Subject groups to distribute (including singletons)
  * @param rowCapacities - Available capacity for each row (array index = row index)
- * @param selectedCovariates - Treatment covariate column names for balance scoring
+ * @param globalProportions - Map of covariateKey → proportion across all experimental samples
  * @returns Map from row index to array of SubjectGroups assigned to that row
  * @throws Error if a group cannot fit in any row
  */
 export function distributeGroupsToRows(
   groups: SubjectGroup[],
   rowCapacities: number[],
-  selectedCovariates: string[]
+  globalProportions: Map<string, number>
 ): Map<number, SubjectGroup[]> {
   // Separate multi-sample groups from singletons
   const multiGroups = groups.filter(g => g.size > 1);
@@ -368,7 +386,7 @@ export function distributeGroupsToRows(
       const tiedRows = candidateRows.filter(r => r.remaining === maxRemaining);
 
       let bestRowIdx: number;
-      if (tiedRows.length === 1 || selectedCovariates.length === 0) {
+      if (tiedRows.length === 1 || globalProportions.size === 0) {
         bestRowIdx = shuffleArray(tiedRows)[0].rowIdx;
       } else {
         // Break tie by covariate balance
@@ -376,7 +394,7 @@ export function distributeGroupsToRows(
         let bestCandidates: number[] = [];
         for (const candidate of tiedRows) {
           const currentSamples = getRowSamples(candidate.rowIdx);
-          const score = covariateImbalanceScore(currentSamples, group.samples, selectedCovariates);
+          const score = covariateImbalanceScore(currentSamples, group.samples, globalProportions);
           if (score < bestScore) {
             bestScore = score;
             bestCandidates = [candidate.rowIdx];
@@ -481,14 +499,14 @@ export function distributeGroupsToRows(
     const tiedRows = candidateRows.filter(r => r.remaining === maxRemaining);
 
     let bestRowIdx: number;
-    if (tiedRows.length === 1 || selectedCovariates.length === 0) {
+    if (tiedRows.length === 1 || globalProportions.size === 0) {
       bestRowIdx = shuffleArray(tiedRows)[0].rowIdx;
     } else {
       let bestScore = Infinity;
       let bestCandidates: number[] = [];
       for (const candidate of tiedRows) {
         const currentSamples = getRowSamples(candidate.rowIdx);
-        const score = covariateImbalanceScore(currentSamples, singleton.samples, selectedCovariates);
+        const score = covariateImbalanceScore(currentSamples, singleton.samples, globalProportions);
         if (score < bestScore) {
           bestScore = score;
           bestCandidates = [candidate.rowIdx];
@@ -600,20 +618,25 @@ export function groupAwareRandomization(
 
   console.log(`Effective plate capacities: [${effectivePlateCapacities.join(', ')}]`);
 
-  // Step 5: Distribute subject groups to plates
+  // Step 5: Compute global proportions for covariate balance scoring
+  const globalProportions = selectedCovariates.length > 0
+    ? computeGlobalProportions(experimentalSamples)
+    : new Map<string, number>();
+
+  // Step 6: Distribute subject groups to plates
   const plateGroupAssignments = distributeGroupsToPlates(
     subjectGroups,
     effectivePlateCapacities,
-    selectedCovariates
+    globalProportions
   );
 
-  // Step 6: Initialize plate data structures
+  // Step 7: Initialize plate data structures
   const plates: (SearchData | undefined)[][][] = Array.from({ length: numPlates }, () =>
     Array.from({ length: numRows }, () => new Array(numColumns).fill(undefined))
   );
   const plateAssignments = new Map<number, SearchData[]>();
 
-  // Step 7: Distribute QC samples into a queue per plate-row
+  // Step 8: Distribute QC samples into a queue per plate-row
   let qcIdx = 0;
   const qcPerPlateRow: SearchData[][][] = Array.from({ length: numPlates }, () =>
     Array.from({ length: numRows }, () => [])
@@ -628,7 +651,7 @@ export function groupAwareRandomization(
     }
   }
 
-  // Step 8: For each plate, distribute groups to rows, then place in columns
+  // Step 9: For each plate, distribute groups to rows, then place in columns
   for (let plateIdx = 0; plateIdx < numPlates; plateIdx++) {
     const plateGroups = plateGroupAssignments.get(plateIdx) ?? [];
     const allPlateSamples: SearchData[] = [];
@@ -638,7 +661,7 @@ export function groupAwareRandomization(
       const rowGroupAssignments = distributeGroupsToRows(
         plateGroups,
         effectiveRowCapacitiesPerPlate[plateIdx],
-        selectedCovariates
+        globalProportions
       );
 
       // Place samples in each row
