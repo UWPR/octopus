@@ -483,18 +483,20 @@ const baseStyles = {
   fullSearchCard: {
     borderRadius: '8px',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-    width: '150px',
+    width: '100%',
     boxSizing: 'border-box' as const,
     cursor: 'move',
     transition: 'all 0.2s ease',
     overflow: 'hidden',
   },
   searchTitle: {
-    fontSize: '14px',
+    fontSize: '12px',
     fontWeight: 'bold',
     marginBottom: '8px',
     color: '#333',
     margin: '0 0 8px 0',
+    wordBreak: 'break-all' as const,
+    textAlign: 'center' as const,
   },
   searchDivider: {
     border: 'none',
