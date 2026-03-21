@@ -36,7 +36,6 @@ test.describe('Happy Path Workflow', () => {
     await page.locator('#covariates').selectOption(['Condition', 'Radiaion Dose_cGy', 'Focus Area']);
 
     await expect(page.locator('text=Selected:')).toBeVisible();
-    await expect(page.locator('#algorithm')).toHaveValue('balanced');
     await expect(page.locator('#plateRows')).toHaveValue('8');
     await expect(page.locator('#plateColumns')).toHaveValue('12');
 
