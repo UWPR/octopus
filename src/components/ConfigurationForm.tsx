@@ -193,21 +193,21 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
                   <input
                     type="radio"
                     name="groupingConstraint"
-                    checked={groupingConstraint === 'same-plate'}
-                    onChange={() => onGroupingConstraintChange('same-plate')}
-                    style={styles.radio}
-                  />
-                  Same Plate
-                </label>
-                <label style={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    name="groupingConstraint"
                     checked={groupingConstraint === 'same-row'}
                     onChange={() => onGroupingConstraintChange('same-row')}
                     style={styles.radio}
                   />
                   Same Row
+                </label>
+                <label style={styles.radioLabel}>
+                  <input
+                    type="radio"
+                    name="groupingConstraint"
+                    checked={groupingConstraint === 'same-plate'}
+                    onChange={() => onGroupingConstraintChange('same-plate')}
+                    style={styles.radio}
+                  />
+                  Same Plate
                 </label>
               </div>
             </div>
@@ -235,8 +235,8 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
               <small style={styles.compactLabel}>Subject Groups:</small>
               <div style={styles.groupSummaryText}>
                 {groupSummary.totalGroups} group{groupSummary.totalGroups !== 1 ? 's' : ''}
-                {groupSummary.totalGroups > 0 && ` (size ${groupSummary.minSize}–${groupSummary.maxSize})`}
-                {groupSummary.singletonCount > 0 && `, ${groupSummary.singletonCount} singleton${groupSummary.singletonCount !== 1 ? 's' : ''}`}
+                {groupSummary.totalGroups > 0 && ` (size ${groupSummary.minSize === groupSummary.maxSize ? groupSummary.minSize : `${groupSummary.minSize}–${groupSummary.maxSize}`})`}
+                {groupSummary.singletonCount > 0 && `, ${groupSummary.singletonCount} singleton${groupSummary.singletonCount !== 1 ? 's' : ''} (no ${subjectColumn})`}
               </div>
               {groupSummary.breakdown && (
                 <div style={styles.groupBreakdownText}>{groupSummary.breakdown}</div>
@@ -322,15 +322,17 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
           <div style={styles.fullWidthColumn}>
             <div style={styles.balancedOptionsContainer}>
               <div style={styles.optionsRow}>
-                <label style={styles.compactCheckboxLabel}>
-                  <input
-                    type="checkbox"
-                    checked={keepEmptyInLastPlate}
-                    onChange={onKeepEmptyInLastPlateChange}
-                    style={styles.checkbox}
-                  />
-                  Keep empty spots in last plate
-                </label>
+                {groupingConstraint === 'none' && (
+                  <label style={styles.compactCheckboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={keepEmptyInLastPlate}
+                      onChange={onKeepEmptyInLastPlateChange}
+                      style={styles.checkbox}
+                    />
+                    Keep empty spots in last plate
+                  </label>
+                )}
 
                 <div style={styles.plateDimensionsInline}>
                   <span style={styles.dimensionLabel}>Plate Rows:</span>

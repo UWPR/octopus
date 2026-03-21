@@ -95,7 +95,7 @@ const App: React.FC = () => {
 
   // Algorithm selection
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<RandomizationAlgorithm>(defaultAlgorithm);
-  const [keepEmptyInLastPlate, setKeepEmptyInLastPlate] = useState<boolean>(true);
+  const [keepEmptyInLastPlate, setKeepEmptyInLastPlate] = useState<boolean>(false);
 
   // Plate dimensions
   const [plateRows, setPlateRows] = useState<number>(8);
@@ -159,7 +159,7 @@ const App: React.FC = () => {
 
       // Reset algorithm selection (keep defaults)
       setSelectedAlgorithm(defaultAlgorithm);
-      setKeepEmptyInLastPlate(true);
+      setKeepEmptyInLastPlate(false);
 
       // Reset plate dimensions (keep defaults)
       setPlateRows(8);
@@ -177,17 +177,25 @@ const App: React.FC = () => {
   // Run validation whenever subject column, grouping constraint, or plate dimensions change
   useEffect(() => {
     if (subjectColumn && searches.length > 0 && groupingConstraint !== 'none') {
-      const groups = buildSubjectGroups(searches, subjectColumn);
+      const experimentalSamples = searches.filter(s => {
+        if (qcColumn && selectedQcValues.length > 0) {
+          const sampleValue = s.metadata[qcColumn];
+          if (sampleValue && selectedQcValues.includes(sampleValue)) return false;
+        }
+        return true;
+      });
+      const groups = buildSubjectGroups(experimentalSamples, subjectColumn);
       const rowCapacity = plateColumns;
       const plateCapacity = plateRows * plateColumns;
       const numPlates = Math.ceil(searches.length / plateCapacity);
       const totalWellCapacity = numPlates * plateCapacity;
-      const result = validateSubjectGroups(groups, groupingConstraint, rowCapacity, plateCapacity, totalWellCapacity);
+      const numQcSamples = searches.length - experimentalSamples.length;
+      const result = validateSubjectGroups(groups, groupingConstraint, rowCapacity, plateCapacity, totalWellCapacity, plateRows, numQcSamples);
       setGroupValidation(result);
     } else {
       setGroupValidation(null);
     }
-  }, [subjectColumn, groupingConstraint, plateRows, plateColumns, searches]);
+  }, [subjectColumn, groupingConstraint, plateRows, plateColumns, searches, qcColumn, selectedQcValues]);
 
   const resetCovariateState = () => {
     resetRandomization();
@@ -294,6 +302,10 @@ const App: React.FC = () => {
         setQcColumn('');
         setQcColumnValues([]);
         setSelectedQcValues([]);
+      }
+      // Default to same-row constraint when subject column is selected
+      if (groupingConstraint === 'none') {
+        setGroupingConstraint('same-row');
       }
     }
 
@@ -514,7 +526,8 @@ const App: React.FC = () => {
 
 
   const canProcess = selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0
-    && (groupValidation === null || groupValidation.isValid);
+    && (groupValidation === null || groupValidation.isValid)
+    && (!subjectColumn || groupingConstraint !== 'none');
 
   return (
     <div style={styles.container}>

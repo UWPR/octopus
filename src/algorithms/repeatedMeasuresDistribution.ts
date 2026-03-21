@@ -56,7 +56,9 @@ export function validateSubjectGroups(
   constraint: GroupingConstraint,
   rowCapacity: number,
   plateCapacity: number,
-  totalWellCapacity: number
+  totalWellCapacity: number,
+  numRows?: number,
+  numQcSamples?: number
 ): GroupValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -81,6 +83,35 @@ export function validateSubjectGroups(
       errors.push(
         `Subject ${group.subjectId} has ${group.size} samples, which exceeds the plate capacity of ${plateCapacity}.`
       );
+    }
+  }
+
+  // For same-row: check if multi-sample groups can fit across all plates
+  if (constraint === 'same-row' && numRows !== undefined) {
+    const numPlates = Math.ceil((totalSamples + (numQcSamples ?? 0)) / plateCapacity);
+    const qcPerRow = numQcSamples ? Math.ceil(numQcSamples / (numPlates * numRows)) : 0;
+    const effectiveRowCap = rowCapacity - qcPerRow;
+
+    // Count groups by size
+    const groupsBySize = new Map<number, number>();
+    const multiGroups = groups.filter(g => g.size > 1);
+    for (const g of multiGroups) {
+      groupsBySize.set(g.size, (groupsBySize.get(g.size) ?? 0) + 1);
+    }
+
+    // Check slot feasibility across all plates
+    const totalRows = numPlates * numRows;
+    for (const [groupSize, groupCount] of Array.from(groupsBySize.entries())) {
+      const slotsPerRow = Math.floor(effectiveRowCap / groupSize);
+      const totalSlots = totalRows * slotsPerRow;
+      if (groupCount > totalSlots) {
+        errors.push(
+          `Cannot fit ${groupCount} subject groups of size ${groupSize} into available rows. ` +
+          `With ${numPlates} plate(s) × ${numRows} rows, each row can hold ${slotsPerRow} group(s) of this size ` +
+          `(${effectiveRowCap} effective slots per row after QC). ` +
+          `Try using Same Plate constraint, increasing the plate size, or reducing QC samples.`
+        );
+      }
     }
   }
 
@@ -189,13 +220,16 @@ function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup[] {
  * @param groups - Subject groups to distribute (including singletons)
  * @param plateCapacities - Available capacity for each plate (array index = plate index)
  * @param globalProportions - Map of covariateKey → proportion across all experimental samples
+ * @param plateRowSlotLimits - Optional per-plate limit on how many multi-sample groups can be assigned
+ *   (for same-row constraint: each row holds floor(rowCap / groupSize) groups)
  * @returns Map from plate index to array of SubjectGroups assigned to that plate
  * @throws Error if a group cannot fit in any plate
  */
 export function distributeGroupsToPlates(
   groups: SubjectGroup[],
   plateCapacities: number[],
-  globalProportions: Map<string, number>
+  globalProportions: Map<string, number>,
+  plateRowSlotLimits?: number[]
 ): Map<number, SubjectGroup[]> {
   // Separate multi-sample groups from singletons
   const multiGroups = groups.filter(g => g.size > 1);
@@ -207,6 +241,7 @@ export function distributeGroupsToPlates(
   // Initialize plate assignments and remaining capacities
   const plateAssignments = new Map<number, SubjectGroup[]>();
   const remainingCapacities = [...plateCapacities];
+  const remainingRowSlots = plateRowSlotLimits ? [...plateRowSlotLimits] : undefined;
   for (let i = 0; i < plateCapacities.length; i++) {
     plateAssignments.set(i, []);
   }
@@ -222,6 +257,8 @@ export function distributeGroupsToPlates(
     const candidatePlates: { plateIdx: number; remaining: number }[] = [];
     for (let i = 0; i < remainingCapacities.length; i++) {
       if (remainingCapacities[i] >= group.size) {
+        // If row-slot limits are set, also check that the plate has remaining row-slots
+        if (remainingRowSlots && remainingRowSlots[i] <= 0) continue;
         candidatePlates.push({ plateIdx: i, remaining: remainingCapacities[i] });
       }
     }
@@ -266,6 +303,9 @@ export function distributeGroupsToPlates(
 
     plateAssignments.get(bestPlateIdx)!.push(group);
     remainingCapacities[bestPlateIdx] -= group.size;
+    if (remainingRowSlots) {
+      remainingRowSlots[bestPlateIdx] -= 1;
+    }
   }
 
   // Distribute singletons to fill remaining capacity, preferring covariate balance
@@ -707,9 +747,11 @@ export function groupAwareRandomization(
   }
 
   // If keepEmptyInLastPlate, reduce last plate's effective capacity
-  // to only what's needed for remaining experimental samples
+  // to only what's needed for remaining experimental samples.
+  // Disabled for same-row constraint: row-slot geometry already constrains
+  // distribution tightly, and reducing capacity causes singleton imbalance.
   const totalExperimental = experimentalSamples.length;
-  if (keepEmptyInLastPlate && numPlates > 1) {
+  if (keepEmptyInLastPlate && numPlates > 1 && groupingConstraint !== 'same-row') {
     const capacityBeforeLast = effectivePlateCapacities.slice(0, numPlates - 1)
       .reduce((sum, c) => sum + c, 0);
     const remainingForLast = Math.max(0, totalExperimental - capacityBeforeLast);
@@ -720,6 +762,25 @@ export function groupAwareRandomization(
 
   console.log(`Effective plate capacities: [${effectivePlateCapacities.join(', ')}]`);
 
+  // For same-row constraint, compute per-plate row-slot limits.
+  // These limit how many multi-sample groups each plate can accept,
+  // independent of total well capacity.
+  let plateRowSlotLimits: number[] | undefined;
+  if (groupingConstraint === 'same-row') {
+    const multiGroups = subjectGroups.filter(g => g.size > 1);
+    if (multiGroups.length > 0) {
+      const maxGroupSize = Math.max(...multiGroups.map(g => g.size));
+      console.log(`Same-row: ${multiGroups.length} multi-groups of max size ${maxGroupSize}`);
+      plateRowSlotLimits = [];
+      for (let p = 0; p < numPlates; p++) {
+        const rowCaps = effectiveRowCapacitiesPerPlate[p];
+        const totalRowSlots = rowCaps.reduce((sum, cap) => sum + Math.floor(cap / maxGroupSize), 0);
+        plateRowSlotLimits.push(totalRowSlots);
+        console.log(`Plate ${p}: row caps [${rowCaps.join(', ')}], ${totalRowSlots} row-slots for groups of size ${maxGroupSize}`);
+      }
+    }
+  }
+
   // Step 5: Compute global proportions for covariate balance scoring
   const globalProportions = selectedCovariates.length > 0
     ? computeGlobalProportions(experimentalSamples)
@@ -729,7 +790,8 @@ export function groupAwareRandomization(
   const plateGroupAssignments = distributeGroupsToPlates(
     subjectGroups,
     effectivePlateCapacities,
-    globalProportions
+    globalProportions,
+    plateRowSlotLimits
   );
 
   // Step 7: Initialize plate data structures
