@@ -10,6 +10,8 @@ interface ExcelExportModalProps {
   treatmentCovariates: string[];
   searches: SearchData[];
   sampleIdColumn: string;
+  subjectColumn?: string;
+  qcColumn?: string;
 }
 
 const ExcelExportModal: React.FC<ExcelExportModalProps> = ({
@@ -19,16 +21,21 @@ const ExcelExportModal: React.FC<ExcelExportModalProps> = ({
   availableCovariates,
   treatmentCovariates,
   searches,
-  sampleIdColumn
+  sampleIdColumn,
+  subjectColumn,
+  qcColumn
 }) => {
   const [selectedCovariates, setSelectedCovariates] = useState<string[]>([]);
 
-  // Initialize with treatment covariates when modal opens
+  // Initialize with treatment covariates + subject column + QC column when modal opens
   useEffect(() => {
     if (isOpen) {
-      setSelectedCovariates(treatmentCovariates);
+      const preSelected = new Set(treatmentCovariates);
+      if (subjectColumn) preSelected.add(subjectColumn);
+      if (qcColumn) preSelected.add(qcColumn);
+      setSelectedCovariates(Array.from(preSelected));
     }
-  }, [isOpen, treatmentCovariates]);
+  }, [isOpen, treatmentCovariates, subjectColumn, qcColumn]);
 
   // Sort covariates: Sample ID first, then treatment covariates, then others
   const sortedCovariates = React.useMemo(() => {

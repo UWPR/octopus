@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SummaryItem } from '../utils/types';
+
+type FillStyle = 'solid' | 'outline' | 'diagonal';
 
 interface SummaryPanelProps {
   summaryData: SummaryItem[];
@@ -10,6 +12,21 @@ interface SummaryPanelProps {
   qcColumn?: string;
   selectedQcValues?: string[];
   selectedCovariates?: string[];
+  onUpdateColor?: (combination: string, updates: { color?: string; useOutline?: boolean; useStripes?: boolean }) => void;
+}
+
+function getFillStyle(item: SummaryItem): FillStyle {
+  if (item.useStripes) return 'diagonal';
+  if (item.useOutline) return 'outline';
+  return 'solid';
+}
+
+function fillStyleToFlags(style: FillStyle): { useOutline: boolean; useStripes: boolean } {
+  switch (style) {
+    case 'outline': return { useOutline: true, useStripes: false };
+    case 'diagonal': return { useOutline: false, useStripes: true };
+    default: return { useOutline: false, useStripes: false };
+  }
 }
 
 const SummaryPanel: React.FC<SummaryPanelProps> = ({
@@ -18,10 +35,13 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
   onToggleSummary,
   selectedCombination,
   onSummaryItemClick,
-  qcColumn: qcColumn,
-  selectedQcValues: selectedQcValues = [],
+  qcColumn,
+  selectedQcValues = [],
   selectedCovariates = [],
+  onUpdateColor,
 }) => {
+  const [editingCombination, setEditingCombination] = useState<string | null>(null);
+
   if (summaryData.length === 0 || !showSummary) return null;
 
   // Get unique values for each covariate
@@ -34,6 +54,19 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
       covariateUniqueValues.get(covariate)!.add(value);
     });
   });
+
+  const handleEditClick = (e: React.MouseEvent, combination: string) => {
+    e.stopPropagation();
+    setEditingCombination(editingCombination === combination ? null : combination);
+  };
+
+  const handleColorChange = (combination: string, color: string) => {
+    onUpdateColor?.(combination, { color });
+  };
+
+  const handleStyleChange = (combination: string, style: FillStyle) => {
+    onUpdateColor?.(combination, fillStyleToFlags(style));
+  };
 
   return (
     <div style={styles.summaryContainer}>
@@ -63,9 +96,9 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
         </div>
         <div style={styles.summaryGrid}>
           {summaryData.map((item, index) => {
-            // A group is QC only if it has a QC column value AND that value is in the selected QC values
             const isQC = item.qcColumnValue !== undefined &&
                              selectedQcValues.includes(item.qcColumnValue);
+            const isEditing = editingCombination === item.combination;
 
             return (
               <div
@@ -91,6 +124,18 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
                       boxSizing: 'border-box' as const
                     }}
                   />
+                  {onUpdateColor && (
+                    <span
+                      onClick={(e) => handleEditClick(e, item.combination)}
+                      style={{
+                        ...styles.editIcon,
+                        ...(isEditing ? styles.editIconActive : {}),
+                      }}
+                      title="Edit color and style"
+                    >
+                      ✎
+                    </span>
+                  )}
                   <span style={styles.summaryCount}>
                     {item.count}
                   </span>
@@ -98,14 +143,37 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
                     <span style={styles.qcBadge}>QC</span>
                   )}
                 </div>
+                {isEditing && (
+                  <div style={styles.editControls} onClick={(e) => e.stopPropagation()}>
+                    <label style={styles.editLabel}>
+                      Color:
+                      <input
+                        type="color"
+                        value={item.color}
+                        onChange={(e) => handleColorChange(item.combination, e.target.value)}
+                        style={styles.colorInput}
+                      />
+                    </label>
+                    <label style={styles.editLabel}>
+                      Style:
+                      <select
+                        value={getFillStyle(item)}
+                        onChange={(e) => handleStyleChange(item.combination, e.target.value as FillStyle)}
+                        style={styles.styleSelect}
+                      >
+                        <option value="solid">Solid</option>
+                        <option value="outline">Outline</option>
+                        <option value="diagonal">Diagonal</option>
+                      </select>
+                    </label>
+                  </div>
+                )}
                 <div style={styles.summaryDetails}>
-                  {/* Show QC column value only for QC items */}
                   {isQC && qcColumn && (
                     <div key={qcColumn} style={styles.covariateDetail}>
                       <strong>{qcColumn}:</strong> {item.qcColumnValue}
                     </div>
                   )}
-                  {/* Show other covariates, excluding QC column only for QC items to avoid duplication */}
                   {Object.entries(item.values)
                     .filter(([covariate]) => !(isQC && covariate === qcColumn))
                     .map(([covariate, value]) => (
@@ -123,7 +191,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
   );
 };
 
-const styles = {
+const styles: Record<string, React.CSSProperties> = {
   summaryContainer: {
     width: '90%',
     marginBottom: '20px',
@@ -136,7 +204,7 @@ const styles = {
   },
   summaryInfo: {
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     gap: '4px',
     marginBottom: '12px',
     padding: '8px',
@@ -158,11 +226,11 @@ const styles = {
   },
   summaryValue: {
     color: '#6c757d',
-    wordBreak: 'break-word' as const,
+    wordBreak: 'break-word',
   },
   summaryGrid: {
     display: 'flex',
-    flexWrap: 'wrap' as const,
+    flexWrap: 'wrap',
     justifyContent: 'center',
     gap: '8px',
     width: '100%',
@@ -190,7 +258,7 @@ const styles = {
     alignItems: 'center',
     gap: '6px',
     marginBottom: '4px',
-    flexWrap: 'wrap' as const,
+    flexWrap: 'wrap',
   },
   qcBadge: {
     fontSize: '9px',
@@ -216,13 +284,57 @@ const styles = {
   },
   summaryDetails: {
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     gap: '2px',
   },
   covariateDetail: {
     fontSize: '11px',
     color: '#555',
     lineHeight: '1.2',
+  },
+  editIcon: {
+    fontSize: '16px',
+    color: '#888',
+    cursor: 'pointer',
+    padding: '0 2px',
+    borderRadius: '3px',
+    transition: 'all 0.15s ease',
+    lineHeight: '1',
+  },
+  editIconActive: {
+    color: '#2196f3',
+    backgroundColor: '#e3f2fd',
+  },
+  editControls: {
+    display: 'flex',
+    gap: '6px',
+    alignItems: 'center',
+    padding: '4px 0',
+    marginBottom: '4px',
+    borderBottom: '1px solid #eee',
+    flexWrap: 'wrap',
+  },
+  editLabel: {
+    fontSize: '10px',
+    color: '#666',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '3px',
+  },
+  colorInput: {
+    width: '24px',
+    height: '20px',
+    padding: '0',
+    border: '1px solid #ccc',
+    borderRadius: '3px',
+    cursor: 'pointer',
+  },
+  styleSelect: {
+    fontSize: '10px',
+    padding: '1px 2px',
+    border: '1px solid #ccc',
+    borderRadius: '3px',
+    backgroundColor: '#fff',
   },
 };
 

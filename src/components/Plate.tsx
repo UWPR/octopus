@@ -127,9 +127,9 @@ const Plate: React.FC<PlateProps> = ({
 
     const baseStyle: React.CSSProperties = {
       backgroundColor: colorInfo.useOutline ? 'transparent' : colorInfo.color,
-      ...(colorInfo.useStripes && {
-        background: `repeating-linear-gradient(45deg, ${colorInfo.color}, ${colorInfo.color} ${pattern.size}, transparent ${pattern.size}, transparent ${pattern.gap})`
-      }),
+      background: colorInfo.useStripes
+        ? `repeating-linear-gradient(45deg, ${colorInfo.color}, ${colorInfo.color} ${pattern.size}, transparent ${pattern.size}, transparent ${pattern.gap})`
+        : colorInfo.useOutline ? 'transparent' : colorInfo.color,
       border: colorInfo.useOutline
         ? `${outlineBorderWidth} solid ${colorInfo.color}`
         : (compact ? currentStyles.compactSearchIndicator.border : '1px solid #ccc'),
@@ -182,9 +182,9 @@ const Plate: React.FC<PlateProps> = ({
     // Create header style with background color/pattern
     const headerStyle: React.CSSProperties = {
       backgroundColor: colorInfo.useOutline ? 'transparent' : colorInfo.color,
-      ...(colorInfo.useStripes && {
-        background: `repeating-linear-gradient(45deg, ${colorInfo.color}, ${colorInfo.color} ${pattern.size}, transparent ${pattern.size}, transparent ${pattern.gap})`
-      }),
+      background: colorInfo.useStripes
+        ? `repeating-linear-gradient(45deg, ${colorInfo.color}, ${colorInfo.color} ${pattern.size}, transparent ${pattern.size}, transparent ${pattern.gap})`
+        : colorInfo.useOutline ? 'transparent' : colorInfo.color,
       border: colorInfo.useOutline
         ? `${outlineBorderWidth} solid ${colorInfo.color}`
         : 'none',

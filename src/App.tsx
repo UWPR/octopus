@@ -65,6 +65,7 @@ const App: React.FC = () => {
     generateCovariateColors,
     generateSummaryData,
     resetColors,
+    updateCovariateColor,
   } = useCovariateColors();
 
   // Drag and drop hook
@@ -715,6 +716,7 @@ const App: React.FC = () => {
                 qcColumn={qcColumn}
                 selectedQcValues={selectedQcValues}
                 selectedCovariates={selectedCovariates}
+                onUpdateColor={updateCovariateColor}
               />
 
               <SubjectPlacementPanel
@@ -781,6 +783,8 @@ const App: React.FC = () => {
           treatmentCovariates={selectedCovariates}
           searches={searches}
           sampleIdColumn={selectedIdColumn}
+          subjectColumn={subjectColumn || undefined}
+          qcColumn={qcColumn || undefined}
         />
 
         {/* Help Section */}
