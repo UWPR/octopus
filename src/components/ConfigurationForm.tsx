@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { RandomizationAlgorithm, getAlgorithmName, getAlgorithmDescription, getAlgorithmsInDisplayOrder, GroupingConstraint, GroupValidationResult, SubjectGroup } from '../utils/types';
 
 interface ConfigurationFormProps {
@@ -58,6 +58,18 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   groupValidation,
   subjectGroups,
 }) => {
+  // Collapsible section states
+  const [showQcDetails, setShowQcDetails] = useState(true);
+  const [showSubjectDetails, setShowSubjectDetails] = useState(true);
+
+  // Reset collapsed state when QC column or subject column is cleared (e.g., new file upload)
+  React.useEffect(() => {
+    if (!qcColumn) setShowQcDetails(true);
+  }, [qcColumn]);
+  React.useEffect(() => {
+    if (!subjectColumn) setShowSubjectDetails(true);
+  }, [subjectColumn]);
+
   if (availableColumns.length === 0) return null;
 
   // Mutual exclusivity: columns available for subject column dropdown
@@ -147,22 +159,49 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
           </select>
 
           {qcColumnValues.length > 0 && (
-            <div style={styles.qcValuesContainer}>
-              <small style={styles.compactLabel}>Select QC/Reference values:</small>
-              <div style={styles.checkboxGroup}>
-                {qcColumnValues.map((value) => (
-                  <label key={value} style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={selectedQcValues.includes(value)}
-                      onChange={() => onQcValueToggle(value)}
-                      style={styles.checkbox}
-                    />
-                    {value}
-                  </label>
-                ))}
-              </div>
-            </div>
+            <>
+              {showQcDetails ? (
+                <div style={styles.qcValuesContainer}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <small style={styles.compactLabel}>Select QC/Reference values:</small>
+                    <button
+                      onClick={() => setShowQcDetails(false)}
+                      style={styles.collapseToggle}
+                      type="button"
+                    >▲ Hide</button>
+                  </div>
+                  <div style={styles.checkboxGroup}>
+                    {qcColumnValues.map((value) => (
+                      <label key={value} style={styles.checkboxLabel}>
+                        <input
+                          type="checkbox"
+                          checked={selectedQcValues.includes(value)}
+                          onChange={() => onQcValueToggle(value)}
+                          style={styles.checkbox}
+                        />
+                        {value}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    onClick={() => setShowQcDetails(true)}
+                    style={styles.collapseToggle}
+                    type="button"
+                  >▼ Edit</button>
+                  {selectedQcValues.length > 0 && (
+                    <div style={styles.selectedCovariatesDisplay}>
+                      <small style={styles.selectedCovariatesList}>
+                        <span style={styles.selectedCovariatesLabel}>QC values: </span>
+                        {selectedQcValues.join(', ')}
+                      </small>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           <label htmlFor="subjectColumn" style={{ ...styles.compactLabel, marginTop: '10px' }}>
@@ -186,82 +225,123 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
 
           {/* Grouping Constraint - only visible when subject column is selected */}
           {subjectColumn && (
-            <div style={styles.groupingConstraintContainer}>
-              <small style={styles.compactLabel}>Grouping Constraint:</small>
-              <div style={styles.radioGroup}>
-                <label style={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    name="groupingConstraint"
-                    checked={groupingConstraint === 'same-row'}
-                    onChange={() => onGroupingConstraintChange('same-row')}
-                    style={styles.radio}
-                  />
-                  Same Row
-                </label>
-                <label style={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    name="groupingConstraint"
-                    checked={groupingConstraint === 'same-plate'}
-                    onChange={() => onGroupingConstraintChange('same-plate')}
-                    style={styles.radio}
-                  />
-                  Same Plate
-                </label>
-              </div>
-            </div>
-          )}
+            <>
+              {showSubjectDetails ? (
+                <>
+                  <div style={styles.groupingConstraintContainer}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <small style={styles.compactLabel}>Grouping Constraint:</small>
+                      <button
+                        onClick={() => setShowSubjectDetails(false)}
+                        style={styles.collapseToggle}
+                        type="button"
+                      >▲ Hide</button>
+                    </div>
+                    <div style={styles.radioGroup}>
+                      <label style={styles.radioLabel}>
+                        <input
+                          type="radio"
+                          name="groupingConstraint"
+                          checked={groupingConstraint === 'same-row'}
+                          onChange={() => onGroupingConstraintChange('same-row')}
+                          style={styles.radio}
+                        />
+                        Same Row
+                      </label>
+                      <label style={styles.radioLabel}>
+                        <input
+                          type="radio"
+                          name="groupingConstraint"
+                          checked={groupingConstraint === 'same-plate'}
+                          onChange={() => onGroupingConstraintChange('same-plate')}
+                          style={styles.radio}
+                        />
+                        Same Plate
+                      </label>
+                    </div>
+                  </div>
 
-          {/* Validation errors/warnings */}
-          {groupValidation && groupValidation.errors.length > 0 && (
-            <div style={styles.validationErrorContainer}>
-              {groupValidation.errors.map((error, idx) => (
-                <div key={idx} style={styles.validationError}>{error}</div>
-              ))}
-            </div>
-          )}
-          {groupValidation && groupValidation.warnings.length > 0 && (
-            <div style={styles.validationWarningContainer}>
-              {groupValidation.warnings.map((warning, idx) => (
-                <div key={idx} style={styles.validationWarning}>{warning}</div>
-              ))}
-            </div>
-          )}
+                  {/* Validation errors/warnings */}
+                  {groupValidation && groupValidation.errors.length > 0 && (
+                    <div style={styles.validationErrorContainer}>
+                      {groupValidation.errors.map((error, idx) => (
+                        <div key={idx} style={styles.validationError}>{error}</div>
+                      ))}
+                    </div>
+                  )}
+                  {groupValidation && groupValidation.warnings.length > 0 && (
+                    <div style={styles.validationWarningContainer}>
+                      {groupValidation.warnings.map((warning, idx) => (
+                        <div key={idx} style={styles.validationWarning}>{warning}</div>
+                      ))}
+                    </div>
+                  )}
 
-          {/* Subject group summary */}
-          {subjectColumn && groupSummary && (
-            <div style={styles.groupSummaryContainer}>
-              <small style={styles.compactLabel}>Subject Groups:</small>
-              <div style={styles.groupSummaryText}>
-                {groupSummary.totalGroups} group{groupSummary.totalGroups !== 1 ? 's' : ''}
-                {groupSummary.totalGroups > 0 && ` (size ${groupSummary.minSize === groupSummary.maxSize ? groupSummary.minSize : `${groupSummary.minSize}–${groupSummary.maxSize}`})`}
-                {groupSummary.singletonCount > 0 && `, ${groupSummary.singletonCount} singleton${groupSummary.singletonCount !== 1 ? 's' : ''} (no ${subjectColumn})`}
-              </div>
-              {groupSummary.breakdown && (
-                <div style={styles.groupBreakdownText}>{groupSummary.breakdown}</div>
+                  {/* Subject group summary */}
+                  {groupSummary && (
+                    <div style={styles.groupSummaryContainer}>
+                      <small style={styles.compactLabel}>Subject Groups:</small>
+                      <div style={styles.groupSummaryText}>
+                        {groupSummary.totalGroups} group{groupSummary.totalGroups !== 1 ? 's' : ''}
+                        {groupSummary.totalGroups > 0 && ` (size ${groupSummary.minSize === groupSummary.maxSize ? groupSummary.minSize : `${groupSummary.minSize}–${groupSummary.maxSize}`})`}
+                        {groupSummary.singletonCount > 0 && `, ${groupSummary.singletonCount} singleton${groupSummary.singletonCount !== 1 ? 's' : ''} (no ${subjectColumn})`}
+                      </div>
+                      {groupSummary.breakdown && (
+                        <div style={styles.groupBreakdownText}>{groupSummary.breakdown}</div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    onClick={() => setShowSubjectDetails(true)}
+                    style={styles.collapseToggle}
+                    type="button"
+                  >▼ Edit</button>
+                  <div style={styles.selectedCovariatesDisplay}>
+                    <small style={styles.selectedCovariatesList}>
+                      <span style={styles.selectedCovariatesLabel}>Constraint: </span>
+                      {groupingConstraint === 'same-row' ? 'Same Row' : 'Same Plate'}
+                      {groupSummary && ` · ${groupSummary.totalGroups} groups`}
+                      {groupSummary && groupSummary.singletonCount > 0 && `, ${groupSummary.singletonCount} singletons`}
+                    </small>
+                  </div>
+                  {/* Always show validation errors even when collapsed */}
+                  {groupValidation && groupValidation.errors.length > 0 && (
+                    <div style={{ ...styles.validationErrorContainer, marginTop: 0, flex: 'none' }}>
+                      {groupValidation.errors.map((error, idx) => (
+                        <div key={idx} style={styles.validationError}>{error}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
 
-          <label htmlFor="algorithm" style={{ ...styles.compactLabel, marginTop: '10px' }}>
-            Randomization Algorithm:
-          </label>
-          <select
-            id="algorithm"
-            value={selectedAlgorithm}
-            onChange={onAlgorithmChange}
-            style={styles.compactSelect}
-          >
-            {getAlgorithmsInDisplayOrder().map((algorithm) => (
-              <option key={algorithm} value={algorithm}>
-                {getAlgorithmName(algorithm)}
-              </option>
-            ))}
-          </select>
-          <small style={styles.algorithmDescription}>
-            {getAlgorithmDescription(selectedAlgorithm)}
-          </small>
+          {getAlgorithmsInDisplayOrder().length > 1 && (
+            <>
+              <label htmlFor="algorithm" style={{ ...styles.compactLabel, marginTop: '10px' }}>
+                Randomization Algorithm:
+              </label>
+              <select
+                id="algorithm"
+                value={selectedAlgorithm}
+                onChange={onAlgorithmChange}
+                style={styles.compactSelect}
+              >
+                {getAlgorithmsInDisplayOrder().map((algorithm) => (
+                  <option key={algorithm} value={algorithm}>
+                    {getAlgorithmName(algorithm)}
+                  </option>
+                ))}
+              </select>
+              <small style={styles.algorithmDescription}>
+                {getAlgorithmDescription(selectedAlgorithm)}
+              </small>
+            </>
+          )}
         </div>
 
         {/* Right Column: Covariate Selection */}
@@ -597,6 +677,16 @@ const styles = {
     color: '#558b2f',
     marginTop: '2px',
     fontStyle: 'italic' as const,
+  },
+  collapseToggle: {
+    background: 'none',
+    border: 'none',
+    color: '#1976d2',
+    fontSize: '11px',
+    cursor: 'pointer',
+    padding: '0',
+    fontWeight: '500',
+    whiteSpace: 'nowrap' as const,
   },
 };
 
