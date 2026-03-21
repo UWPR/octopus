@@ -7,6 +7,7 @@ import ExcelExportModal from './components/ExcelExportModal';
 import PlatesGrid from './components/PlatesGrid';
 import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
+import SubjectPlacementPanel from './components/SubjectPlacementPanel';
 import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig } from './utils/types';
 import { downloadCSV, buildCovariateKey, getCovariateKey, getQualityLevelColor, formatScore } from './utils/utils';
 import { exportToExcel } from './utils/excelExport';
@@ -110,6 +111,10 @@ const App: React.FC = () => {
   const [showExcelExportModal, setShowExcelExportModal] = useState<boolean>(false);
   const [randomizationError, setRandomizationError] = useState<string | null>(null);
 
+  // Subject placement panel state
+  const [showSubjectPlacements, setShowSubjectPlacements] = useState<boolean>(false);
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+
   // Repeated-measures state
   const [subjectColumn, setSubjectColumn] = useState<string>('');
   const [groupingConstraint, setGroupingConstraint] = useState<GroupingConstraint>('none');
@@ -171,6 +176,8 @@ const App: React.FC = () => {
       setSelectedCombination(null);
       setShowPlateDetails(false);
       setSelectedPlateIndex(null);
+      setShowSubjectPlacements(false);
+      setSelectedSubject(null);
     }
   }, [selectedFileName, searches.length]); // Trigger when filename changes or searches are loaded
 
@@ -477,9 +484,10 @@ const App: React.FC = () => {
   // Handle clicking on summary items for highlighting
   const handleSummaryItemClick = (combination: string) => {
     if (selectedCombination === combination) {
-      setSelectedCombination(null); // Deselect if already selected
+      setSelectedCombination(null);
     } else {
       setSelectedCombination(combination);
+      setSelectedSubject(null); // Clear subject highlight
     }
   };
 
@@ -513,13 +521,32 @@ const App: React.FC = () => {
 
   // Check if a search matches the selected combination
   const isSearchHighlighted = (search: SearchData): boolean => {
-    if (!selectedCombination) return false;
+    if (!selectedCombination && !selectedSubject) return false;
 
-    try {
-      return getCovariateKey(search) === selectedCombination;
-    } catch (error) {
-      console.error(error);
-      return false;
+    // Subject highlighting takes priority
+    if (selectedSubject && subjectColumn) {
+      return search.metadata[subjectColumn]?.trim() === selectedSubject;
+    }
+
+    if (selectedCombination) {
+      try {
+        return getCovariateKey(search) === selectedCombination;
+      } catch (error) {
+        console.error(error);
+        return false;
+      }
+    }
+
+    return false;
+  };
+
+  // Handle clicking on a subject in the placement panel
+  const handleSubjectClick = (subjectId: string) => {
+    if (selectedSubject === subjectId) {
+      setSelectedSubject(null);
+    } else {
+      setSelectedSubject(subjectId);
+      setSelectedCombination(null); // Clear covariate highlight
     }
   };
 
@@ -646,6 +673,15 @@ const App: React.FC = () => {
                   </button>
                 )}
 
+                {subjectColumn && (
+                  <button
+                    onClick={() => setShowSubjectPlacements(!showSubjectPlacements)}
+                    style={styles.summaryToggle}
+                  >
+                    {showSubjectPlacements ? '▼ Hide' : '▶ Show'} Subject Placements
+                  </button>
+                )}
+
                 <button
                   onClick={() => setCompactView(!compactView)}
                   style={styles.qcButton}
@@ -679,6 +715,14 @@ const App: React.FC = () => {
                 qcColumn={qcColumn}
                 selectedQcValues={selectedQcValues}
                 selectedCovariates={selectedCovariates}
+              />
+
+              <SubjectPlacementPanel
+                randomizedPlates={randomizedPlates}
+                subjectColumn={subjectColumn}
+                selectedSubject={selectedSubject}
+                onSubjectClick={handleSubjectClick}
+                show={showSubjectPlacements}
               />
 
               <QualityLegend />
