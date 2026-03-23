@@ -431,7 +431,8 @@ const App: React.FC = () => {
       exportCovariates: exportCovariates, // User-selected covariates to display
       numRows: plateRows,
       numColumns: plateColumns,
-      inputFileName: selectedFileName
+      inputFileName: selectedFileName,
+      qcColumn: qcColumn || undefined
     });
   };
 

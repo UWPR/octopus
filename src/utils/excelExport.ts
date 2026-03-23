@@ -11,6 +11,7 @@ interface ExcelExportOptions {
   numRows: number;
   numColumns: number;
   inputFileName?: string;
+  qcColumn?: string; // QC/Reference column name (for legend display when not in treatmentCovariates)
 }
 
 // Style constants
@@ -55,7 +56,7 @@ const createSolidFill = (argbColor: string): ExcelJS.Fill => ({
  * Export plate layouts to Excel with colored cells and formatting
  */
 export async function exportToExcel(options: ExcelExportOptions): Promise<void> {
-  const { searches, randomizedPlates, covariateColors, treatmentCovariates, exportCovariates, numRows, numColumns, inputFileName } = options;
+  const { searches, randomizedPlates, covariateColors, treatmentCovariates, exportCovariates, numRows, numColumns, inputFileName, qcColumn } = options;
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Octopus Plate Designer';
@@ -70,7 +71,7 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
   });
 
   // Create legend sheet (always uses treatment covariates for color grouping)
-  createLegendSheet(workbook, searches, covariateColors, treatmentCovariates, randomizedPlates);
+  createLegendSheet(workbook, searches, covariateColors, treatmentCovariates, randomizedPlates, qcColumn);
 
   // Create sample details sheet (uses treatment covariates for color lookup)
   createSampleDetailsSheet(workbook, searches, treatmentCovariates, randomizedPlates, covariateColors);
@@ -251,9 +252,19 @@ function createLegendSheet(
   searches: SearchData[],
   covariateColors: { [key: string]: CovariateColorInfo },
   treatmentCovariates: string[],
-  randomizedPlates: (SearchData | undefined)[][][]
+  randomizedPlates: (SearchData | undefined)[][][],
+  qcColumn?: string
 ): void {
   const sheet = workbook.addWorksheet('Legend');
+
+  // Determine if QC column needs its own header column
+  const qcColumnInCovariates = qcColumn ? treatmentCovariates.includes(qcColumn) : true;
+  const showQcColumn = qcColumn && !qcColumnInCovariates;
+
+  // Build the legend column headers: Color | [QC Column] | ...treatmentCovariates | Total | Plate 1 | ...
+  const legendCovHeaders = showQcColumn
+    ? [qcColumn, ...treatmentCovariates]
+    : [...treatmentCovariates];
 
   // Title
   const titleRow = sheet.addRow(['Color Legend']);
@@ -287,7 +298,7 @@ function createLegendSheet(
   // Headers
   sheet.addRow([]);
   const plateHeaders = randomizedPlates.map((_, i) => `Plate ${i + 1}`);
-  const headerRow = sheet.addRow(['Color', ...treatmentCovariates, 'Total', ...plateHeaders]);
+  const headerRow = sheet.addRow(['Color', ...legendCovHeaders, 'Total', ...plateHeaders]);
   headerRow.font = { bold: true };
 
   // Sort by count (descending)
@@ -301,13 +312,35 @@ function createLegendSheet(
 
     const values = combination.split('|');
 
+    // Build display values aligned to legendCovHeaders
+    let displayValues: string[];
+    if (showQcColumn && values.length > treatmentCovariates.length) {
+      // QC group: key is "QcType|na|na|..." — first value is QC type, rest are placeholders
+      const qcType = values[0];
+      const covValues = values.slice(1).map(v => {
+        const lower = v.toLowerCase();
+        return (lower === 'na' || lower === 'n/a') ? '' : v;
+      });
+      // Pad to match treatmentCovariates length if needed
+      while (covValues.length < treatmentCovariates.length) covValues.push('');
+      displayValues = [qcType, ...covValues.slice(0, treatmentCovariates.length)];
+    } else if (showQcColumn) {
+      // Non-QC group: no QC column value, just treatment covariate values
+      displayValues = ['', ...values];
+      // Pad to match legendCovHeaders length
+      while (displayValues.length < legendCovHeaders.length) displayValues.push('');
+      displayValues = displayValues.slice(0, legendCovHeaders.length);
+    } else {
+      displayValues = values;
+    }
+
     // Get per-plate counts for this combination
     const plateCountsForCombination = plateCounts.get(combination) || new Map();
     const perPlateCounts = randomizedPlates.map((_, plateIndex) =>
       plateCountsForCombination.get(plateIndex) || 0
     );
 
-    const row = sheet.addRow(['', ...values, count, ...perPlateCounts]);
+    const row = sheet.addRow(['', ...displayValues, count, ...perPlateCounts]);
 
     // Color the first cell
     const colorCell = row.getCell(1);
@@ -330,13 +363,13 @@ function createLegendSheet(
 
   // Set column widths
   sheet.getColumn(1).width = 10; // Color
-  treatmentCovariates.forEach((_, index) => {
+  legendCovHeaders.forEach((_, index) => {
     sheet.getColumn(index + 2).width = 15; // Covariate columns
   });
-  sheet.getColumn(treatmentCovariates.length + 2).width = 10; // Total count
+  sheet.getColumn(legendCovHeaders.length + 2).width = 10; // Total count
   // Plate columns
   randomizedPlates.forEach((_, index) => {
-    sheet.getColumn(treatmentCovariates.length + 3 + index).width = 10;
+    sheet.getColumn(legendCovHeaders.length + 3 + index).width = 10;
   });
 }
 
