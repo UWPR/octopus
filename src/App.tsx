@@ -212,6 +212,8 @@ const App: React.FC = () => {
     resetMetrics();
     setShowSummary(false);
     setSelectedCombination(null);
+    setSelectedSubject(null);
+    setShowSubjectPlacements(false);
   };
 
   // Update QC column values when QC column changes
@@ -439,6 +441,10 @@ const App: React.FC = () => {
   // Re-randomization handler
   const handleReRandomize = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
+      // Clear highlighting since plate layout is changing
+      setSelectedCombination(null);
+      setSelectedSubject(null);
+
       // Process metadata and set the covariateKey
       processMetadata(searches);
 
@@ -462,6 +468,10 @@ const App: React.FC = () => {
   // Single plate re-randomization handler
   const handleReRandomizePlate = (plateIndex: number) => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
+      // Clear highlighting since plate layout is changing
+      setSelectedCombination(null);
+      setSelectedSubject(null);
+
       // Process metadata and set the covariateKey
       processMetadata(searches);
 
