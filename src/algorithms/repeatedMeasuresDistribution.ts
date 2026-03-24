@@ -366,6 +366,26 @@ export function distributeGroupsToPlates(
  * - Among candidate rows, prefers the row that improves treatment covariate balance
  * - After all multi-sample groups are placed, distributes singletons to fill remaining row capacity
  *
+ * Scores a recipe by how many distinct group sizes each row contains.
+ * Higher score = more mixed-size rows = better covariate diversity.
+ *
+ * @param recipe - Array of Maps, one per row, mapping group size to count
+ * @returns Sum of distinct sizes with count > 0 across all rows
+ */
+export function sizeDiversityScore(recipe: Map<number, number>[]): number {
+  let score = 0;
+  for (const rowRecipe of recipe) {
+    for (const [, count] of Array.from(rowRecipe.entries())) {
+      if (count > 0) score++;
+    }
+  }
+  return score;
+}
+
+/**
+ * Distributes subject groups to rows using composition-based backtracking (primary)
+ * with greedy FFD as fallback.
+ *
  * @param groups - Subject groups to distribute (including singletons)
  * @param rowCapacities - Available capacity for each row (array index = row index)
  * @param globalProportions - Map of covariateKey → proportion across all experimental samples
@@ -434,10 +454,200 @@ export function distributeGroupsToRows(
     return rowAssignments.get(rowIdx)!.flatMap(g => g.samples);
   };
 
-  // Attempt greedy FFD placement; fall back to backtracking if it fails
-  let greedySucceeded = true;
-  try {
-    // Place multi-sample groups using FFD
+  // Primary strategy: Composition-based backtracking solver.
+  // Instead of assigning individual groups to rows (huge search space),
+  // we solve in two phases:
+  //   Phase 1: Find valid "recipes" — how many groups of each size go in each row.
+  //            This is a much smaller search space (counts, not identities).
+  //   Phase 2: Assign specific groups to rows based on the best recipe.
+  // Falls back to greedy FFD if the composition solver exhausts its iteration budget.
+
+  let compositionSolverSucceeded = false;
+
+  // Count groups by size (descending order of sizes)
+  const sizeCounts = new Map<number, number>();
+  for (const g of multiGroups) {
+    sizeCounts.set(g.size, (sizeCounts.get(g.size) ?? 0) + 1);
+  }
+  const distinctSizes = Array.from(sizeCounts.keys()).sort((a, b) => b - a);
+
+  // Phase 1: Composition-based backtracking on counts.
+  // For each row, decide how many groups of each size to place.
+  // rowRecipe[r] = Map<size, count> for row r
+  const numRowsTotal = rowCapacities.length;
+  const rowRecipes: Map<number, number>[] = Array.from({ length: numRowsTotal }, () => new Map());
+  const remainingSizeCounts = new Map(sizeCounts);
+  const btRowCaps = [...rowCapacities];
+  const RECIPE_ITERATION_LIMIT = 500_000;
+  let recipeIterations = 0;
+
+  const MAX_RECIPES = 50;
+  const validRecipes: Map<number, number>[][] = [];
+
+  // For each row, enumerate valid combinations of group sizes that fit.
+  // `reverseOrder` flips the count enumeration for the largest size (sizeIdx === 0)
+  // from max→0 to 0→max, which explores mixed-size recipes (e.g., 5+3+2) instead
+  // of greedy-fill recipes (e.g., 5+5).
+  let searchReversed = false;
+
+  const findRecipe = (rowIdx: number): boolean => {
+    if (rowIdx === numRowsTotal) {
+      // All rows assigned — check all groups are placed
+      for (const [size, count] of Array.from(remainingSizeCounts.entries())) {
+        if (count > 0) return false;
+      }
+      // Snapshot this recipe and continue searching for more candidates
+      validRecipes.push(rowRecipes.map(r => new Map(r)));
+      return validRecipes.length >= MAX_RECIPES;
+    }
+
+    // Recursive: for each distinct size, decide how many go in this row
+    const assignSizes = (sizeIdx: number, capLeft: number): boolean => {
+      if (++recipeIterations > RECIPE_ITERATION_LIMIT) return false;
+
+      if (sizeIdx === distinctSizes.length) {
+        // All sizes considered for this row — move to next row
+        return findRecipe(rowIdx + 1);
+      }
+
+      const size = distinctSizes[sizeIdx];
+      const available = remainingSizeCounts.get(size) ?? 0;
+      const maxFit = Math.floor(capLeft / size);
+      const maxPlace = Math.min(available, maxFit);
+
+      // When searchReversed is true, try ascending order (0→max) for the largest
+      // size to explore mixed-size compositions before greedy-fill ones.
+      const ascending = searchReversed && sizeIdx === 0;
+      const start = ascending ? 0 : maxPlace;
+      const end = ascending ? maxPlace : 0;
+      const step = ascending ? 1 : -1;
+      for (let count = start; ascending ? count <= end : count >= end; count += step) {
+        remainingSizeCounts.set(size, available - count);
+        rowRecipes[rowIdx].set(size, count);
+        const newCapLeft = capLeft - count * size;
+
+        // Feasibility prune: can remaining groups fit in remaining rows?
+        let totalRemainingGroupSamples = 0;
+        for (const [s, c] of Array.from(remainingSizeCounts.entries())) {
+          totalRemainingGroupSamples += c * s;
+        }
+
+        const totalRemainingRowCap = btRowCaps.slice(rowIdx + 1).reduce((s, c) => s + c, 0) + newCapLeft;
+        if (totalRemainingGroupSamples <= totalRemainingRowCap) {
+          // Also check per-size feasibility: for each remaining size,
+          // can the remaining rows hold that many groups?
+          let feasible = true;
+          for (const [s, c] of Array.from(remainingSizeCounts.entries())) {
+            if (c === 0) continue;
+            // Count how many groups of this size can fit in remaining rows
+            let slots = Math.floor(newCapLeft / s); // current row's remaining capacity
+            for (let rr = rowIdx + 1; rr < numRowsTotal; rr++) {
+              slots += Math.floor(btRowCaps[rr] / s);
+            }
+            if (c > slots) { feasible = false; break; }
+          }
+
+          if (feasible && assignSizes(sizeIdx + 1, newCapLeft)) {
+            return true;
+          }
+        }
+
+        // Undo
+        remainingSizeCounts.set(size, available);
+        rowRecipes[rowIdx].set(size, 0);
+      }
+      return false;
+    };
+
+    return assignSizes(0, btRowCaps[rowIdx]);
+  };
+
+  // Pass 1: reversed order (0→max for largest size) — finds mixed-size recipes first.
+  // This explores compositions like 5+3+2 before 5+5, producing higher diversity scores.
+  searchReversed = true;
+  findRecipe(0);
+
+  // Pass 2: default order (max→0) — finds greedy-fill recipes.
+  // Only run if we haven't hit the recipe cap and have iteration budget left.
+  if (validRecipes.length < MAX_RECIPES && recipeIterations < RECIPE_ITERATION_LIMIT) {
+    searchReversed = false;
+    // Reset backtracking state for the second pass
+    for (const [size, count] of Array.from(sizeCounts.entries())) {
+      remainingSizeCounts.set(size, count);
+    }
+    for (const recipe of rowRecipes) {
+      recipe.clear();
+    }
+    findRecipe(0);
+  }
+
+  if (validRecipes.length > 0) {
+    // Composition solver succeeded — select the recipe with the highest size diversity score
+    compositionSolverSucceeded = true;
+
+    let bestRecipe = validRecipes[0];
+    let bestScore = sizeDiversityScore(bestRecipe);
+    for (let i = 1; i < validRecipes.length; i++) {
+      const score = sizeDiversityScore(validRecipes[i]);
+      if (score > bestScore) {
+        bestScore = score;
+        bestRecipe = validRecipes[i];
+      }
+    }
+
+    // Phase 2: Assign specific groups to rows based on the best recipe,
+    // using covariate balance to spread different covariate groups across rows.
+    const groupsBySizeMap = new Map<number, SubjectGroup[]>();
+    for (const g of multiGroups) {
+      if (!groupsBySizeMap.has(g.size)) groupsBySizeMap.set(g.size, []);
+      groupsBySizeMap.get(g.size)!.push(g);
+    }
+    for (const [size, gs] of Array.from(groupsBySizeMap.entries())) {
+      groupsBySizeMap.set(size, shuffleArray(gs));
+    }
+
+    // Collect all (rowIdx, size) slots from the recipe, then assign groups
+    // one at a time picking the group that best balances each row's covariates.
+    const slots: { rowIdx: number; size: number }[] = [];
+    for (let rowIdx = 0; rowIdx < numRowsTotal; rowIdx++) {
+      const recipe = bestRecipe[rowIdx];
+      for (const [size, count] of Array.from(recipe.entries())) {
+        for (let c = 0; c < count; c++) {
+          slots.push({ rowIdx, size });
+        }
+      }
+    }
+    // Process slots sorted by size descending (largest groups first)
+    slots.sort((a, b) => b.size - a.size);
+
+    for (const { rowIdx, size } of slots) {
+      const pool = groupsBySizeMap.get(size)!;
+      if (pool.length === 1 || globalProportions.size === 0) {
+        const group = pool.shift()!;
+        rowAssignments.get(rowIdx)!.push(group);
+        remainingCapacities[rowIdx] -= group.size;
+      } else {
+        // Pick the group from the pool that best balances this row's covariates
+        const currentSamples = getRowSamples(rowIdx);
+        let bestIdx = 0;
+        let bestScoreP2 = Infinity;
+        for (let i = 0; i < pool.length; i++) {
+          const score = covariateImbalanceScore(currentSamples, pool[i].samples, globalProportions);
+          if (score < bestScoreP2) {
+            bestScoreP2 = score;
+            bestIdx = i;
+          }
+        }
+        const group = pool.splice(bestIdx, 1)[0];
+        rowAssignments.get(rowIdx)!.push(group);
+        remainingCapacities[rowIdx] -= group.size;
+      }
+    }
+  }
+
+  if (!compositionSolverSucceeded) {
+    // Composition solver found no valid recipes (iteration budget exhausted).
+    // Fall back to greedy FFD placement.
     for (const group of sortedMultiGroups) {
       // Find rows that can fit this group
       const candidateRows: { rowIdx: number; remaining: number }[] = [];
@@ -455,21 +665,18 @@ export function distributeGroupsToRows(
         );
       }
 
-      // Sort candidates by remaining capacity descending
-      candidateRows.sort((a, b) => b.remaining - a.remaining);
-
-      // Find the max remaining capacity
-      const maxRemaining = candidateRows[0].remaining;
-      const tiedRows = candidateRows.filter(r => r.remaining === maxRemaining);
-
       let bestRowIdx: number;
-      if (tiedRows.length === 1 || globalProportions.size === 0) {
+      if (candidateRows.length === 1 || globalProportions.size === 0) {
+        // No covariates to balance — pick the row with most remaining capacity
+        candidateRows.sort((a, b) => b.remaining - a.remaining);
+        const maxRemaining = candidateRows[0].remaining;
+        const tiedRows = candidateRows.filter(r => r.remaining === maxRemaining);
         bestRowIdx = shuffleArray(tiedRows)[0].rowIdx;
       } else {
-        // Break tie by covariate balance
+        // Use covariate balance as primary criterion across ALL feasible rows.
         let bestScore = Infinity;
         let bestCandidates: number[] = [];
-        for (const candidate of tiedRows) {
+        for (const candidate of candidateRows) {
           const currentSamples = getRowSamples(candidate.rowIdx);
           const score = covariateImbalanceScore(currentSamples, group.samples, globalProportions);
           if (score < bestScore) {
@@ -479,77 +686,23 @@ export function distributeGroupsToRows(
             bestCandidates.push(candidate.rowIdx);
           }
         }
-        bestRowIdx = shuffleArray(bestCandidates)[0];
+        // Among equally-scored rows, prefer the one with most remaining capacity
+        if (bestCandidates.length > 1) {
+          const withCap = bestCandidates.map(idx => ({
+            idx,
+            remaining: remainingCapacities[idx],
+          }));
+          withCap.sort((a, b) => b.remaining - a.remaining);
+          const maxCap = withCap[0].remaining;
+          const topCandidates = withCap.filter(c => c.remaining === maxCap).map(c => c.idx);
+          bestRowIdx = shuffleArray(topCandidates)[0];
+        } else {
+          bestRowIdx = bestCandidates[0];
+        }
       }
 
       rowAssignments.get(bestRowIdx)!.push(group);
       remainingCapacities[bestRowIdx] -= group.size;
-    }
-  } catch (greedyError) {
-    // Greedy FFD failed — attempt backtracking fallback
-    greedySucceeded = false;
-
-    // Reset row assignments and capacities for the backtracking attempt
-    for (let i = 0; i < rowCapacities.length; i++) {
-      rowAssignments.set(i, []);
-    }
-    for (let i = 0; i < rowCapacities.length; i++) {
-      remainingCapacities[i] = rowCapacities[i];
-    }
-
-    // Backtracking bin-packing search
-    const btGroups = sortGroupsByDescendingSize(multiGroups);
-    const assignment: number[] = new Array(btGroups.length).fill(-1);
-    const btCapacities = [...rowCapacities];
-    const ITERATION_LIMIT = 100_000;
-    let iterations = 0;
-
-    // Precompute suffix sums of group sizes for feasibility pruning
-    const suffixSums = new Array(btGroups.length + 1).fill(0);
-    for (let i = btGroups.length - 1; i >= 0; i--) {
-      suffixSums[i] = suffixSums[i + 1] + btGroups[i].size;
-    }
-
-    const backtrack = (idx: number): boolean => {
-      if (idx === btGroups.length) return true; // all groups placed
-      const groupSize = btGroups[idx].size;
-
-      // Feasibility prune: remaining total capacity must fit remaining groups
-      const totalRemainingCap = btCapacities.reduce((s, c) => s + c, 0);
-      if (totalRemainingCap < suffixSums[idx]) return false;
-
-      // Track which capacity values we've already tried to prune symmetric rows
-      const triedCapacities = new Set<number>();
-      for (let r = 0; r < btCapacities.length; r++) {
-        if (++iterations > ITERATION_LIMIT) return false;
-        if (btCapacities[r] < groupSize) continue;
-        // Prune: skip rows with identical remaining capacity (symmetric)
-        if (triedCapacities.has(btCapacities[r])) continue;
-        triedCapacities.add(btCapacities[r]);
-
-        btCapacities[r] -= groupSize;
-        assignment[idx] = r;
-        if (backtrack(idx + 1)) return true;
-        btCapacities[r] += groupSize;
-        assignment[idx] = -1;
-      }
-      return false;
-    };
-
-    if (!backtrack(0)) {
-      // Backtracking also failed — throw the original greedy error
-      throw greedyError;
-    }
-
-    // Rebuild rowAssignments and remainingCapacities from backtracking solution
-    for (let i = 0; i < rowCapacities.length; i++) {
-      rowAssignments.set(i, []);
-      remainingCapacities[i] = rowCapacities[i];
-    }
-    for (let i = 0; i < btGroups.length; i++) {
-      const rowIdx = assignment[i];
-      rowAssignments.get(rowIdx)!.push(btGroups[i]);
-      remainingCapacities[rowIdx] -= btGroups[i].size;
     }
   }
 
@@ -706,14 +859,9 @@ export function groupAwareRandomization(
   const plateSize = numRows * numColumns;
   const numPlates = Math.ceil(totalSamples / plateSize);
 
-  console.log(`Starting group-aware randomization for ${totalSamples} samples, ` +
-    `${numPlates} plate(s), constraint: ${groupingConstraint}`);
-
   // Step 1: Separate QC samples from experimental samples and distribute by covariate
   const qcSamples = shuffleArray(searches.filter(s => s.isQC === true));
   const experimentalSamples = searches.filter(s => s.isQC !== true);
-
-  console.log(`QC samples: ${qcSamples.length}, Experimental samples: ${experimentalSamples.length}`);
 
   // Ensure covariateKey is set on experimental samples (needed for groupByCovariates in same-plate branch)
   for (const sample of experimentalSamples) {
@@ -760,23 +908,23 @@ export function groupAwareRandomization(
     }
   }
 
-  console.log(`Effective plate capacities: [${effectivePlateCapacities.join(', ')}]`);
-
   // For same-row constraint, compute per-plate row-slot limits.
   // These limit how many multi-sample groups each plate can accept,
   // independent of total well capacity.
+  // Use the minimum group size (not max) to compute an upper bound on
+  // how many groups each plate can hold. The actual per-size feasibility
+  // is validated later by distributeGroupsToRows which has its own
+  // per-size checks and backtracking.
   let plateRowSlotLimits: number[] | undefined;
   if (groupingConstraint === 'same-row') {
     const multiGroups = subjectGroups.filter(g => g.size > 1);
     if (multiGroups.length > 0) {
-      const maxGroupSize = Math.max(...multiGroups.map(g => g.size));
-      console.log(`Same-row: ${multiGroups.length} multi-groups of max size ${maxGroupSize}`);
+      const minGroupSize = Math.min(...multiGroups.map(g => g.size));
       plateRowSlotLimits = [];
       for (let p = 0; p < numPlates; p++) {
         const rowCaps = effectiveRowCapacitiesPerPlate[p];
-        const totalRowSlots = rowCaps.reduce((sum, cap) => sum + Math.floor(cap / maxGroupSize), 0);
+        const totalRowSlots = rowCaps.reduce((sum, cap) => sum + Math.floor(cap / minGroupSize), 0);
         plateRowSlotLimits.push(totalRowSlots);
-        console.log(`Plate ${p}: row caps [${rowCaps.join(', ')}], ${totalRowSlots} row-slots for groups of size ${maxGroupSize}`);
       }
     }
   }
@@ -813,11 +961,61 @@ export function groupAwareRandomization(
         globalProportions
       );
 
-      // Place samples in each row
-      for (let rowIdx = 0; rowIdx < numRows; rowIdx++) {
-        const rowGroups = rowGroupAssignments.get(rowIdx) ?? [];
+      // Reorder rows to minimize vertical adjacency of same covariate groups.
+      // Build a covariate signature for each row, then greedily sequence rows
+      // so that adjacent rows have maximally different covariate compositions.
+      const rowIndices = Array.from({ length: numRows }, (_, i) => i);
+      const rowSignatures: Map<string, number>[] = [];
+      for (let r = 0; r < numRows; r++) {
+        const sig = new Map<string, number>();
+        const groups = rowGroupAssignments.get(r) ?? [];
+        for (const g of groups) {
+          for (const s of g.samples) {
+            const key = s.covariateKey ?? '';
+            sig.set(key, (sig.get(key) ?? 0) + 1);
+          }
+        }
+        rowSignatures.push(sig);
+      }
+
+      // Greedy sequencing: start with a random row, then always pick the most
+      // different remaining row (measured by overlap of covariate keys).
+      const remaining = new Set(rowIndices);
+      const orderedRows: number[] = [];
+      // Start with a random row
+      const startIdx = shuffleArray(Array.from(remaining))[0];
+      orderedRows.push(startIdx);
+      remaining.delete(startIdx);
+
+      while (remaining.size > 0) {
+        const prevSig = rowSignatures[orderedRows[orderedRows.length - 1]];
+        let bestRow = -1;
+        let bestDiff = -1;
+        const candidates = shuffleArray(Array.from(remaining));
+        for (const r of candidates) {
+          const sig = rowSignatures[r];
+          // Difference = sum of absolute differences in covariate counts
+          const allKeys = new Set(Array.from(prevSig.keys()).concat(Array.from(sig.keys())));
+          let diff = 0;
+          allKeys.forEach(key => {
+            diff += Math.abs((prevSig.get(key) ?? 0) - (sig.get(key) ?? 0));
+          });
+          if (diff > bestDiff) {
+            bestDiff = diff;
+            bestRow = r;
+          }
+        }
+        orderedRows.push(bestRow);
+        remaining.delete(bestRow);
+      }
+
+      // Place samples using the reordered row sequence
+      for (let physicalRow = 0; physicalRow < numRows; physicalRow++) {
+        const logicalRow = orderedRows[physicalRow];
+        const rowGroups = rowGroupAssignments.get(logicalRow) ?? [];
         const rowSamples = rowGroups.flatMap(g => g.samples);
-        const qcForRow = qcPerPlateRow[plateIdx][rowIdx];
+        // Move QC samples with their logical row to preserve capacity assumptions
+        const qcForRow = qcPerPlateRow[plateIdx][logicalRow];
         const allRowSamples = [...rowSamples, ...qcForRow];
 
         allPlateSamples.push(...allRowSamples);
@@ -825,7 +1023,7 @@ export function groupAwareRandomization(
         greedyPlaceInRow(
           allRowSamples,
           plates[plateIdx],
-          rowIdx,
+          physicalRow,
           numColumns,
           keepEmptyInLastPlate
         );
