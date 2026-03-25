@@ -190,7 +190,7 @@ export function computeGlobalProportions(samples: SearchData[]): Map<string, num
  * Sorts subject groups by size descending, shuffling groups of equal size
  * for randomness (first-fit-decreasing strategy).
  */
-function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup[] {
+export function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup[] {
   // Group by size
   const sizeMap = new Map<number, SubjectGroup[]>();
   for (const group of groups) {
