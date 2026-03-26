@@ -455,25 +455,35 @@ export function distributeGroupsToRows(
   };
 
   // Primary strategy: Composition-based backtracking solver.
-  // Instead of assigning individual groups to rows (huge search space),
-  // we solve in two phases:
-  //   Phase 1: Find valid "recipes" — how many groups of each size go in each row.
-  //            This is a much smaller search space (counts, not identities).
-  //   Phase 2: Assign specific groups to rows based on the best recipe.
+  // Phase 1: Find valid "recipes" — how many groups of each size go in each row.
+  //          This uses size-based enumeration for tractability.
+  // Phase 1b: Score recipes by covariate balance using the group type pool.
+  // Phase 2: Assign specific groups to rows, picking groups that best balance covariates.
   // Falls back to greedy FFD if the composition solver exhausts its iteration budget.
 
   let compositionSolverSucceeded = false;
 
-  // Count groups by size (descending order of sizes)
+  // Build group types for covariate-aware scoring
+  const groupTypeCounts = new Map<string, { covariateKey: string; size: number; count: number }>();
+  for (const g of multiGroups) {
+    const covKey = g.samples[0]?.covariateKey ?? '';
+    const typeKey = `${covKey}#${g.size}`;
+    const existing = groupTypeCounts.get(typeKey);
+    if (existing) {
+      existing.count++;
+    } else {
+      groupTypeCounts.set(typeKey, { covariateKey: covKey, size: g.size, count: 1 });
+    }
+  }
+
+  // Count groups by size (descending order of sizes) — for recipe enumeration
   const sizeCounts = new Map<number, number>();
   for (const g of multiGroups) {
     sizeCounts.set(g.size, (sizeCounts.get(g.size) ?? 0) + 1);
   }
   const distinctSizes = Array.from(sizeCounts.keys()).sort((a, b) => b - a);
 
-  // Phase 1: Composition-based backtracking on counts.
-  // For each row, decide how many groups of each size to place.
-  // rowRecipe[r] = Map<size, count> for row r
+  // Phase 1: Composition-based backtracking on size counts.
   const numRowsTotal = rowCapacities.length;
   const rowRecipes: Map<number, number>[] = Array.from({ length: numRowsTotal }, () => new Map());
   const remainingSizeCounts = new Map(sizeCounts);
@@ -484,29 +494,21 @@ export function distributeGroupsToRows(
   const MAX_RECIPES = 50;
   const validRecipes: Map<number, number>[][] = [];
 
-  // For each row, enumerate valid combinations of group sizes that fit.
-  // `reverseOrder` flips the count enumeration for the largest size (sizeIdx === 0)
-  // from max→0 to 0→max, which explores mixed-size recipes (e.g., 5+3+2) instead
-  // of greedy-fill recipes (e.g., 5+5).
   let searchReversed = false;
 
   const findRecipe = (rowIdx: number): boolean => {
     if (rowIdx === numRowsTotal) {
-      // All rows assigned — check all groups are placed
-      for (const [size, count] of Array.from(remainingSizeCounts.entries())) {
+      for (const [, count] of Array.from(remainingSizeCounts.entries())) {
         if (count > 0) return false;
       }
-      // Snapshot this recipe and continue searching for more candidates
       validRecipes.push(rowRecipes.map(r => new Map(r)));
       return validRecipes.length >= MAX_RECIPES;
     }
 
-    // Recursive: for each distinct size, decide how many go in this row
     const assignSizes = (sizeIdx: number, capLeft: number): boolean => {
       if (++recipeIterations > RECIPE_ITERATION_LIMIT) return false;
 
       if (sizeIdx === distinctSizes.length) {
-        // All sizes considered for this row — move to next row
         return findRecipe(rowIdx + 1);
       }
 
@@ -515,8 +517,6 @@ export function distributeGroupsToRows(
       const maxFit = Math.floor(capLeft / size);
       const maxPlace = Math.min(available, maxFit);
 
-      // When searchReversed is true, try ascending order (0→max) for the largest
-      // size to explore mixed-size compositions before greedy-fill ones.
       const ascending = searchReversed && sizeIdx === 0;
       const start = ascending ? 0 : maxPlace;
       const end = ascending ? maxPlace : 0;
@@ -526,7 +526,6 @@ export function distributeGroupsToRows(
         rowRecipes[rowIdx].set(size, count);
         const newCapLeft = capLeft - count * size;
 
-        // Feasibility prune: can remaining groups fit in remaining rows?
         let totalRemainingGroupSamples = 0;
         for (const [s, c] of Array.from(remainingSizeCounts.entries())) {
           totalRemainingGroupSamples += c * s;
@@ -534,13 +533,10 @@ export function distributeGroupsToRows(
 
         const totalRemainingRowCap = btRowCaps.slice(rowIdx + 1).reduce((s, c) => s + c, 0) + newCapLeft;
         if (totalRemainingGroupSamples <= totalRemainingRowCap) {
-          // Also check per-size feasibility: for each remaining size,
-          // can the remaining rows hold that many groups?
           let feasible = true;
           for (const [s, c] of Array.from(remainingSizeCounts.entries())) {
             if (c === 0) continue;
-            // Count how many groups of this size can fit in remaining rows
-            let slots = Math.floor(newCapLeft / s); // current row's remaining capacity
+            let slots = Math.floor(newCapLeft / s);
             for (let rr = rowIdx + 1; rr < numRowsTotal; rr++) {
               slots += Math.floor(btRowCaps[rr] / s);
             }
@@ -552,7 +548,6 @@ export function distributeGroupsToRows(
           }
         }
 
-        // Undo
         remainingSizeCounts.set(size, available);
         rowRecipes[rowIdx].set(size, 0);
       }
@@ -562,16 +557,11 @@ export function distributeGroupsToRows(
     return assignSizes(0, btRowCaps[rowIdx]);
   };
 
-  // Pass 1: reversed order (0→max for largest size) — finds mixed-size recipes first.
-  // This explores compositions like 5+3+2 before 5+5, producing higher diversity scores.
   searchReversed = true;
   findRecipe(0);
 
-  // Pass 2: default order (max→0) — finds greedy-fill recipes.
-  // Only run if we haven't hit the recipe cap and have iteration budget left.
   if (validRecipes.length < MAX_RECIPES && recipeIterations < RECIPE_ITERATION_LIMIT) {
     searchReversed = false;
-    // Reset backtracking state for the second pass
     for (const [size, count] of Array.from(sizeCounts.entries())) {
       remainingSizeCounts.set(size, count);
     }
@@ -582,14 +572,54 @@ export function distributeGroupsToRows(
   }
 
   if (validRecipes.length > 0) {
-    // Composition solver succeeded — select the recipe with the highest size diversity score
     compositionSolverSucceeded = true;
 
+    // Phase 1b: Score recipes by covariate balance.
+    // For each recipe, compute the best achievable covariate composition per row
+    // by optimally distributing group types to size slots.
+    // Build pool: for each size, which (covariateKey, count) pairs exist
+    const poolBySizeCov = new Map<number, Map<string, number>>();
+    for (const g of multiGroups) {
+      const covKey = g.samples[0]?.covariateKey ?? '';
+      if (!poolBySizeCov.has(g.size)) poolBySizeCov.set(g.size, new Map());
+      const covMap = poolBySizeCov.get(g.size)!;
+      covMap.set(covKey, (covMap.get(covKey) ?? 0) + 1);
+    }
+
+    const scoreRecipe = (recipe: Map<number, number>[]): number => {
+      if (globalProportions.size === 0) return 0;
+      let totalScore = 0;
+      for (const rowRecipe of recipe) {
+        const expectedCovSamples = new Map<string, number>();
+        let totalRowSamples = 0;
+        for (const [size, slotCount] of Array.from(rowRecipe.entries())) {
+          if (slotCount === 0) continue;
+          const covPool = poolBySizeCov.get(size);
+          if (!covPool) continue;
+          let totalGroupsOfSize = 0;
+          covPool.forEach(count => { totalGroupsOfSize += count; });
+          if (totalGroupsOfSize === 0) continue;
+          for (const [covKey, poolCount] of Array.from(covPool.entries())) {
+            const expectedGroups = slotCount * (poolCount / totalGroupsOfSize);
+            const expectedSamples = expectedGroups * size;
+            expectedCovSamples.set(covKey, (expectedCovSamples.get(covKey) ?? 0) + expectedSamples);
+            totalRowSamples += expectedSamples;
+          }
+        }
+        if (totalRowSamples === 0) continue;
+        for (const [covKey, globalProp] of Array.from(globalProportions.entries())) {
+          const actualProp = (expectedCovSamples.get(covKey) ?? 0) / totalRowSamples;
+          totalScore += (actualProp - globalProp) ** 2;
+        }
+      }
+      return totalScore;
+    };
+
     let bestRecipe = validRecipes[0];
-    let bestScore = sizeDiversityScore(bestRecipe);
+    let bestScore = scoreRecipe(bestRecipe);
     for (let i = 1; i < validRecipes.length; i++) {
-      const score = sizeDiversityScore(validRecipes[i]);
-      if (score > bestScore) {
+      const score = scoreRecipe(validRecipes[i]);
+      if (score < bestScore) {
         bestScore = score;
         bestRecipe = validRecipes[i];
       }
@@ -608,6 +638,9 @@ export function distributeGroupsToRows(
 
     // Collect all (rowIdx, size) slots from the recipe, then assign groups
     // one at a time picking the group that best balances each row's covariates.
+    // Sort by size descending, then interleave across rows (round-robin) so that
+    // each row gets one group before any row gets a second, preventing covariate
+    // segregation when one covariate dominates a particular group size.
     const slots: { rowIdx: number; size: number }[] = [];
     for (let rowIdx = 0; rowIdx < numRowsTotal; rowIdx++) {
       const recipe = bestRecipe[rowIdx];
@@ -617,10 +650,36 @@ export function distributeGroupsToRows(
         }
       }
     }
-    // Process slots sorted by size descending (largest groups first)
-    slots.sort((a, b) => b.size - a.size);
 
-    for (const { rowIdx, size } of slots) {
+    // Group slots by size descending, then within each size group, sort by row index
+    // and interleave: first pass assigns slot 0 for each row, second pass assigns slot 1, etc.
+    const slotsBySize = new Map<number, { rowIdx: number; size: number }[]>();
+    for (const slot of slots) {
+      if (!slotsBySize.has(slot.size)) slotsBySize.set(slot.size, []);
+      slotsBySize.get(slot.size)!.push(slot);
+    }
+    const sortedSizes = Array.from(slotsBySize.keys()).sort((a, b) => b - a);
+
+    const orderedSlots: { rowIdx: number; size: number }[] = [];
+    for (const size of sortedSizes) {
+      const sizeSlots = slotsBySize.get(size)!;
+      // Group by row, then interleave: row0-slot0, row1-slot0, row2-slot0, row0-slot1, ...
+      const byRow = new Map<number, number>(); // rowIdx → count of slots for this size
+      for (const s of sizeSlots) {
+        byRow.set(s.rowIdx, (byRow.get(s.rowIdx) ?? 0) + 1);
+      }
+      const maxPerRow = Math.max(...Array.from(byRow.values()));
+      const rowIndices = shuffleArray(Array.from(byRow.keys()));
+      for (let pass = 0; pass < maxPerRow; pass++) {
+        for (const rowIdx of rowIndices) {
+          if ((byRow.get(rowIdx) ?? 0) > pass) {
+            orderedSlots.push({ rowIdx, size });
+          }
+        }
+      }
+    }
+
+    for (const { rowIdx, size } of orderedSlots) {
       const pool = groupsBySizeMap.get(size)!;
       if (pool.length === 1 || globalProportions.size === 0) {
         const group = pool.shift()!;

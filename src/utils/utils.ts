@@ -4,7 +4,7 @@ import Papa from 'papaparse';
 import { balancedBlockRandomization } from '../algorithms/balancedRandomization';
 import { greedyRandomization } from '../algorithms/greedyRandomization';
 import { groupAwareRandomization } from '../algorithms/repeatedMeasuresDistribution';
-import { groupAwareDPRandomization } from '../algorithms/repeatedMeasuresDPDistribution';
+// import { groupAwareDPRandomization } from '../algorithms/repeatedMeasuresDPDistribution';
 
 // Utility functions
 export function shuffleArray<T>(array: T[]): T[] {
@@ -138,9 +138,9 @@ export function randomizeSearches(
   plates: (SearchData | undefined)[][][];
   plateAssignments?: Map<number, SearchData[]>;
 } {
-  // When a subject column is set, use group-aware DP randomization
+  // When a subject column is set, use group-aware randomization
   if (repeatedMeasuresConfig?.subjectColumn) {
-    return groupAwareDPRandomization(
+    return groupAwareRandomization(
       searches,
       selectedCovariates,
       repeatedMeasuresConfig,
