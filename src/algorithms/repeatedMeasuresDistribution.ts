@@ -68,7 +68,8 @@ export function validateSubjectGroups(
   // Check total capacity
   if (totalSamples > totalWellCapacity) {
     errors.push(
-      `Total samples (${totalSamples}) exceed available well capacity (${totalWellCapacity}).`
+      `Total samples (${totalSamples}) exceed available well capacity (${totalWellCapacity}). ` +
+      `Try increasing the plate dimensions.`
     );
   }
 
@@ -76,12 +77,14 @@ export function validateSubjectGroups(
   for (const group of groups) {
     if (constraint === 'same-row' && group.size > rowCapacity) {
       errors.push(
-        `Subject ${group.subjectId} has ${group.size} samples, which exceeds the row capacity of ${rowCapacity}. Reduce group size or switch to Same Plate constraint.`
+        `Subject ${group.subjectId} has ${group.size} samples, which exceeds the row capacity of ${rowCapacity}. ` +
+        `Try increasing the plate dimensions or switching to Same Plate constraint.`
       );
     }
     if (constraint === 'same-plate' && group.size > plateCapacity) {
       errors.push(
-        `Subject ${group.subjectId} has ${group.size} samples, which exceeds the plate capacity of ${plateCapacity}.`
+        `Subject ${group.subjectId} has ${group.size} samples, which exceeds the plate capacity of ${plateCapacity}. ` +
+        `Try increasing the plate dimensions.`
       );
     }
   }
@@ -109,7 +112,7 @@ export function validateSubjectGroups(
           `Cannot fit ${groupCount} subject groups of size ${groupSize} into available rows. ` +
           `With ${numPlates} plate(s) × ${numRows} rows, each row can hold ${slotsPerRow} group(s) of this size ` +
           `(${effectiveRowCap} effective slots per row after QC). ` +
-          `Try using Same Plate constraint, increasing the plate size, or reducing QC samples.`
+          `Try increasing the plate dimensions or switching to Same Plate constraint.`
         );
       }
     }
@@ -252,7 +255,8 @@ export function distributeGroupsToPlates(
   };
 
   // Place multi-sample groups using FFD
-  for (const group of sortedMultiGroups) {
+  for (let gi = 0; gi < sortedMultiGroups.length; gi++) {
+    const group = sortedMultiGroups[gi];
     // Find plates that can fit this group, sorted by remaining capacity descending
     const candidatePlates: { plateIdx: number; remaining: number }[] = [];
     for (let i = 0; i < remainingCapacities.length; i++) {
@@ -264,11 +268,39 @@ export function distributeGroupsToPlates(
     }
 
     if (candidatePlates.length === 0) {
-      throw new Error(
-        `Unable to fit all subject groups into available plates. ` +
-        `Subject ${group.subjectId} (size ${group.size}) cannot fit in any plate. ` +
-        `Add more plates or reduce group sizes.`
-      );
+      const maxPlateCap = Math.max(...plateCapacities);
+      if (group.size > maxPlateCap) {
+        throw new Error(
+          `Unable to fit all subject groups into available plates. ` +
+          `Subject ${group.subjectId} (size ${group.size}) exceeds the largest plate capacity (${maxPlateCap}). ` +
+          `Try increasing the plate dimensions.`
+        );
+      } else {
+        const unplacedGroups = sortedMultiGroups.slice(gi);
+        const unplacedBySize = new Map<number, number>();
+        for (const g of unplacedGroups) {
+          unplacedBySize.set(g.size, (unplacedBySize.get(g.size) ?? 0) + 1);
+        }
+
+        const shapeParts: string[] = [];
+        for (const [size, count] of Array.from(unplacedBySize.entries()).sort((a, b) => b[0] - a[0])) {
+          const usablePlates = remainingCapacities.filter(c => c >= size).length;
+          const slotsInUsablePlates = remainingCapacities
+            .filter(c => c >= size)
+            .reduce((sum, c) => sum + Math.floor(c / size), 0);
+          shapeParts.push(
+            `${count} group(s) of size ${size} need plates with ${size}+ wells, ` +
+            `but only ${usablePlates} plate(s) qualify (${slotsInUsablePlates} slot(s))`
+          );
+        }
+
+        throw new Error(
+          `Unable to fit all subject groups into available plates. ` +
+          `Remaining plate capacities: [${remainingCapacities.join(', ')}]. ` +
+          shapeParts.join('; ') + '. ' +
+          `Try increasing the plate dimensions or switching to Same Plate constraint.`
+        );
+      }
     }
 
     // Sort candidates by remaining capacity descending
@@ -322,7 +354,8 @@ export function distributeGroupsToPlates(
     if (candidatePlates.length === 0) {
       throw new Error(
         `Unable to fit all samples into available plates. ` +
-        `No remaining capacity for singleton sample.`
+        `No remaining capacity for singleton sample after placing subject groups. ` +
+        `Try adjusting the plate dimensions or switching to Same Plate constraint.`
       );
     }
 
@@ -400,7 +433,7 @@ function validateGroupFeasibility(
     throw new Error(
       `Subject ${oversizedGroup.subjectId} has ${oversizedGroup.size} samples, ` +
       `but the largest row only has ${maxRowCap} available slots (after QC allocation). ` +
-      `Try using Same Plate constraint, increasing the plate size, or reducing QC samples.`
+      `Try increasing the plate dimensions or switching to Same Plate constraint.`
     );
   }
 
@@ -410,7 +443,7 @@ function validateGroupFeasibility(
   if (totalSamples > totalCapacity) {
     throw new Error(
       `Total samples (${totalSamples}) exceed total row capacity (${totalCapacity}). ` +
-      `Try increasing the plate size or adding more plates.`
+      `Try increasing the plate dimensions.`
     );
   }
 
@@ -426,7 +459,7 @@ function validateGroupFeasibility(
       throw new Error(
         `Cannot fit ${groupCount} subject groups of size ${groupSize} into the available rows. ` +
         `The rows can hold at most ${totalSlots} groups of this size (max ${Math.floor(maxRowCap / groupSize)} per row). ` +
-        `Try using Same Plate constraint, increasing the plate size, or reducing QC samples.`
+        `Try increasing the plate dimensions or switching to Same Plate constraint.`
       );
     }
   }
@@ -857,7 +890,8 @@ function greedyFFDPlacement(
     return state.rowAssignments.get(rowIdx)!.flatMap(g => g.samples);
   };
 
-  for (const group of sortedMultiGroups) {
+  for (let gi = 0; gi < sortedMultiGroups.length; gi++) {
+    const group = sortedMultiGroups[gi];
     const candidateRows: { rowIdx: number; remaining: number }[] = [];
     for (let i = 0; i < state.remainingCapacities.length; i++) {
       if (state.remainingCapacities[i] >= group.size) {
@@ -866,10 +900,31 @@ function greedyFFDPlacement(
     }
 
     if (candidateRows.length === 0) {
+      // Build a shape-aware error message: explain which unplaced group sizes
+      // need rows, how many rows can actually fit each size, and the shortfall.
+      const unplacedGroups = sortedMultiGroups.slice(gi);
+      const unplacedBySize = new Map<number, number>();
+      for (const g of unplacedGroups) {
+        unplacedBySize.set(g.size, (unplacedBySize.get(g.size) ?? 0) + 1);
+      }
+
+      const shapeParts: string[] = [];
+      for (const [size, count] of Array.from(unplacedBySize.entries()).sort((a, b) => b[0] - a[0])) {
+        const usableRows = state.remainingCapacities.filter(c => c >= size).length;
+        const slotsInUsableRows = state.remainingCapacities
+          .filter(c => c >= size)
+          .reduce((sum, c) => sum + Math.floor(c / size), 0);
+        shapeParts.push(
+          `${count} group(s) of size ${size} need rows with ${size}+ wells, ` +
+          `but only ${usableRows} row(s) qualify (${slotsInUsableRows} slot(s))`
+        );
+      }
+
       throw new Error(
         `Unable to fit all subject groups into available rows. ` +
-        `Subject ${group.subjectId} (size ${group.size}) cannot fit in any row. ` +
-        `Consider using Same Plate constraint instead.`
+        `Remaining row capacities: [${state.remainingCapacities.join(', ')}]. ` +
+        shapeParts.join('; ') + '. ' +
+        `Try increasing the plate dimensions or switching to Same Plate constraint.`
       );
     }
 
@@ -941,7 +996,8 @@ function distributeSingletons(
     if (candidateRows.length === 0) {
       throw new Error(
         `Unable to fit all samples into available rows. ` +
-        `No remaining capacity for singleton sample.`
+        `No remaining capacity for singleton sample after placing subject groups. ` +
+        `Try adjusting the plate dimensions or switching to Same Plate constraint.`
       );
     }
 

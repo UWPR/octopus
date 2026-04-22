@@ -311,7 +311,7 @@ describe('validateSubjectGroups', () => {
     const result = validateSubjectGroups(groups, 'same-row', 12, 96, 192);
     expect(result.isValid).toBe(false);
     expect(result.errors).toEqual([
-      'Subject P001 has 13 samples, which exceeds the row capacity of 12. Reduce group size or switch to Same Plate constraint.',
+      'Subject P001 has 13 samples, which exceeds the row capacity of 12. Try increasing the plate dimensions or switching to Same Plate constraint.',
     ]);
   });
 
@@ -323,7 +323,7 @@ describe('validateSubjectGroups', () => {
     const result = validateSubjectGroups(groups, 'same-plate', 12, 96, 192);
     expect(result.isValid).toBe(false);
     expect(result.errors).toEqual([
-      'Subject P001 has 100 samples, which exceeds the plate capacity of 96.',
+      'Subject P001 has 100 samples, which exceeds the plate capacity of 96. Try increasing the plate dimensions.',
     ]);
   });
 
@@ -336,7 +336,7 @@ describe('validateSubjectGroups', () => {
     const result = validateSubjectGroups(groups, 'same-plate', 12, 96, 96);
     expect(result.isValid).toBe(false);
     expect(result.errors).toEqual([
-      'Total samples (100) exceed available well capacity (96).',
+      'Total samples (100) exceed available well capacity (96). Try increasing the plate dimensions.',
     ]);
   });
 
@@ -417,7 +417,7 @@ describe('distributeGroupsToPlates', () => {
 
     expect(() => {
       distributeGroupsToPlates(groups, [5, 5], EMPTY_PROPORTIONS);
-    }).toThrow('Unable to fit all subject groups into available plates. Subject P001 (size 10) cannot fit in any plate. Add more plates or reduce group sizes.');
+    }).toThrow('Unable to fit all subject groups into available plates. Subject P001 (size 10) exceeds the largest plate capacity (5). Try increasing the plate dimensions.');
   });
 });
 
@@ -2575,5 +2575,209 @@ describe('TBI-OSL covariate mixing', () => {
 
     // Property must hold in the majority of iterations (at least 8 out of 10)
     expect(passCount).toBe(ITERATIONS);
+  });
+});
+
+// ─── Edge Case Tests: Shape-aware error messages ────────────────────────────
+// These tests use the CSV-derived scenarios from test-data/README-edge-cases.md
+// to verify that packing failures produce shape-aware error messages (not
+// misleading total-capacity messages).
+
+describe('Edge case: row-level packing failure (edge-case-row-infeasible)', () => {
+  // Scenario from test-data/edge-case-row-infeasible.csv:
+  // 2 groups of size 5 (P001, P002) + 6 groups of size 3 (P003–P008)
+  // 28 samples on 1 plate, 4 rows × 7 columns, Same Row constraint, no QC.
+  // Pre-checks pass (28 = 28 wells, per-size slots look sufficient).
+  // But size-5 and size-3 can't share a 7-wide row (5+3=8>7), so each size-5
+  // group wastes 2 wells. Two size-5 groups consume 2 rows, leaving only
+  // 14 wells in 2 rows for 18 samples of size-3 groups.
+
+  const buildRowInfeasibleSamples = (): SearchData[] => {
+    const samples: SearchData[] = [];
+    // 2 subjects with 5 timepoints each
+    for (let p = 1; p <= 2; p++) {
+      const id = `P${String(p).padStart(3, '0')}`;
+      for (let t = 1; t <= 5; t++) {
+        samples.push({
+          name: `${id}_T${t}`,
+          metadata: { 'Sample Name': `${id}_T${t}`, 'Sample Type': 'n/a', SubjectID: id, Treatment: 'DrugA', Timepoint: `Week${t}`, Sex: p === 1 ? 'M' : 'F', Age: String(50 + p) },
+        });
+      }
+    }
+    // 6 subjects with 3 timepoints each
+    const treatments = ['DrugB', 'DrugB', 'Placebo', 'Placebo', 'Control', 'Control'];
+    for (let p = 3; p <= 8; p++) {
+      const id = `P${String(p).padStart(3, '0')}`;
+      for (let t = 1; t <= 3; t++) {
+        samples.push({
+          name: `${id}_T${t}`,
+          metadata: { 'Sample Name': `${id}_T${t}`, 'Sample Type': 'n/a', SubjectID: id, Treatment: treatments[p - 3], Timepoint: `Week${t - 1}`, Sex: p % 2 === 1 ? 'M' : 'F', Age: String(40 + p) },
+        });
+      }
+    }
+    return samples;
+  };
+
+  it('throws a shape-aware error explaining the row capacity mismatch', () => {
+    const samples = buildRowInfeasibleSamples();
+    expect(samples.length).toBe(28);
+
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-row',
+    };
+
+    try {
+      groupAwareRandomization(samples, ['Treatment'], config, false, 4, 7);
+      fail('Expected an error to be thrown');
+    } catch (e: any) {
+      // Describes the overall failure
+      expect(e.message).toMatch(/Unable to fit all subject groups into available rows/);
+      // Shows remaining row capacities so the user can see the shape problem
+      expect(e.message).toMatch(/Remaining row capacities: \[/);
+      // Explains which group sizes can't find qualifying rows
+      expect(e.message).toMatch(/group\(s\) of size 3 need rows with 3\+ wells/);
+      // Suggests actionable fixes
+      expect(e.message).toMatch(/plate dimensions/);
+      expect(e.message).toMatch(/Same Plate constraint/);
+    }
+  });
+
+  it('succeeds with Same Plate constraint (groups only need to share a plate, not a row)', () => {
+    const samples = buildRowInfeasibleSamples();
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-plate',
+    };
+
+    // Same Plate constraint should work — 28 samples fit on 1 plate of 28 wells
+    const result = groupAwareRandomization(samples, ['Treatment'], config, false, 4, 7);
+    expect(result.plates.length).toBe(1);
+
+    let placedCount = 0;
+    result.plates[0].forEach(row => row.forEach(cell => { if (cell) placedCount++; }));
+    expect(placedCount).toBe(28);
+  });
+
+  it('succeeds with wider rows (8+ columns allow size-5 and size-3 to share)', () => {
+    const samples = buildRowInfeasibleSamples();
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-row',
+    };
+
+    // 4 rows × 8 columns = 32 wells (28 samples). Size-5 + size-3 = 8 ≤ 8.
+    const result = groupAwareRandomization(samples, ['Treatment'], config, false, 4, 8);
+    expect(result.plates.length).toBe(1);
+
+    let placedCount = 0;
+    result.plates[0].forEach(row => row.forEach(cell => { if (cell) placedCount++; }));
+    expect(placedCount).toBe(28);
+  });
+});
+
+describe('Edge case: plate-level packing failure (edge-case-plate-infeasible)', () => {
+  // Scenario from test-data/edge-case-plate-infeasible.csv:
+  // 3 groups of size 9 (P001–P003) + 5 groups of size 4 (P004–P008)
+  // 47 samples on 2 plates, 2 rows × 12 columns (24 wells each, 48 total),
+  // Same Row constraint, no QC.
+  // FFD places three size-9 groups first. Due to capacity-first alternation,
+  // P0 gets two size-9 groups and P1 gets one, leaving capacities [6, 15].
+  // Five size-4 groups are placed next; after four, remaining plate capacities
+  // drop to [2, 3] — neither large enough for the last size-4 group.
+
+  const buildPlateInfeasibleSamples = (): SearchData[] => {
+    const samples: SearchData[] = [];
+    // 3 subjects with 9 timepoints each
+    const treatments9 = ['DrugA', 'DrugA', 'DrugB'];
+    for (let p = 1; p <= 3; p++) {
+      const id = `P${String(p).padStart(3, '0')}`;
+      for (let t = 1; t <= 9; t++) {
+        samples.push({
+          name: `${id}_T${t}`,
+          metadata: { 'Sample Name': `${id}_T${t}`, 'Sample Type': 'n/a', SubjectID: id, Treatment: treatments9[p - 1], Timepoint: `Week${t}`, Sex: p % 2 === 1 ? 'M' : 'F', Age: String(50 + p) },
+        });
+      }
+    }
+    // 5 subjects with 4 timepoints each
+    const treatments4 = ['DrugB', 'Placebo', 'Placebo', 'Control', 'Control'];
+    for (let p = 4; p <= 8; p++) {
+      const id = `P${String(p).padStart(3, '0')}`;
+      for (let t = 1; t <= 4; t++) {
+        samples.push({
+          name: `${id}_T${t}`,
+          metadata: { 'Sample Name': `${id}_T${t}`, 'Sample Type': 'n/a', SubjectID: id, Treatment: treatments4[p - 4], Timepoint: `Week${t - 1}`, Sex: p % 2 === 0 ? 'F' : 'M', Age: String(40 + p) },
+        });
+      }
+    }
+    return samples;
+  };
+
+  it('throws a shape-aware error explaining the plate capacity mismatch (2×12)', () => {
+    const samples = buildPlateInfeasibleSamples();
+    expect(samples.length).toBe(47);
+
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-row',
+    };
+
+    try {
+      groupAwareRandomization(samples, ['Treatment'], config, false, 2, 12);
+      fail('Expected an error to be thrown');
+    } catch (e: any) {
+      // Describes the overall failure
+      expect(e.message).toMatch(/Unable to fit all subject groups into available plates/);
+      // Shows remaining plate capacities so the user can see the shape problem
+      expect(e.message).toMatch(/Remaining plate capacities: \[/);
+      // Explains which group sizes can't find qualifying plates
+      expect(e.message).toMatch(/group\(s\) of size 4 need plates with 4\+ wells/);
+      // Suggests actionable fixes
+      expect(e.message).toMatch(/plate dimensions/);
+      expect(e.message).toMatch(/Same Plate constraint/);
+    }
+  });
+
+  it('succeeds with more rows (3 rows × 12 columns gives enough plate capacity)', () => {
+    const samples = buildPlateInfeasibleSamples();
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-row',
+    };
+
+    // 2 plates × 3 rows × 12 columns = 72 wells (47 samples). More rows means
+    // each plate has 36 wells, so size-9 groups don't consume as much of the plate.
+    const result = groupAwareRandomization(samples, ['Treatment'], config, false, 3, 12);
+    expect(result.plates.length).toBe(2);
+
+    let totalPlaced = 0;
+    for (const plate of result.plates) {
+      plate.forEach(row => row.forEach(cell => { if (cell) totalPlaced++; }));
+    }
+    expect(totalPlaced).toBe(47);
+  });
+
+  it('throws plate-level shape error with 4×6 plates (size-9 groups consume plate capacity, leaving no room for size-4)', () => {
+    const samples = buildPlateInfeasibleSamples();
+    const config: RepeatedMeasuresConfig = {
+      subjectColumn: 'SubjectID',
+      groupingConstraint: 'same-row',
+    };
+
+    // 4 rows × 6 columns = 24 wells per plate. Size-9 groups each consume 9
+    // wells of plate capacity. After placing the three size-9 groups across
+    // 2 plates, remaining plate capacities are too small for size-4 groups.
+    // This is a different failure mode from the 2×12 case: the plate-level
+    // packing fails because size-9 groups consume disproportionate capacity.
+    try {
+      groupAwareRandomization(samples, ['Treatment'], config, false, 4, 6);
+      fail('Expected an error to be thrown');
+    } catch (e: any) {
+      expect(e.message).toMatch(/Unable to fit all subject groups into available plates/);
+      expect(e.message).toMatch(/Remaining plate capacities: \[/);
+      expect(e.message).toMatch(/group\(s\) of size 4 need plates with 4\+ wells/);
+      expect(e.message).toMatch(/plate dimensions/);
+      expect(e.message).toMatch(/Same Plate constraint/);
+    }
   });
 });
