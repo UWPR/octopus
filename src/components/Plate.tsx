@@ -84,6 +84,7 @@ interface PlateProps {
   plateQuality?: PlateQualityScore;
   onReRandomizePlate?: (plateIndex: number) => void;
   subjectColumn?: string;
+  numPlates?: number;
 }
 
 const Plate: React.FC<PlateProps> = ({
@@ -100,7 +101,8 @@ const Plate: React.FC<PlateProps> = ({
   onShowDetails,
   plateQuality,
   onReRandomizePlate,
-  subjectColumn
+  subjectColumn,
+  numPlates = 1
 }) => {
 
 
@@ -272,6 +274,7 @@ const Plate: React.FC<PlateProps> = ({
           <div style={currentStyles.plateQualityRow}>
             <div style={currentStyles.plateQualityMetrics}>
               <span style={currentStyles.qualityLabel}>Quality:</span>
+              {numPlates > 1 && (
               <span
                 style={{
                   ...currentStyles.qualityScore,
@@ -286,6 +289,7 @@ const Plate: React.FC<PlateProps> = ({
                 </span>
                 {' '}Bal: {formatScore(plateQuality.balanceScore)}
               </span>
+              )}
               {QUALITY_DISPLAY_CONFIG.showClusteringScore && (
                 <span
                   style={{

@@ -68,6 +68,7 @@ const PlatesGrid: React.FC<PlatesGridProps> = ({
             onReRandomizePlate={onReRandomizePlate}
             plateQuality={qualityMetrics?.plateDiversity.plateScores.find(score => score.plateIndex === plateIndex)}
             subjectColumn={subjectColumn}
+            numPlates={randomizedPlates.length}
           />
         </div>
       ))}

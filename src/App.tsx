@@ -776,6 +776,7 @@ const App: React.FC = () => {
           onMouseDown={handleModalMouseDown}
           plateQuality={selectedPlateIndex !== null ? metrics?.plateDiversity.plateScores.find(score => score.plateIndex === selectedPlateIndex) : undefined}
           randomizedPlates={randomizedPlates}
+          numPlates={randomizedPlates.length}
         />
 
         {/* Quality Assessment Modal */}
@@ -783,6 +784,7 @@ const App: React.FC = () => {
           metrics={metrics}
           show={showMetrics}
           onClose={toggleMetrics}
+          numPlates={randomizedPlates.length}
         />
 
         {/* Excel Export Modal */}

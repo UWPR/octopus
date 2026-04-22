@@ -564,7 +564,8 @@ export const calculatePlateDiversityMetrics = (
 export const calculateOverallQuality = (
   plateDiversity: PlateDiversityMetrics,
   displayConfig: QualityDisplayConfig = DEFAULT_QUALITY_DISPLAY_CONFIG,
-  groupingConstraint?: GroupingConstraint
+  groupingConstraint?: GroupingConstraint,
+  numPlates: number = 1
 ): OverallQualityAssessment => {
   const recommendations: string[] = [];
 
@@ -576,9 +577,17 @@ export const calculateOverallQuality = (
     );
   }
 
-  // Calculate overall score based on display configuration
-  let scoreCount = 1;
-  let totalScore = plateDiversity.averageBalanceScore;
+  // Calculate overall score based on display configuration.
+  // Balance score measures how closely each plate's covariate distribution
+  // matches the overall distribution across all samples. With a single plate,
+  // the plate's distribution IS the overall distribution, so the score is
+  // always perfect and uninformative — exclude it in that case.
+  let scoreCount = 0;
+  let totalScore = 0;
+  if (numPlates > 1) {
+    scoreCount++;
+    totalScore += plateDiversity.averageBalanceScore;
+  }
   if (displayConfig.showClusteringScore)
   {
     scoreCount++;
@@ -586,10 +595,10 @@ export const calculateOverallQuality = (
   }
   if (displayConfig.showRowScore)
   {
-    totalScore++;
+    scoreCount++;
     totalScore += plateDiversity.averageRowClusteringScore;
   }
-  const overallScore = totalScore / scoreCount;
+  const overallScore = scoreCount > 0 ? totalScore / scoreCount : 0;
 
   // Determine quality level using utility function
   const level = getQualityLevel(overallScore);
@@ -620,7 +629,7 @@ export const calculateQualityMetrics = (
     displayConfig
   );
 
-  const overallQuality = calculateOverallQuality(plateDiversity, displayConfig, groupingConstraint);
+  const overallQuality = calculateOverallQuality(plateDiversity, displayConfig, groupingConstraint, randomizedPlates.length);
 
   return {
     plateDiversity,

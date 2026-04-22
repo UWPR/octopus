@@ -7,12 +7,14 @@ interface QualityMetricsPanelProps {
   metrics: QualityMetrics | null;
   show: boolean;
   onClose: () => void;
+  numPlates: number;
 }
 
 const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
   metrics,
   show,
-  onClose
+  onClose,
+  numPlates
 }) => {
 
 
@@ -71,6 +73,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
 
                 </div>
                 <div style={styles.compactAverageScores}>
+                  {numPlates > 1 && (
                   <div style={styles.compactScoreItem}>
                     <span style={styles.compactItemLabel}>Avg Balance:</span>
                     <span style={{
@@ -86,6 +89,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                       {getCompactQualityLevel(metrics.plateDiversity.averageBalanceScore)}
                     </span>
                   </div>
+                  )}
                   {QUALITY_DISPLAY_CONFIG.showClusteringScore && (
                     <div style={styles.compactScoreItem}>
                       <span style={styles.compactItemLabel}>Avg Clustering Score:</span>
@@ -134,6 +138,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                           </div>
                         </div>
                         <div style={styles.plateScoreDetails}>
+                          {numPlates > 1 && (
                           <div style={styles.scoreItem}>
                             <span style={styles.scoreLabel}>Balance:</span>
                             <span style={{
@@ -149,6 +154,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                               {' '}{formatScore(plate.balanceScore)}
                             </span>
                           </div>
+                          )}
                           {QUALITY_DISPLAY_CONFIG.showClusteringScore && (
                             <div style={styles.scoreItem}>
                               <span style={styles.scoreLabel}>Clustering Score:</span>
