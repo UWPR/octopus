@@ -10,6 +10,8 @@ Octopus Plate Designer is a web application designed to optimize the distributio
 
 **Spatial Randomization**: Samples are positioned on plates to minimize clustering of similar samples in rows and columns, reducing potential position-based biases.
 
+**Repeated Measures Support**: For longitudinal or multi-timepoint studies, the app can keep all samples from the same subject together on the same row or same plate, while still optimizing covariate balance.
+
 **Quality Assessment**: Built-in metrics evaluate how well your sample distribution achieves balance and randomization, helping you identify and correct issues before running experiments.
 
 **Flexible Configuration**: Customizable plate dimensions allow you to adapt the randomization strategy to your specific experimental needs.
@@ -20,13 +22,29 @@ Octopus Plate Designer is a web application designed to optimize the distributio
 
 ### The Randomization Process
 
-1. **Sample Classification**: Your samples are grouped based on selected covariates (experimental factors like treatment type, time point, etc.)
+1. **Sample Classification**: Samples are grouped based on selected covariates (experimental factors like treatment type, time point, etc.)
 
 2. **Proportional Distribution**: Samples are distributed across plates so that each plate receives a proportional representation of each covariate group
 
 3. **Spatial Placement**: Within each plate, samples are positioned using a greedy process that minimizes adjacency (horizontal, vertical, cross-row) of identical covariate groups. Randomness is introduced via shuffling and tie‑breaking, but the primary objective is reduced clustering rather than pure uniform randomness.
 
 4. **Quality Evaluation**: Balance and clustering scores are calculated to assess the quality of the distribution
+
+### Repeated Measures Randomization
+
+When a Subject ID Column is configured with a grouping constraint, the randomization process changes:
+
+1. **Subject Grouping**: Samples are grouped by subject/patient ID. All samples from the same subject form a group that must stay together.
+
+2. **QC Distribution**: QC/Reference samples, if included, are distributed proportionally across plates and rows first, reducing the effective capacity available for experimental samples.
+
+3. **Group-to-Plate Assignment**: Subject groups are assigned to plates largest-first, placing each group on the plate with the most available space while using covariate balance as a tiebreaker.
+
+4. **Group-to-Row Assignment** (Same Row constraint): Within each plate, the algorithm first figures out how many groups of each size fit in each row, then assigns specific patients to rows to optimize covariate balance.
+
+5. **Row Reordering** (Same Row constraint only): Rows are reordered so that adjacent rows have maximally different covariate compositions, reducing vertical clustering.
+
+6. **Spatial Placement**: Samples are placed into columns using the same greedy spatial placement as standard randomization.
 
 ---
 
@@ -37,6 +55,7 @@ Octopus Plate Designer is a web application designed to optimize the distributio
 Prepare a CSV file containing your sample information with:
 - A unique identifier column for each sample
 - One or more columns representing experimental covariates (factors you want to balance)
+- Optionally, a subject/patient ID column for repeated measures designs
 
 Click **Choose File** to select and upload your CSV file.
 
@@ -59,7 +78,7 @@ Example:
 | S4        | DrugB    | 0h   | High |
 | S5        | Control  | n/a   | n/a  |
 
-If you select Treatment + Time, the grcovariate group keys are:
+If you select Treatment + Time, the covariate group keys are:
 `DrugA|0h` (S1,S2), `DrugA|24h` (S3), `DrugB|0h` (S4), `Control|n/a` (S5).
 
 If you select Treatment + Time + Dose, the keys are:
@@ -81,6 +100,30 @@ Select a column that identifies quality control or reference samples, then check
 
 QC/Reference samples will be visually distinguished in the summary panel (see Covariate Summary Panel section below).
 
+#### Set Subject ID Column (Optional — Repeated Measures)
+
+For experiments where the same subject is measured multiple times (e.g., multiple timepoints, longitudinal studies), select the column that identifies which samples belong to the same subject.
+
+**How it works:**
+1. Select a column from the "Subject ID Column" dropdown (e.g., "PatientID")
+2. Choose a grouping constraint (see below)
+3. The app groups all samples sharing the same subject ID into a subject group that will be kept together during randomization
+
+**Mutual exclusivity:** The Subject ID Column cannot be the same as a selected treatment covariate or the QC column. Selecting a column as the subject ID will automatically remove it from the covariates list (and vice versa).
+
+**Subject Group Summary:** When a subject column is selected, a summary appears showing the number of subject groups, their size range, and a breakdown by size (e.g., "5 groups of size 4, 6 groups of size 3"). Samples with empty or missing subject IDs become singletons.
+
+![Configuration - Subject ID Column](images/octopus-config-subjectid-column.png)
+
+**Grouping Constraint:** When a Subject ID Column is selected, you must choose how subject groups are constrained:
+
+- **Same Row**: All samples from the same subject must be placed in the same row. This is the stricter constraint and is the default when a subject column is selected.
+- **Same Plate**: All samples from the same subject must be on the same plate, but can be in different rows. This is more flexible and allows better covariate balance.
+
+**Validation:** The app validates whether the chosen constraint is feasible given the plate dimensions. For example, if a subject has 15 samples but the plate only has 12 columns, the Same Row constraint is infeasible and an error message will appear. The "Generate Randomized Plates" button is disabled until all validation errors are resolved.
+
+**Note:** The "Keep empty spots in last plate" option is hidden when a grouping constraint is active, as the group-aware algorithm manages plate capacity differently.
+
 #### Configure Plate Dimensions
 - **Rows**: Set from 1-16 (default: 8)
 - **Columns**: Set from 1-24 (default: 12)
@@ -91,14 +134,16 @@ QC/Reference samples will be visually distinguished in the summary panel (see Co
 #### Choose Empty Cell Distribution
 When your sample count doesn't fill all available wells, use the **"Keep empty spots in last plate"** checkbox:
 
-- **Checked** (default): All empty wells are concentrated in the final plate, keeping all other plates fully populated
-- **Unchecked**: Empty wells are distributed across all plates and available rows, creating a more uniform fill level across all plates
+- **Unchecked** (default): Empty wells are distributed across all plates and available rows, creating a more uniform fill level across all plates
+- **Checked**: All empty wells are concentrated in the final plate, keeping all other plates fully populated
 
-This setting affects plate capacity calculations and can impact how samples are distributed across plates.
+This setting affects plate capacity calculations and can impact how samples are distributed across plates. This option is not available when a grouping constraint is active.
 
 ### Step 3: Generate Randomized Plates
 
 Click the **"Generate Randomized Plates"** button to create your sample distribution.
+
+If the randomization fails (e.g., due to infeasible constraints), an error message will appear explaining the issue and suggesting corrective actions.
 
 ### Step 4: Review and Evaluate
 
@@ -107,13 +152,13 @@ Click the **"Generate Randomized Plates"** button to create your sample distribu
 **Compact View** (Default)
 - Small cells (18×16 pixels)
 - Ideal for visualizing overall distribution patterns
-- Hover over cells to see sample details
+- Hover over cells to see sample details (including subject ID when configured)
 
 ![Compact Plates](images/octopus_compact-plates.png)
 
 **Full Size View**
 - Large cells (100×60 pixels) display complete information
-- Sample names and covariate values visible directly in each well
+- Sample names, covariate values, and subject ID (when configured) visible directly in each well
 - Better for detailed inspection
 
 ![Full Plate](images/octopus_full-plate.png)
@@ -138,7 +183,32 @@ Click **"Show/Hide Covariate Summary"** to display:
 
 **Interactive Highlighting**: Click any covariate group in the summary to highlight all samples from that group across all plates (blue glowing border).
 
+**Custom Colors**: Click the pencil icon (✎) on any covariate group card to customize its appearance. You can change the color using a color picker and switch between three fill styles: Solid, Outline, or Diagonal stripes. Custom colors are reflected immediately across all plate views and in Excel exports.
+
 ![Compact Plates Selected Covariate Highlighted](images/octopus_compact-plates-covariate-highlighted.png)
+
+#### Subject Placement Panel
+
+When a Subject ID Column is configured, a **"Show/Hide Subject Placements"** button appears after randomization. 
+
+![Show Subject Placement Button](images/octopus_show-subject-placement-btn.png)
+
+This panel shows:
+
+- A list of all subjects with their plate and row assignments (e.g., `P1:A,B` means plate 1, rows A and B)
+- The number of samples per subject
+- Total subject count
+
+
+![Subject Placements](images/octopus_subject-placements.png)
+
+
+**Interactive Highlighting**: Click any subject in the panel to highlight all of that subject's samples across all plates (blue glowing border). This is useful for verifying that the grouping constraint was respected (e.g., all samples from the same subject appear in the same row when using the Same Row constraint).
+
+Subject highlighting and covariate highlighting are mutually exclusive — clicking a subject clears any covariate highlight, and vice versa.
+
+![Selected Subject Highlighted](images/octopus_compact-plates-subject-highlighted.png)
+
 
 #### Quality Metrics
 
@@ -150,9 +220,8 @@ Click the quality button to open the **Quality Assessment Modal** showing:
 - Individual scores for each plate with quality badges
 
 **Plate Headers**: Each plate displays:
-- **Bal**: Balance score (0-100) for that plate
+- **Bal**: Balance score (0-100) for that plate (not shown with a single plate — see Balance Score section below)
 - **Clust**: Clustering score (0-100) for that plate
-- **Overall**: Combined score displayed with color-coded quality badge
 
 #### Plate Details Popup
 
@@ -170,10 +239,13 @@ Click the **"i"** icon in any plate header to view:
 ### Step 5: Refine Your Randomization (Optional)
 
 #### Global Re-randomization
-Click the main **"Re-randomize"** button to generate a completely new distribution for all plates while preserving your configuration settings.
+Click the main **"Re-randomize"** button to generate a completely new distribution for all plates while preserving your configuration settings. When a grouping constraint is active, the group-aware algorithm is used.
 
 #### Individual Plate Re-randomization
-Click the **"R"** button in any plate header to re-randomize only that specific plate. Quality scores update automatically after any re-randomization.
+Click the **"R"** button in any plate header to re-randomize only that specific plate. When a grouping constraint is active, the plate is re-randomized using the group-aware algorithm with the same samples currently assigned to that plate. Quality scores update automatically after any re-randomization.
+
+#### Drag and Drop
+You can drag samples between wells on the same plate or across plates to manually adjust the layout. Dragging swaps the contents of the source and target wells. Quality scores update automatically after any swap.
 
 ### Step 6: Export Your Results
 
@@ -181,10 +253,12 @@ Once satisfied with the distribution, click **"Download CSV"** or **"Download Ex
 
 **CSV Export**: Includes all original sample data plus assigned plate numbers and well positions.
 
-**Excel Export**: Opens a modal allowing you to select which covariates to include in the Excel file. The exported file contains:
+**Excel Export**: Opens a modal allowing you to select which covariates to include in the Excel file. Treatment covariates, the subject column (if configured), and the QC column (if configured) are pre-selected by default. The exported file contains:
 - Color-coded plates matching the visual display
 - Selected covariate information for each sample
 - Plate and well position assignments
+- A Legend sheet mapping covariate groups to colors
+- A Sample Details sheet with all sample metadata and plate/well assignments
 
 ---
 
@@ -192,6 +266,8 @@ Once satisfied with the distribution, click **"Download CSV"** or **"Download Ex
 
 ### Balance Score (0-100)
 Measures how proportionally each covariate group is represented on each plate compared to the overall population. Higher scores indicate better balance.
+
+**Note:** With a single plate, the balance score is not displayed because the plate's covariate distribution is identical to the overall distribution, making the score trivially perfect and uninformative. Only the clustering score is shown in this case.
 
 **Calculation:**
 For each covariate group on each plate:
@@ -214,7 +290,10 @@ The score is calculated as: `Score = (1 - actualClusters / maxPossibleAdjacencie
 Higher scores indicate better spatial distribution with fewer same-treatment samples adjacent to each other. A score of 100 means no same-treatment adjacencies, while lower scores indicate more clustering.
 
 ### Overall Score
-The average of balance and clustering scores, calculated at both plate level and experiment level.
+The average of all active score components, calculated at both plate level and experiment level:
+
+- **Multiple plates**: Overall Score = (Balance Score + Clustering Score) / 2
+- **Single plate**: Overall Score = Clustering Score only (balance is excluded because with one plate, the plate's covariate distribution is identical to the overall distribution, making the balance score trivially perfect and uninformative)
 
 ### Quality Levels
 
@@ -226,11 +305,15 @@ The average of balance and clustering scores, calculated at both plate level and
 | 60-69 | Poor |
 | 0-59 | Bad |
 
+### Quality with Grouping Constraints
+
+When a grouping constraint (Same Row or Same Plate) is active, the quality assessment includes a note that covariate balance may be limited compared to unconstrained randomization. This is expected — keeping subject samples together inherently reduces the algorithm's freedom to optimize balance.
+
 ---
 
 ## Tips for Best Results
 
-1. **Select Relevant Covariates**: Choose only the experimental factors that matter for your analysis. Too many covariates can make it diffcult to achieve a balanced distribution.
+1. **Select Relevant Covariates**: Choose only the experimental factors that matter for your analysis. Too many covariates can make it difficult to achieve a balanced distribution.
 
 2. **Use QC/Reference Column**: Specifying QC/Reference labels helps you quickly identify these samples in the plate layout.
 
@@ -239,6 +322,10 @@ The average of balance and clustering scores, calculated at both plate level and
 4. **Use Compact View First**: Start with the compact view to identify any obvious distribution issues, then switch to full size for detailed verification.
 
 5. **Check Plate Details**: Review the plate details popup for each plate to ensure expected counts align with actual counts.
+
+6. **Verify Subject Grouping**: When using repeated measures, open the Subject Placement Panel and click individual subjects to confirm all their samples are on the same row (or same plate, depending on your constraint).
+
+7. **Choose the Right Subject Grouping Constraint**: The grouping constraint is typically determined by the experimental design — use Same Row when samples must be processed together in the same row, and Same Plate when they just need to be on the same plate. If your design allows either, Same Plate gives the algorithm more flexibility to optimize covariate balance across multiple plates.
 
 ---
 
@@ -250,9 +337,11 @@ The app uses 24 distinct bright colors to represent different covariate groups. 
 - **Groups 25-48**: Outline only (transparent fill)
 - **Groups 49-72**: Diagonal stripes pattern
 
-This system supports up to 72 unique covariate groups while maintaining visual distinction.
+This system supports up to 72 unique covariate groups while maintaining visual distinction. You can override any group's color and fill style using the edit controls in the Covariate Summary Panel.
 
-**QC/Reference Sample Colors**: When QC/Reference samples are configured, their covariate groups are assigned darker color variants from a separate palette. This makes QC/Reference samples easily distinguishable from treatment samples at a glance, helping you quickly verify their distribution across plates.
+![Change Covariate Group Color](images/octopus-pick-covariate-color.png)
+
+**QC/Reference Sample Colors**: When QC/Reference samples are configured, their covariate groups are assigned darker color variants from a separate palette with a diagonal stripe pattern by default. This makes QC/Reference samples easily distinguishable from treatment samples at a glance, helping you quickly verify their distribution across plates. As with treatment groups, QC/Reference colors and fill styles can be customized from the Covariate Summary Panel.
 
 ---
 
@@ -260,7 +349,7 @@ This system supports up to 72 unique covariate groups while maintaining visual d
 
 ### Algorithm Details
 
-**Balanced Randomization**
+#### **Balanced Randomization** (standard, no grouping constraint)
 - Distributes samples proportionally across plates and rows
 - Uses greedy spatial placement to minimize adjacency clustering
 
@@ -275,6 +364,39 @@ Detailed Steps:
 8. **Greedy Spatial Placement**: Within each populated row, samples are placed into columns minimizing a cluster score (penalties for same-group left/right/above and cross-row adjacency). Random tie-breaking preserves diversity.
 9. **Final Spatial Metrics**: Horizontal, vertical and cross-row cluster counts logged for diagnostic quality analysis.
 
+
+#### **Group-Aware Randomization** (when a Subject ID Column and grouping constraint are configured)
+
+This algorithm keeps all samples from the same subject together while optimizing covariate balance. The algorithm differs depending on the constraint:
+
+**_Same Row Constraint:_**
+
+1. **QC Distribution**: QC samples are distributed proportionally by covariate subgroup across plates and rows. This reduces the effective row capacity available for experimental samples.
+2. **Subject Grouping**: Experimental samples are grouped by subject ID. Each group must fit within a single row.
+3. **Validation**: Feasibility checks verify that no group exceeds row capacity, total samples fit in available wells, and there are enough row slots for all groups of each size.
+4. **Plate Assignment**: Subject groups are assigned to plates largest-first. Groups are sorted by size descending (shuffled within equal sizes). For each group, the plate with the most remaining capacity is preferred; ties are broken by covariate imbalance score. Per-plate row-slot limits prevent overloading a plate with more groups than its rows can physically hold.
+5. **Row Assignment**: Within each plate, a two-phase process assigns groups to rows:
+
+   ![Row Layout Plan](images/octopus_row-layout-plan.svg)
+
+   - *Phase 1 — Layout Plan Search*: A backtracking algorithm determines how many groups of each size go in each row (the "row layout plan"). It explores valid combinations, skipping branches that can't lead to a complete assignment, and collects up to 50 candidate layout plans. The best plan is selected based on covariate balance scoring.
+
+   ![Branch Pruning — a tighter example (3×6, no singletons) showing how invalid branches are eliminated early](images/octopus_branch-pruning.svg)
+   - *Phase 2 — Group Assignment*: Specific subject groups are assigned to the layout plan's slots. For each slot, the unassigned group that minimizes covariate imbalance (sum of squared deviations from global proportions) is chosen.
+   - *Fallback*: If no valid layout plan is found, a greedy fallback assigns groups directly to rows largest-first by capacity and covariate balance.
+6. **Singleton Distribution**: Samples without a subject ID (singletons) are distributed to fill remaining row capacity, preferring rows where they best balance covariates.
+7. **Row Reordering**: Physical row order is optimized to minimize vertical adjacency of same-covariate groups. A greedy algorithm starts with a random row and always picks the most different remaining row next.
+8. **Column Placement**: Within each row, `greedyPlaceInRow` places samples into columns to minimize spatial clustering, same as standard randomization.
+
+**_Same Plate Constraint:_**
+
+Steps 1-4 are the same as Same Row. The difference is in row assignment:
+
+5. **Row Assignment**: Since groups only need to be on the same plate (not the same row), the algorithm flattens all experimental samples on the plate and uses the standard balanced block randomization logic (proportional distribution + overflow) to assign samples to rows. This gives more flexibility for covariate balance.
+6. **Singleton Distribution**: Same as Same Row — singletons fill remaining row capacity, preferring rows where they best balance covariates.
+7. **Column Placement**: Same as Same Row — `greedyPlaceInRow` places samples into columns to minimize spatial clustering.
+
+Note: Row reordering is not performed under the Same Plate constraint. Because samples from the same subject can span multiple rows, the standard balanced block logic assigns samples to rows in their natural order.
 
 ### Quality Score Calculations
 
@@ -319,14 +441,12 @@ The clustering score measures spatial distribution quality by analyzing same-tre
 - **50-74**: Moderate clustering - some same-treatment neighbors
 - **0-49**: High clustering - many same-treatment adjacencies
 
-**Special Cases:**
-- Empty plates or single-sample plates: Score = 100 (no adjacencies possible)
-- No possible adjacencies: Score = 100
 
 The clustering score complements the balance score by ensuring samples are not only proportionally distributed but also spatially dispersed to minimize position-based biases.
 
 #### Overall Scores
-- **Plate Overall Score** = (Balance Score + Clustering Score) / 2
-- **Experiment Scores** = Average of all plate scores
+- **Multiple plates**: Plate Overall Score = (Balance Score + Clustering Score) / 2
+- **Single plate**: Plate Overall Score = Clustering Score (balance is excluded — see above)
+- **Experiment Scores** = Average of all plate overall scores
 
 ---

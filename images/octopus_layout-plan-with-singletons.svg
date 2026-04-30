@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" font-family="Arial, Helvetica, sans-serif">
+  <rect width="800" height="480" fill="#fff" rx="8"/>
+
+  <!-- Title -->
+  <text x="400" y="24" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Layout Plan Search with Singletons</text>
+  <text x="400" y="42" text-anchor="middle" font-size="11" fill="#888">3 rows × 7 wells · 4 size-3 groups + 3 size-2 groups + 3 singletons = 21 samples</text>
+  <text x="400" y="56" text-anchor="middle" font-size="10" fill="#AAA">Search places multi-sample groups first (18 samples) · singletons fill remaining wells after</text>
+
+  <!-- Row background bands -->
+  <rect x="0" y="100" width="800" height="100" fill="#f9f9f9" opacity="0.6"/>
+  <rect x="0" y="246" width="800" height="100" fill="#f9f9f9" opacity="0.6"/>
+  <rect x="0" y="356" width="800" height="50" fill="#f9f9f9" opacity="0.6"/>
+
+  <!-- Row labels -->
+  <rect x="0" y="112" width="52" height="24" rx="3" fill="#E8E8E8"/>
+  <text x="26" y="128" text-anchor="middle" font-size="11" font-weight="700" fill="#555">Row A</text>
+
+  <rect x="0" y="258" width="52" height="24" rx="3" fill="#E8E8E8"/>
+  <text x="26" y="274" text-anchor="middle" font-size="11" font-weight="700" fill="#555">Row B</text>
+
+  <rect x="0" y="360" width="52" height="24" rx="3" fill="#E8E8E8"/>
+  <text x="26" y="376" text-anchor="middle" font-size="11" font-weight="700" fill="#555">Row C</text>
+
+  <!-- Root -->
+  <rect x="310" y="66" width="180" height="24" rx="12" fill="#E8E8E8" stroke="#BDBDBD"/>
+  <text x="400" y="82" text-anchor="middle" font-size="10" font-weight="600" fill="#555">Place 4 size-3 + 3 size-2</text>
+
+  <!-- ═══ Level 1: Row A ═══ -->
+  <line x1="350" y1="90" x2="150" y2="112" stroke="#4CAF50" stroke-width="1.5"/>
+  <line x1="400" y1="90" x2="400" y2="112" stroke="#4CAF50" stroke-width="1.5"/>
+  <line x1="450" y1="90" x2="650" y2="112" stroke="#4CAF50" stroke-width="1.5"/>
+
+  <!-- A1: size-3: 2 + size-2: 0 = 6 -->
+  <rect x="60" y="112" width="180" height="34" rx="5" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1.5"/>
+  <text x="150" y="127" text-anchor="middle" font-size="9" font-weight="600" fill="#2E7D32">size-3: 2 + size-2: 0 = 6</text>
+  <text x="150" y="139" text-anchor="middle" font-size="8" fill="#388E3C">left: size-3: 2, size-2: 3</text>
+
+  <!-- A2: size-3: 1 + size-2: 2 = 7 -->
+  <rect x="310" y="112" width="180" height="34" rx="5" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1.5"/>
+  <text x="400" y="127" text-anchor="middle" font-size="9" font-weight="600" fill="#2E7D32">size-3: 1 + size-2: 2 = 7</text>
+  <text x="400" y="139" text-anchor="middle" font-size="8" fill="#388E3C">left: size-3: 3, size-2: 1</text>
+
+  <!-- A3: size-3: 0 + size-2: 3 = 6 -->
+  <rect x="560" y="112" width="180" height="34" rx="5" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1.5"/>
+  <text x="650" y="127" text-anchor="middle" font-size="9" font-weight="600" fill="#2E7D32">size-3: 0 + size-2: 3 = 6</text>
+  <text x="650" y="139" text-anchor="middle" font-size="8" fill="#388E3C">left: size-3: 4, size-2: 0</text>
+
+  <!-- Note: other combos like size-3:1+size-2:1=5 also valid (leaves 13, cap 14) -->
+  <text x="150" y="165" text-anchor="middle" font-size="8" fill="#999">+ other valid combos...</text>
+
+  <!-- ═══ Level 2 from A1: Row B (left: 2 size-3, 3 size-2) ═══ -->
+  <line x1="110" y1="146" x2="110" y2="258" stroke="#4CAF50" stroke-width="1.5"/>
+  <line x1="190" y1="146" x2="290" y2="258" stroke="#4CAF50" stroke-width="1.5"/>
+
+  <!-- B1: size-3: 1 + size-2: 2 = 7 -->
+  <rect x="60" y="258" width="180" height="34" rx="5" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1.5"/>
+  <text x="150" y="273" text-anchor="middle" font-size="9" font-weight="600" fill="#2E7D32">size-3: 1 + size-2: 2 = 7</text>
+  <text x="150" y="285" text-anchor="middle" font-size="8" fill="#388E3C">left: size-3: 1, size-2: 1</text>
+
+  <!-- B2: size-3: 2 + size-2: 0 = 6 -->
+  <rect x="260" y="258" width="180" height="34" rx="5" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1.5"/>
+  <text x="350" y="273" text-anchor="middle" font-size="9" font-weight="600" fill="#2E7D32">size-3: 2 + size-2: 0 = 6</text>
+  <text x="350" y="285" text-anchor="middle" font-size="8" fill="#388E3C">left: size-3: 0, size-2: 3</text>
+
+  <!-- ═══ Level 2 from A2: Row B (left: 3 size-3, 1 size-2) ═══ -->
+  <line x1="400" y1="146" x2="540" y2="258" stroke="#4CAF50" stroke-width="1.5"/>
+  <line x1="440" y1="146" x2="700" y2="258" stroke="#F44336" stroke-width="1.2" stroke-dasharray="4,3"/>
+
+  <!-- B3: size-3: 2 + size-2: 0 = 6 -->
+  <rect x="460" y="258" width="180" height="34" rx="5" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1.5"/>
+  <text x="550" y="273" text-anchor="middle" font-size="9" font-weight="600" fill="#2E7D32">size-3: 2 + size-2: 0 = 6</text>
+  <text x="550" y="285" text-anchor="middle" font-size="8" fill="#388E3C">left: size-3: 1, size-2: 1</text>
+
+  <!-- B4: size-3: 0 + size-2: 1 = 2  ← PRUNED -->
+  <rect x="660" y="258" width="130" height="34" rx="5" fill="#FFEBEE" stroke="#F44336" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <text x="725" y="273" text-anchor="middle" font-size="9" font-weight="600" fill="#C62828">size-3: 0 + size-2: 1 = 2</text>
+  <text x="725" y="285" text-anchor="middle" font-size="8" fill="#C62828">left: size-3: 3, size-2: 0 = 9</text>
+
+  <!-- Prune callout B4 -->
+  <rect x="660" y="298" width="130" height="26" rx="4" fill="#FFEBEE" stroke="#EF9A9A" stroke-dasharray="3,2"/>
+  <text x="725" y="310" text-anchor="middle" font-size="8" font-weight="700" fill="#C62828">✗ Capacity check</text>
+  <text x="725" y="321" text-anchor="middle" font-size="7.5" fill="#D32F2F">9 left, 1 row × 7 = 7</text>
+
+  <!-- ═══ Level 3: Row C completions ═══ -->
+  <line x1="150" y1="292" x2="150" y2="360" stroke="#4CAF50" stroke-width="1.5"/>
+  <rect x="60" y="360" width="180" height="30" rx="5" fill="#4CAF50" opacity="0.15" stroke="#4CAF50" stroke-width="2"/>
+  <text x="150" y="375" text-anchor="middle" font-size="9" font-weight="700" fill="#2E7D32">size-3: 1 + size-2: 1 = 5</text>
+  <text x="150" y="386" text-anchor="middle" font-size="8" fill="#1B5E20">✓ Complete (2 wells for singletons)</text>
+
+  <line x1="350" y1="292" x2="350" y2="360" stroke="#4CAF50" stroke-width="1.5"/>
+  <rect x="260" y="360" width="180" height="30" rx="5" fill="#4CAF50" opacity="0.15" stroke="#4CAF50" stroke-width="2"/>
+  <text x="350" y="375" text-anchor="middle" font-size="9" font-weight="700" fill="#2E7D32">size-3: 0 + size-2: 3 = 6</text>
+  <text x="350" y="386" text-anchor="middle" font-size="8" fill="#1B5E20">✓ Complete (1 well for singleton)</text>
+
+  <line x1="550" y1="292" x2="550" y2="360" stroke="#4CAF50" stroke-width="1.5"/>
+  <rect x="460" y="360" width="180" height="30" rx="5" fill="#4CAF50" opacity="0.15" stroke="#4CAF50" stroke-width="2"/>
+  <text x="550" y="375" text-anchor="middle" font-size="9" font-weight="700" fill="#2E7D32">size-3: 1 + size-2: 1 = 5</text>
+  <text x="550" y="386" text-anchor="middle" font-size="8" fill="#1B5E20">✓ Complete (2 wells for singletons)</text>
+
+  <!-- Singleton distribution note -->
+  <rect x="60" y="410" width="680" height="40" rx="6" fill="#FFF8E1" stroke="#FFD54F"/>
+  <text x="400" y="427" text-anchor="middle" font-size="10" font-weight="600" fill="#F57F17">After the layout plan is chosen, 3 singletons fill the remaining wells</text>
+  <text x="400" y="442" text-anchor="middle" font-size="9" fill="#795548">Singletons are placed one at a time into rows with the most remaining capacity, preferring rows that improve covariate balance</text>
+
+  <!-- Legend -->
+  <rect x="20" y="458" width="760" height="18" rx="4" fill="#F8F8F8" stroke="#E8E8E8"/>
+  <rect x="30" y="461" width="12" height="12" rx="2" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1.5"/>
+  <text x="48" y="471" font-size="9" fill="#555">Valid branch</text>
+  <rect x="130" y="461" width="12" height="12" rx="2" fill="#FFEBEE" stroke="#F44336" stroke-dasharray="3,2"/>
+  <text x="148" y="471" font-size="9" fill="#555">Pruned</text>
+  <text x="260" y="471" font-size="9" fill="#888">Multiple valid plans found — best is selected by covariate balance scoring</text>
+</svg>
