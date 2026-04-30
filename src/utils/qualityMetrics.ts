@@ -504,6 +504,7 @@ export const calculatePlateDiversityMetrics = (
 
   const combinationGroups = groupByCovariates(searches, selectedCovariates);
   const plateScores: PlateQualityScore[] = [];
+  const numPlates = plateAssignments.size;
 
   // Convert combination groups to counts for balance calculation
   const globalCombinationCounts = new Map<string, number>();
@@ -526,10 +527,24 @@ export const calculatePlateDiversityMetrics = (
       ? calculateClusteringScore(plateRows, plateRows.length, plateRows[0]?.length || 12)
       : 0;
 
-    // Calculate overall score based on display configuration
-    const overallScore = displayConfig.showRowScore
-      ? (plateBalance.overallScore + rowClusteringResult.averageScore) / 2
-      : plateBalance.overallScore;
+    // Calculate overall score: average of all active score components.
+    // With a single plate, balance is always trivially perfect (the plate's
+    // distribution IS the overall distribution), so exclude it.
+    let scoreCount = 0;
+    let scoreTotal = 0;
+    if (numPlates > 1) {
+      scoreCount++;
+      scoreTotal += plateBalance.overallScore;
+    }
+    if (displayConfig.showClusteringScore) {
+      scoreCount++;
+      scoreTotal += clusteringScore;
+    }
+    if (displayConfig.showRowScore) {
+      scoreCount++;
+      scoreTotal += rowClusteringResult.averageScore;
+    }
+    const overallScore = scoreCount > 0 ? scoreTotal / scoreCount : 0;
 
     plateScores.push({
       plateIndex,

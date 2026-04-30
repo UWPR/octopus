@@ -207,6 +207,9 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
           <label htmlFor="subjectColumn" style={{ ...styles.compactLabel, marginTop: '10px' }}>
             Subject ID Column (optional):
           </label>
+          <small style={styles.compactHint}>
+            For repeated measures — keeps all samples from the same subject on the same plate or row
+          </small>
           <select
             id="subjectColumn"
             value={subjectColumn}
