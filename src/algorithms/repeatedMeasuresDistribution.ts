@@ -768,17 +768,17 @@ function scoreAndSelectRecipe(
     return totalScore;
   };
 
-  let bestRecipe = validRecipes[0];
-  let bestScore = scoreRecipe(bestRecipe);
-  for (let i = 1; i < validRecipes.length; i++) {
-    const score = scoreRecipe(validRecipes[i]);
+  let bestScore = Infinity;
+  for (const recipe of validRecipes) {
+    const score = scoreRecipe(recipe);
     if (score < bestScore) {
       bestScore = score;
-      bestRecipe = validRecipes[i];
     }
   }
 
-  return bestRecipe;
+  // Collect all recipes that tie for the best score, then pick one randomly
+  const bestRecipes = validRecipes.filter(r => scoreRecipe(r) === bestScore);
+  return bestRecipes[Math.floor(Math.random() * bestRecipes.length)];
 }
 
 // ─── Step 4: Assign specific groups to recipe slots ─────────────────────────

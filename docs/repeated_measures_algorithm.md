@@ -4,19 +4,33 @@ This document describes the algorithms in `src/algorithms/repeatedMeasuresDistri
 
 ## Overview
 
-The system works in a pipeline of stages:
+The system works in a pipeline of stages. The pipeline differs depending on the grouping constraint:
 
+**Same Row Constraint** (all samples from a subject must be in the same row):
 ```
 Input CSV
   → buildSubjectGroups()        Group samples by patient ID
   → distributeQcByCovariate()   Spread QC samples evenly across plates/rows
-  → distributeGroupsToPlates()  Assign patient groups to plates (FFD + covariate balance)
+  → distributeGroupsToPlates()  Assign patient groups to plates (largest-first + covariate balance)
   → distributeGroupsToRows()    Assign patient groups to rows within each plate
       Phase 1: Recipe search (composition backtracking)
       Phase 2: Group assignment (covariate-balanced)
-      Fallback: Greedy FFD
+      Fallback: Greedy largest-first
+  → Row reordering              Reorder rows to minimize vertical adjacency
   → greedyPlaceInRow()          Place samples into specific columns within each row
 ```
+
+**Same Plate Constraint** (all samples from a subject must be on the same plate):
+```
+Input CSV
+  → buildSubjectGroups()        Group samples by patient ID
+  → distributeQcByCovariate()   Spread QC samples evenly across plates/rows
+  → distributeGroupsToPlates()  Assign patient groups to plates (largest-first + covariate balance)
+  → distributeToBlocks()        Standard balanced block row assignment (samples placed independently)
+  → greedyPlaceInRow()          Place samples into specific columns within each row
+```
+
+The stages below describe the Same Row pipeline in detail. See "Same Plate Constraint" at the end for the differences.
 
 ---
 
@@ -63,7 +77,7 @@ For each QC covariate group:
 
 ## Stage 3: distributeGroupsToPlates
 
-Assigns patient groups to plates using First-Fit-Decreasing (FFD) bin packing with covariate balance as a tiebreaker.
+Assigns patient groups to plates largest-first with covariate balance as a tiebreaker.
 
 ### Algorithm
 
@@ -130,56 +144,47 @@ The search runs twice with different enumeration orders:
 
 Both passes collect valid recipes into a pool (up to `MAX_RECIPES = 50` total). The search also has an iteration budget of 500,000 to prevent excessive computation.
 
-#### Recipe Scoring: Size Diversity Score
+#### Recipe Scoring: Covariate Balance
 
-Each recipe is scored by how many distinct group sizes appear in each row, summed across all rows.
+Each recipe is scored by estimating how well-balanced the covariate proportions would be across rows, given the available group pool.
 
-```
-sizeDiversityScore = Σ (for each row) |{ size : recipe[row].get(size) > 0 }|
-```
+For each row in the recipe:
+1. For each size slot, estimate the expected covariate composition by distributing the available groups of that size proportionally by covariate key.
+2. Compute the sum of squared deviations between the row's expected covariate proportions and the global proportions.
 
-| Row contents | Distinct sizes | Score contribution |
-|---|---|---|
-| 3+3+2+2 = 10 | 2 (sizes 3 and 2) | 2 |
-| 3+3+3+0 = 9  | 1 (size 3 only)   | 1 |
-| 2+2+2+2+2 = 10 | 1 (size 2 only) | 1 |
-| 3+2+2+2 = 9  | 2 (sizes 3 and 2) | 2 |
+The total score is the sum across all rows. **Lower score = better balance.** The recipe with the lowest score is selected.
 
-Higher score = more mixed-size rows = better chance of covariate diversity after Phase 2.
-
-The recipe with the highest score is selected.
+This approach directly optimizes for covariate balance rather than using a proxy metric like size diversity.
 
 #### Example: FLARE Dataset Recipes
 
 Groups: 12 size-3, 8 size-2. Row capacities: [10, 10, 10, 10, 10, 10].
 
-A possible recipe (mixed):
+A mixed recipe:
 ```
-Row 0: 2×3 + 2×2 = 10  (distinct sizes: 2)
-Row 1: 2×3 + 2×2 = 10  (distinct sizes: 2)
-Row 2: 2×3 + 2×2 = 10  (distinct sizes: 2)
-Row 3: 2×3 + 2×2 = 10  (distinct sizes: 2)
-Row 4: 2×3 + 0×2 = 6   (distinct sizes: 1)
-Row 5: 2×3 + 0×2 = 6   (distinct sizes: 1)
-Total score: 2+2+2+2+1+1 = 10
+Row 0: 2×3 + 2×2 = 10
+Row 1: 2×3 + 2×2 = 10
+Row 2: 2×3 + 2×2 = 10
+Row 3: 2×3 + 2×2 = 10
+Row 4: 2×3 + 0×2 = 6
+Row 5: 2×3 + 0×2 = 6
 ```
 
 A greedy-fill recipe:
 ```
-Row 0: 3×3 + 0×2 = 9   (distinct sizes: 1)
-Row 1: 3×3 + 0×2 = 9   (distinct sizes: 1)
-Row 2: 3×3 + 0×2 = 9   (distinct sizes: 1)
-Row 3: 3×3 + 0×2 = 9   (distinct sizes: 1)
-Row 4: 0×3 + 4×2 = 8   (distinct sizes: 1)
-Row 5: 0×3 + 4×2 = 8   (distinct sizes: 1)
-Total score: 1+1+1+1+1+1 = 6
+Row 0: 3×3 + 0×2 = 9
+Row 1: 3×3 + 0×2 = 9
+Row 2: 3×3 + 0×2 = 9
+Row 3: 3×3 + 0×2 = 9
+Row 4: 0×3 + 4×2 = 8
+Row 5: 0×3 + 4×2 = 8
 ```
 
-The mixed recipe wins (score 10 vs 6).
+The mixed recipe wins because it distributes both group sizes across all rows, producing more balanced expected covariate proportions per row. The greedy-fill recipe concentrates all size-2 groups in two rows, creating covariate imbalance.
 
-#### Important: Phase 1 Is Deterministic
+#### Important: Phase 1 Recipe Search Is Deterministic, Selection Is Not
 
-The backtracking search has no randomization. Given the same group sizes and row capacities, it always explores the same tree in the same order and produces the same set of candidate recipes. This means re-randomization does not change the recipe.
+The backtracking search has no randomization — given the same group sizes and row capacities, it always explores the same tree in the same order and produces the same set of candidate recipes. However, recipe *selection* introduces randomness: when multiple recipes tie for the best covariate imbalance score, one is chosen at random. This means re-randomization can produce a different recipe if ties exist, which leads to different row assignments in Phase 2.
 
 ---
 
@@ -234,9 +239,9 @@ With only 2 patients (CP01, CP02) sharing the `Responder|2` covariate key:
 
 ---
 
-### Fallback: Greedy FFD
+### Fallback: Greedy Largest-First
 
-If the composition solver finds zero valid recipes (iteration budget exhausted), the algorithm falls back to greedy First-Fit-Decreasing:
+If the composition solver finds zero valid recipes (iteration budget exhausted), the algorithm falls back to greedy largest-first placement:
 
 1. Sort groups by size descending (shuffled within equal sizes).
 2. For each group, find all rows with enough capacity.
@@ -249,7 +254,7 @@ This is simpler but tends to cluster same-size groups together (e.g., all size-5
 
 ### Singleton Distribution
 
-After all multi-sample groups are placed (by either the composition solver or greedy FFD), singletons are distributed to fill remaining row capacity:
+After all multi-sample groups are placed (by either the composition solver or greedy fallback), singletons are distributed to fill remaining row capacity:
 
 1. Shuffle all singletons.
 2. For each singleton, find rows with the most remaining capacity.
@@ -275,6 +280,17 @@ Within each row, `greedyPlaceInRow` (from `greedySpatialPlacement.ts`) places sa
 
 ---
 
+## Same Plate Constraint
+
+When the grouping constraint is "Same Plate" instead of "Same Row", the pipeline changes at Stage 4:
+
+- **Stages 1-3** are identical (QC distribution, subject grouping, plate assignment).
+- **Stage 4 (Row Assignment)**: Instead of the composition backtracking + group assignment pipeline, the algorithm flattens all experimental samples on the plate and uses the standard balanced block randomization logic (`distributeToBlocks`) to assign samples to rows. Since groups only need to be on the same plate (not the same row), individual samples can be placed independently, giving more flexibility for covariate balance.
+- **Stage 5 (Row Reordering)**: Not performed. The balanced block logic assigns samples to rows in their natural order.
+- **Stage 6**: Same as Same Row — `greedyPlaceInRow` handles column placement.
+
+---
+
 ## Summary of Randomization Points
 
 | Stage | Randomized? | What's random |
@@ -282,7 +298,7 @@ Within each row, `greedyPlaceInRow` (from `greedySpatialPlacement.ts`) places sa
 | QC distribution | Yes | Remainder allocation across plates/rows |
 | Groups to plates | Yes | Shuffle within equal-size groups; random tiebreaking |
 | Recipe search (Phase 1) | **No** | Deterministic backtracking, same tree every time |
-| Recipe selection | **No** | Always picks highest sizeDiversityScore |
+| Recipe selection | Partially | Picks lowest covariate imbalance score; random tiebreaking among equal scores |
 | Group assignment (Phase 2) | Partially | Group pools are shuffled, but covariateImbalanceScore overrides shuffle order for same-key groups |
 | Singleton distribution | Yes | Shuffled order, random tiebreaking |
 | Row reordering | Yes | Random start row, random tiebreaking |
