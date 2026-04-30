@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { SearchData, QualityMetrics } from '../utils/types';
+import { SearchData, QualityMetrics, GroupingConstraint } from '../utils/types';
 import { QUALITY_DISPLAY_CONFIG } from '../utils/configs';
 
 import { calculateQualityMetrics } from '../utils/qualityMetrics';
@@ -26,7 +26,8 @@ export function useQualityMetrics() {
     searches: SearchData[],
     randomizedPlates: (SearchData | undefined)[][][],
     plateAssignments: Map<number, SearchData[]> | undefined,
-    selectedCovariates: string[]
+    selectedCovariates: string[],
+    groupingConstraint?: GroupingConstraint
   ) => {
     if (!searches.length || !selectedCovariates.length || !plateAssignments || !plateAssignments.size) {
       setMetrics(null);
@@ -42,7 +43,8 @@ export function useQualityMetrics() {
         plateAssignments,
         randomizedPlates,
         selectedCovariates,
-        QUALITY_DISPLAY_CONFIG
+        QUALITY_DISPLAY_CONFIG,
+        groupingConstraint
       );
 
       setMetrics(qualityMetrics);

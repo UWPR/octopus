@@ -62,8 +62,8 @@ export function useCovariateColors() {
 
         covariateColorsMap[combination] = {
           color: color,
-          useOutline: cycle === 1, // Second cycle (25-48)
-          useStripes: cycle === 2,  // Third cycle (49-72)
+          useOutline: cycle === 1, // Second cycle uses outline
+          useStripes: cycle === 0,  // First cycle uses diagonal lines
           textColor: getTextColorForBackground(color) // Pre-calculate text color
         };
       });
@@ -198,11 +198,41 @@ export function useCovariateColors() {
     setSummaryData([]);
   };
 
+  const updateCovariateColor = useCallback((
+    combination: string,
+    updates: { color?: string; useOutline?: boolean; useStripes?: boolean }
+  ) => {
+    setCovariateColors(prev => {
+      const existing = prev[combination];
+      if (!existing) return prev;
+      const newColor = updates.color ?? existing.color;
+      const updated: CovariateColorInfo = {
+        ...existing,
+        color: newColor,
+        useOutline: updates.useOutline ?? existing.useOutline,
+        useStripes: updates.useStripes ?? existing.useStripes,
+        textColor: updates.color ? getTextColorForBackground(newColor) : existing.textColor,
+      };
+      return { ...prev, [combination]: updated };
+    });
+    // Also update summaryData to keep swatches in sync
+    setSummaryData(prev => prev.map(item => {
+      if (item.combination !== combination) return item;
+      return {
+        ...item,
+        color: updates.color ?? item.color,
+        useOutline: updates.useOutline ?? item.useOutline,
+        useStripes: updates.useStripes ?? item.useStripes,
+      };
+    }));
+  }, []);
+
   return {
     covariateColors,
     summaryData,
     generateCovariateColors,
     generateSummaryData,
     resetColors,
+    updateCovariateColor,
   };
 }

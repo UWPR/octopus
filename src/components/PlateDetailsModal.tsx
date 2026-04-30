@@ -19,6 +19,7 @@ interface PlateDetailsModalProps {
   onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
   plateQuality?: PlateQualityScore;
   randomizedPlates?: (SearchData | undefined)[][][];
+  numPlates?: number;
 }
 
 const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
@@ -37,6 +38,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
   onMouseDown,
   plateQuality,
   randomizedPlates,
+  numPlates = 1,
 }) => {
 
 
@@ -90,6 +92,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                 <span><strong>Samples:</strong> {plateAssignments.get(plateIndex)!.length}</span>
                 {plateQuality && (
                   <>
+                    {numPlates > 1 && (
                     <span>
                       <strong>Balance:</strong>{' '}
                       <span style={{ color: getQualityColor(plateQuality.balanceScore) }}>
@@ -103,6 +106,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                         {getCompactQualityLevel(plateQuality.balanceScore)}
                       </span>
                     </span>
+                    )}
                     {QUALITY_DISPLAY_CONFIG.showClusteringScore && (
                       <span>
                         <strong>Clustering:</strong>{' '}
@@ -223,7 +227,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
 
                 return (
                   <div style={styles.covariateDistribution}>
-                    <h4 style={styles.sectionTitle}>Balance Scores</h4>
+                    {numPlates > 1 && <h4 style={styles.sectionTitle}>Balance Scores</h4>}
                     {Array.from(globalDistribution.entries())
                       .sort((a, b) => {
                         // Sort by: 1) total samples in group (descending), 2) samples in plate (descending), 3) group name (ascending)
@@ -294,7 +298,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                                   })}
                                 </div>
                               </div>
-                              {balance && (
+                              {balance && numPlates > 1 && (
                                 <div style={styles.balanceInfo}>
                                   <div style={{
                                     ...styles.balanceScore,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import FileUploadSection from './components/FileUploadSection';
 import ConfigurationForm from './components/ConfigurationForm';
 import SummaryPanel from './components/SummaryPanel';
@@ -7,7 +7,8 @@ import ExcelExportModal from './components/ExcelExportModal';
 import PlatesGrid from './components/PlatesGrid';
 import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
-import { SearchData, RandomizationAlgorithm } from './utils/types';
+import SubjectPlacementPanel from './components/SubjectPlacementPanel';
+import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig } from './utils/types';
 import { downloadCSV, buildCovariateKey, getCovariateKey, getQualityLevelColor, formatScore } from './utils/utils';
 import { exportToExcel } from './utils/excelExport';
 import { useFileUpload } from './hooks/useFileUpload';
@@ -17,6 +18,7 @@ import { useCovariateColors } from './hooks/useCovariateColors';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useQualityMetrics } from './hooks/useQualityMetrics';
 import { isDeveloperMode } from './utils/configs';
+import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 
 
 
@@ -63,6 +65,7 @@ const App: React.FC = () => {
     generateCovariateColors,
     generateSummaryData,
     resetColors,
+    updateCovariateColor,
   } = useCovariateColors();
 
   // Drag and drop hook
@@ -94,7 +97,7 @@ const App: React.FC = () => {
 
   // Algorithm selection
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<RandomizationAlgorithm>(defaultAlgorithm);
-  const [keepEmptyInLastPlate, setKeepEmptyInLastPlate] = useState<boolean>(true);
+  const [keepEmptyInLastPlate, setKeepEmptyInLastPlate] = useState<boolean>(false);
 
   // Plate dimensions
   const [plateRows, setPlateRows] = useState<number>(8);
@@ -107,6 +110,22 @@ const App: React.FC = () => {
   const [showPlateDetails, setShowPlateDetails] = useState<boolean>(false);
   const [selectedPlateIndex, setSelectedPlateIndex] = useState<number | null>(null);
   const [showExcelExportModal, setShowExcelExportModal] = useState<boolean>(false);
+  const [randomizationError, setRandomizationError] = useState<string | null>(null);
+
+  // Subject placement panel state
+  const [showSubjectPlacements, setShowSubjectPlacements] = useState<boolean>(false);
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+
+  // Repeated-measures state
+  const [subjectColumn, setSubjectColumn] = useState<string>('');
+  const [groupingConstraint, setGroupingConstraint] = useState<GroupingConstraint>('none');
+  const [groupValidation, setGroupValidation] = useState<GroupValidationResult | null>(null);
+
+  // Compute subject groups whenever subject column or searches change
+  const subjectGroups = useMemo(() => {
+    if (!subjectColumn || searches.length === 0) return [];
+    return buildSubjectGroups(searches, subjectColumn);
+  }, [subjectColumn, searches]);
 
 
   // Calculate quality metrics when randomization completes or plates change
@@ -116,10 +135,11 @@ const App: React.FC = () => {
         searches,
         randomizedPlates,
         plateAssignments,
-        selectedCovariates
+        selectedCovariates,
+        groupingConstraint !== 'none' ? groupingConstraint : undefined
       );
     }
-  }, [isProcessed, randomizedPlates, plateAssignments, selectedCovariates, searches, calculateMetrics]);
+  }, [isProcessed, randomizedPlates, plateAssignments, selectedCovariates, searches, calculateMetrics, groupingConstraint]);
 
   // Reset all state when a new file is uploaded (but not on initial load)
   useEffect(() => {
@@ -127,6 +147,7 @@ const App: React.FC = () => {
     if (selectedFileName && searches.length > 0) {
       // Reset all application state except the file upload state
       resetRandomization();
+      setRandomizationError(null);
       resetColors();
       resetMetrics();
       resetModalPosition();
@@ -137,9 +158,14 @@ const App: React.FC = () => {
       setQcColumnValues([]);
       setSelectedQcValues([]);
 
+      // Reset repeated-measures state
+      setSubjectColumn('');
+      setGroupingConstraint('none');
+      setGroupValidation(null);
+
       // Reset algorithm selection (keep defaults)
       setSelectedAlgorithm(defaultAlgorithm);
-      setKeepEmptyInLastPlate(true);
+      setKeepEmptyInLastPlate(false);
 
       // Reset plate dimensions (keep defaults)
       setPlateRows(8);
@@ -151,15 +177,43 @@ const App: React.FC = () => {
       setSelectedCombination(null);
       setShowPlateDetails(false);
       setSelectedPlateIndex(null);
+      setShowSubjectPlacements(false);
+      setSelectedSubject(null);
     }
   }, [selectedFileName, searches.length]); // Trigger when filename changes or searches are loaded
 
+  // Run validation whenever subject column, grouping constraint, or plate dimensions change
+  useEffect(() => {
+    if (subjectColumn && searches.length > 0 && groupingConstraint !== 'none') {
+      const experimentalSamples = searches.filter(s => {
+        if (qcColumn && selectedQcValues.length > 0) {
+          const sampleValue = s.metadata[qcColumn];
+          if (sampleValue && selectedQcValues.includes(sampleValue)) return false;
+        }
+        return true;
+      });
+      const groups = buildSubjectGroups(experimentalSamples, subjectColumn);
+      const rowCapacity = plateColumns;
+      const plateCapacity = plateRows * plateColumns;
+      const numPlates = Math.ceil(searches.length / plateCapacity);
+      const totalWellCapacity = numPlates * plateCapacity;
+      const numQcSamples = searches.length - experimentalSamples.length;
+      const result = validateSubjectGroups(groups, groupingConstraint, rowCapacity, plateCapacity, totalWellCapacity, plateRows, numQcSamples);
+      setGroupValidation(result);
+    } else {
+      setGroupValidation(null);
+    }
+  }, [subjectColumn, groupingConstraint, plateRows, plateColumns, searches, qcColumn, selectedQcValues]);
+
   const resetCovariateState = () => {
     resetRandomization();
+    setRandomizationError(null);
     resetColors();
     resetMetrics();
     setShowSummary(false);
     setSelectedCombination(null);
+    setSelectedSubject(null);
+    setShowSubjectPlacements(false);
   };
 
   // Update QC column values when QC column changes
@@ -199,6 +253,14 @@ const App: React.FC = () => {
   const handleCovariateChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedOptions = Array.from(event.target.selectedOptions, (option) => option.value);
     setSelectedCovariates(selectedOptions);
+
+    // Conflict resolution: clear subject column if it's now a selected covariate
+    if (subjectColumn && selectedOptions.includes(subjectColumn)) {
+      setSubjectColumn('');
+      setGroupingConstraint('none');
+      setGroupValidation(null);
+    }
+
     resetCovariateState();
   };
 
@@ -210,7 +272,16 @@ const App: React.FC = () => {
 
   // QC column change handler
   const handleQcColumnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setQcColumn(event.target.value);
+    const newQcColumn = event.target.value;
+    setQcColumn(newQcColumn);
+
+    // Conflict resolution: clear subject column if it matches the new QC column
+    if (subjectColumn && newQcColumn === subjectColumn) {
+      setSubjectColumn('');
+      setGroupingConstraint('none');
+      setGroupValidation(null);
+    }
+
     resetCovariateState();
   };
 
@@ -223,6 +294,42 @@ const App: React.FC = () => {
         return [...prev, value];
       }
     });
+    resetCovariateState();
+  };
+
+  // Subject column change handler with mutual exclusivity conflict resolution
+  const handleSubjectColumnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSubjectColumn = event.target.value;
+    setSubjectColumn(newSubjectColumn);
+
+    if (newSubjectColumn) {
+      // Conflict resolution: deselect if new subject column is a selected covariate
+      if (selectedCovariates.includes(newSubjectColumn)) {
+        setSelectedCovariates(prev => prev.filter(c => c !== newSubjectColumn));
+      }
+      // Conflict resolution: clear QC column if it matches
+      if (qcColumn === newSubjectColumn) {
+        setQcColumn('');
+        setQcColumnValues([]);
+        setSelectedQcValues([]);
+      }
+      // Default to same-row constraint when subject column is selected
+      if (groupingConstraint === 'none') {
+        setGroupingConstraint('same-row');
+      }
+    }
+
+    // Reset grouping constraint to none when subject column is cleared
+    if (!newSubjectColumn) {
+      setGroupingConstraint('none');
+    }
+
+    resetCovariateState();
+  };
+
+  // Grouping constraint change handler
+  const handleGroupingConstraintChange = (constraint: GroupingConstraint) => {
+    setGroupingConstraint(constraint);
     resetCovariateState();
   };
 
@@ -256,36 +363,48 @@ const App: React.FC = () => {
   // Main processing handler
   const handleProcessRandomization = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
+      // Clear any previous error
+      setRandomizationError(null);
+
       // Process metadata and set the covariateKey
       processMetadata(searches);
 
-      // Process randomization
-      const success = processRandomization(
-        searches,
-        selectedCovariates,
-        selectedAlgorithm,
-        keepEmptyInLastPlate,
-        plateRows,
-        plateColumns
-      );
+      // Build repeated measures config
+      const repeatedMeasuresConfig: RepeatedMeasuresConfig | undefined =
+        subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
 
-      if (success) {
-        // Generate colors (pass QC info for proper color assignment)
-        const colors = generateCovariateColors(
+      try {
+        // Process randomization
+        const success = processRandomization(
           searches,
           selectedCovariates,
-          qcColumn,
-          selectedQcValues
+          selectedAlgorithm,
+          keepEmptyInLastPlate,
+          plateRows,
+          plateColumns,
+          repeatedMeasuresConfig
         );
 
-        // Generate summary data
-        generateSummaryData(
-          colors,
-          searches,
-          selectedCovariates,
-          qcColumn,
-          selectedQcValues
-        );
+        if (success) {
+          // Generate colors (pass QC info for proper color assignment)
+          const colors = generateCovariateColors(
+            searches,
+            selectedCovariates,
+            qcColumn,
+            selectedQcValues
+          );
+
+          // Generate summary data
+          generateSummaryData(
+            colors,
+            searches,
+            selectedCovariates,
+            qcColumn,
+            selectedQcValues
+          );
+        }
+      } catch (err: any) {
+        setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
       }
     }
   };
@@ -314,15 +433,24 @@ const App: React.FC = () => {
       exportCovariates: exportCovariates, // User-selected covariates to display
       numRows: plateRows,
       numColumns: plateColumns,
-      inputFileName: selectedFileName
+      inputFileName: selectedFileName,
+      qcColumn: qcColumn || undefined
     });
   };
 
   // Re-randomization handler
   const handleReRandomize = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
+      // Clear highlighting since plate layout is changing
+      setSelectedCombination(null);
+      setSelectedSubject(null);
+
       // Process metadata and set the covariateKey
       processMetadata(searches);
+
+      // Build repeated measures config
+      const repeatedMeasuresConfig: RepeatedMeasuresConfig | undefined =
+        subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
 
       // Re-randomize - colors are already generated, so we don't need to regenerate them
       reRandomize(
@@ -331,7 +459,8 @@ const App: React.FC = () => {
         selectedAlgorithm,
         keepEmptyInLastPlate,
         plateRows,
-        plateColumns
+        plateColumns,
+        repeatedMeasuresConfig
       );
     }
   };
@@ -339,8 +468,16 @@ const App: React.FC = () => {
   // Single plate re-randomization handler
   const handleReRandomizePlate = (plateIndex: number) => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
+      // Clear highlighting since plate layout is changing
+      setSelectedCombination(null);
+      setSelectedSubject(null);
+
       // Process metadata and set the covariateKey
       processMetadata(searches);
+
+      // Build repeated measures config
+      const repeatedMeasuresConfig: RepeatedMeasuresConfig | undefined =
+        subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
 
       reRandomizeSinglePlate(
         plateIndex,
@@ -349,7 +486,8 @@ const App: React.FC = () => {
         selectedAlgorithm,
         keepEmptyInLastPlate,
         plateRows,
-        plateColumns
+        plateColumns,
+        repeatedMeasuresConfig
       );
       // Quality metrics will be recalculated automatically via useEffect
     }
@@ -358,9 +496,10 @@ const App: React.FC = () => {
   // Handle clicking on summary items for highlighting
   const handleSummaryItemClick = (combination: string) => {
     if (selectedCombination === combination) {
-      setSelectedCombination(null); // Deselect if already selected
+      setSelectedCombination(null);
     } else {
       setSelectedCombination(combination);
+      setSelectedSubject(null); // Clear subject highlight
     }
   };
 
@@ -394,19 +533,40 @@ const App: React.FC = () => {
 
   // Check if a search matches the selected combination
   const isSearchHighlighted = (search: SearchData): boolean => {
-    if (!selectedCombination) return false;
+    if (!selectedCombination && !selectedSubject) return false;
 
-    try {
-      return getCovariateKey(search) === selectedCombination;
-    } catch (error) {
-      console.error(error);
-      return false;
+    // Subject highlighting takes priority
+    if (selectedSubject && subjectColumn) {
+      return search.metadata[subjectColumn]?.trim() === selectedSubject;
+    }
+
+    if (selectedCombination) {
+      try {
+        return getCovariateKey(search) === selectedCombination;
+      } catch (error) {
+        console.error(error);
+        return false;
+      }
+    }
+
+    return false;
+  };
+
+  // Handle clicking on a subject in the placement panel
+  const handleSubjectClick = (subjectId: string) => {
+    if (selectedSubject === subjectId) {
+      setSelectedSubject(null);
+    } else {
+      setSelectedSubject(subjectId);
+      setSelectedCombination(null); // Clear covariate highlight
     }
   };
 
 
 
-  const canProcess = selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0;
+  const canProcess = selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0
+    && (groupValidation === null || groupValidation.isValid)
+    && (!subjectColumn || groupingConstraint !== 'none');
 
   return (
     <div style={styles.container}>
@@ -446,6 +606,12 @@ const App: React.FC = () => {
           onPlateRowsChange={setPlateRows}
           onPlateColumnsChange={setPlateColumns}
           onResetCovariateState={resetCovariateState}
+          subjectColumn={subjectColumn}
+          onSubjectColumnChange={handleSubjectColumnChange}
+          groupingConstraint={groupingConstraint}
+          onGroupingConstraintChange={handleGroupingConstraintChange}
+          groupValidation={groupValidation}
+          subjectGroups={subjectGroups}
         />
 
 
@@ -463,6 +629,26 @@ const App: React.FC = () => {
             >
               Generate Randomized Plates
             </button>
+          )}
+
+          {/* Randomization error message */}
+          {randomizationError && (
+            <div style={{
+              margin: '12px 0',
+              padding: '12px 16px',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fca5a5',
+              borderRadius: '6px',
+              color: '#991b1b',
+              fontSize: '14px',
+              lineHeight: '1.5',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+            }}>
+              <span style={{ fontWeight: 600, flexShrink: 0 }}>⚠</span>
+              <span>{randomizationError}</span>
+            </div>
           )}
 
           {/* Plates Visualization */}
@@ -499,6 +685,15 @@ const App: React.FC = () => {
                   </button>
                 )}
 
+                {subjectColumn && (
+                  <button
+                    onClick={() => setShowSubjectPlacements(!showSubjectPlacements)}
+                    style={styles.summaryToggle}
+                  >
+                    {showSubjectPlacements ? '▼ Hide' : '▶ Show'} Subject Placements
+                  </button>
+                )}
+
                 <button
                   onClick={() => setCompactView(!compactView)}
                   style={styles.qcButton}
@@ -532,6 +727,15 @@ const App: React.FC = () => {
                 qcColumn={qcColumn}
                 selectedQcValues={selectedQcValues}
                 selectedCovariates={selectedCovariates}
+                onUpdateColor={updateCovariateColor}
+              />
+
+              <SubjectPlacementPanel
+                randomizedPlates={randomizedPlates}
+                subjectColumn={subjectColumn}
+                selectedSubject={selectedSubject}
+                onSubjectClick={handleSubjectClick}
+                show={showSubjectPlacements}
               />
 
               <QualityLegend />
@@ -549,6 +753,7 @@ const App: React.FC = () => {
                 onShowDetails={handleShowPlateDetails}
                 onReRandomizePlate={handleReRandomizePlate}
                 qualityMetrics={metrics ?? undefined}
+                subjectColumn={subjectColumn || undefined}
               />
             </>
           )}
@@ -571,6 +776,7 @@ const App: React.FC = () => {
           onMouseDown={handleModalMouseDown}
           plateQuality={selectedPlateIndex !== null ? metrics?.plateDiversity.plateScores.find(score => score.plateIndex === selectedPlateIndex) : undefined}
           randomizedPlates={randomizedPlates}
+          numPlates={randomizedPlates.length}
         />
 
         {/* Quality Assessment Modal */}
@@ -578,6 +784,7 @@ const App: React.FC = () => {
           metrics={metrics}
           show={showMetrics}
           onClose={toggleMetrics}
+          numPlates={randomizedPlates.length}
         />
 
         {/* Excel Export Modal */}
@@ -589,6 +796,8 @@ const App: React.FC = () => {
           treatmentCovariates={selectedCovariates}
           searches={searches}
           sampleIdColumn={selectedIdColumn}
+          subjectColumn={subjectColumn || undefined}
+          qcColumn={qcColumn || undefined}
         />
 
         {/* Help Section */}

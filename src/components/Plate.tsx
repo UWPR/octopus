@@ -54,15 +54,19 @@ const createTooltipText = (
   search: SearchData,
   rowIndex: number,
   columnIndex: number,
-  selectedCovariates: string[]
+  selectedCovariates: string[],
+  subjectColumn?: string
 ): string => {
   const position = `${getRowLabel(rowIndex)}${columnIndex + 1}`;
+  const subjectInfo = subjectColumn && search.metadata[subjectColumn]
+    ? `\n${subjectColumn}: ${search.metadata[subjectColumn]}`
+    : '';
   const covariateInfo = selectedCovariates.length > 0
     ? '\n' + selectedCovariates
       .map(cov => `${cov}: ${search.metadata[cov] || 'N/A'}`)
       .join(', ')
     : '';
-  return `${search.name} (${position})${covariateInfo}`;
+  return `${search.name} (${position})${subjectInfo}${covariateInfo}`;
 };
 
 interface PlateProps {
@@ -79,6 +83,8 @@ interface PlateProps {
   onShowDetails?: (plateIndex: number) => void;
   plateQuality?: PlateQualityScore;
   onReRandomizePlate?: (plateIndex: number) => void;
+  subjectColumn?: string;
+  numPlates?: number;
 }
 
 const Plate: React.FC<PlateProps> = ({
@@ -94,7 +100,9 @@ const Plate: React.FC<PlateProps> = ({
   numColumns = 12,
   onShowDetails,
   plateQuality,
-  onReRandomizePlate
+  onReRandomizePlate,
+  subjectColumn,
+  numPlates = 1
 }) => {
 
 
@@ -121,9 +129,9 @@ const Plate: React.FC<PlateProps> = ({
 
     const baseStyle: React.CSSProperties = {
       backgroundColor: colorInfo.useOutline ? 'transparent' : colorInfo.color,
-      ...(colorInfo.useStripes && {
-        background: `repeating-linear-gradient(45deg, ${colorInfo.color}, ${colorInfo.color} ${pattern.size}, transparent ${pattern.size}, transparent ${pattern.gap})`
-      }),
+      background: colorInfo.useStripes
+        ? `repeating-linear-gradient(45deg, ${colorInfo.color}, ${colorInfo.color} ${pattern.size}, transparent ${pattern.size}, transparent ${pattern.gap})`
+        : colorInfo.useOutline ? 'transparent' : colorInfo.color,
       border: colorInfo.useOutline
         ? `${outlineBorderWidth} solid ${colorInfo.color}`
         : (compact ? currentStyles.compactSearchIndicator.border : '1px solid #ccc'),
@@ -176,9 +184,9 @@ const Plate: React.FC<PlateProps> = ({
     // Create header style with background color/pattern
     const headerStyle: React.CSSProperties = {
       backgroundColor: colorInfo.useOutline ? 'transparent' : colorInfo.color,
-      ...(colorInfo.useStripes && {
-        background: `repeating-linear-gradient(45deg, ${colorInfo.color}, ${colorInfo.color} ${pattern.size}, transparent ${pattern.size}, transparent ${pattern.gap})`
-      }),
+      background: colorInfo.useStripes
+        ? `repeating-linear-gradient(45deg, ${colorInfo.color}, ${colorInfo.color} ${pattern.size}, transparent ${pattern.size}, transparent ${pattern.gap})`
+        : colorInfo.useOutline ? 'transparent' : colorInfo.color,
       border: colorInfo.useOutline
         ? `${outlineBorderWidth} solid ${colorInfo.color}`
         : 'none',
@@ -214,6 +222,11 @@ const Plate: React.FC<PlateProps> = ({
           </h3>
         </div>
         <div style={{ padding: '12px' }}>
+          {subjectColumn && search.metadata[subjectColumn] && (
+            <div key="subject-id" style={currentStyles.searchMetadata}>
+              {`${subjectColumn}: ${search.metadata[subjectColumn]}`}
+            </div>
+          )}
           {selectedCovariates.map((covariate: string) =>
             search.metadata[covariate] ? (
               <div key={covariate} style={currentStyles.searchMetadata}>
@@ -224,7 +237,7 @@ const Plate: React.FC<PlateProps> = ({
         </div>
       </div>
     );
-  }, [covariateColors, selectedCovariates, currentStyles, onDragStart, compact]);
+  }, [covariateColors, selectedCovariates, currentStyles, onDragStart, compact, subjectColumn]);
 
   // Unified cell renderer
   const renderSearchCell = useCallback((search: SearchData, isHighlighted: boolean) => {
@@ -261,6 +274,7 @@ const Plate: React.FC<PlateProps> = ({
           <div style={currentStyles.plateQualityRow}>
             <div style={currentStyles.plateQualityMetrics}>
               <span style={currentStyles.qualityLabel}>Quality:</span>
+              {numPlates > 1 && (
               <span
                 style={{
                   ...currentStyles.qualityScore,
@@ -275,6 +289,7 @@ const Plate: React.FC<PlateProps> = ({
                 </span>
                 {' '}Bal: {formatScore(plateQuality.balanceScore)}
               </span>
+              )}
               {QUALITY_DISPLAY_CONFIG.showClusteringScore && (
                 <span
                   style={{
@@ -339,7 +354,7 @@ const Plate: React.FC<PlateProps> = ({
                   onDrop={(event) => handleDrop(event, rowIndex, columnIndex)}
                   title={
                     compact && search
-                      ? createTooltipText(search, rowIndex, columnIndex, selectedCovariates)
+                      ? createTooltipText(search, rowIndex, columnIndex, selectedCovariates, subjectColumn)
                       : undefined
                   }
                 >
@@ -472,18 +487,20 @@ const baseStyles = {
   fullSearchCard: {
     borderRadius: '8px',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-    width: '150px',
+    width: '100%',
     boxSizing: 'border-box' as const,
     cursor: 'move',
     transition: 'all 0.2s ease',
     overflow: 'hidden',
   },
   searchTitle: {
-    fontSize: '14px',
+    fontSize: '12px',
     fontWeight: 'bold',
     marginBottom: '8px',
     color: '#333',
     margin: '0 0 8px 0',
+    wordBreak: 'break-all' as const,
+    textAlign: 'center' as const,
   },
   searchDivider: {
     border: 'none',

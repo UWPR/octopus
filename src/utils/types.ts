@@ -119,3 +119,23 @@ export interface QualityMetrics {
   overallQuality: OverallQualityAssessment;
 }
 
+
+// Repeated-Measures Grouping Constraints
+export type GroupingConstraint = 'none' | 'same-plate' | 'same-row';
+
+export interface RepeatedMeasuresConfig {
+  subjectColumn: string | null;
+  groupingConstraint: GroupingConstraint;
+}
+
+export interface SubjectGroup {
+  subjectId: string;
+  samples: SearchData[];
+  size: number;
+}
+
+export interface GroupValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}

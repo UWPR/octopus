@@ -296,7 +296,7 @@ function calculatePlateTotalScore(
  * @param numColumns - Total number of columns per row
  * @returns Array of positions that are in clusters
  */
-function identifyClusteredPositions(
+export function identifyClusteredPositions(
   plate: (SearchData | undefined)[][],
   numRows: number,
   numColumns: number
@@ -321,7 +321,7 @@ function identifyClusteredPositions(
   return clusteredPositions;
 }
 
-function isClustered(
+export function isClustered(
   col: number,
   row: number,
   plate: (SearchData | undefined)[][],
@@ -338,7 +338,7 @@ function isClustered(
   }
 
   // Check right neighbor
-  if (!isClustered && col < numColumns - 1) {
+  if (col < numColumns - 1) {
     const rightSample = plate[row][col + 1];
     if (getTreatmentKey(rightSample) === currentKey) {
       return true;
@@ -346,7 +346,7 @@ function isClustered(
   }
 
   // Check above neighbor
-  if (!isClustered && row > 0) {
+  if (row > 0) {
     const aboveSample = plate[row - 1][col];
     if (getTreatmentKey(aboveSample) === currentKey) {
       return true;
@@ -354,7 +354,7 @@ function isClustered(
   }
 
   // Check below neighbor
-  if (!isClustered && row < numRows - 1) {
+  if (row < numRows - 1) {
     const belowSample = plate[row + 1][col];
     if (getTreatmentKey(belowSample) === currentKey) {
       return true;
@@ -362,7 +362,7 @@ function isClustered(
   }
 
   // Check cross-row (last column of previous row)
-  if (!isClustered && col === 0 && row > 0) {
+  if (col === 0 && row > 0) {
     const prevRowLastSample = plate[row - 1][numColumns - 1];
     if (getTreatmentKey(prevRowLastSample) === currentKey) {
       return true;
@@ -370,7 +370,7 @@ function isClustered(
   }
 
   // Check cross-row (first column of next row)
-  if (!isClustered && col === numColumns - 1 && row < numRows - 1) {
+  if (col === numColumns - 1 && row < numRows - 1) {
     const nextRowFirstSample = plate[row + 1][0];
     if (getTreatmentKey(nextRowFirstSample) === currentKey) {
       return true;

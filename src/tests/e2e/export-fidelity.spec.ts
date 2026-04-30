@@ -87,11 +87,33 @@ test.describe('Export Fidelity', () => {
         const sampleId = h3.textContent?.trim() || '';
         if (!sampleId) return;
 
-        // Get background color from the header div
+        // Get background color from the header div.
+        // For solid fills, backgroundColor has the color directly.
+        // For striped/gradient fills (QC samples), the `background` shorthand
+        // overrides backgroundColor to transparent — extract the color from
+        // the backgroundImage gradient string instead.
+        // For outline fills, the color is in the border.
         const headerDiv = card.querySelector('div');
         let backgroundColor = '';
         if (headerDiv) {
-          backgroundColor = window.getComputedStyle(headerDiv).backgroundColor;
+          const computed = window.getComputedStyle(headerDiv);
+          const bg = computed.backgroundColor;
+          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+            backgroundColor = bg;
+          } else {
+            // Gradient case: backgroundImage looks like
+            // "repeating-linear-gradient(45deg, rgb(128, 0, 128), rgb(128, 0, 128) 3px, ...)"
+            const gradientMatch = computed.backgroundImage?.match(/rgb\(\d+,\s*\d+,\s*\d+\)/);
+            if (gradientMatch) {
+              backgroundColor = gradientMatch[0];
+            } else {
+              // Outline case: color is in the border
+              const border = computed.borderColor;
+              if (border && border !== 'rgb(0, 0, 0)') {
+                backgroundColor = border;
+              }
+            }
+          }
         }
 
         // Find plate index by walking up to find "Plate N" heading
@@ -163,6 +185,13 @@ test.describe('Export Fidelity', () => {
             const patternFill = fill as ExcelJS.FillPattern;
             if (patternFill.fgColor?.argb) {
               fillColor = argbToRgb(patternFill.fgColor.argb);
+            }
+          }
+          // Outline case: color is in the border, not the fill
+          if (!fillColor && colorCell.border) {
+            const borderColor = (colorCell.border.top as any)?.color?.argb;
+            if (borderColor) {
+              fillColor = argbToRgb(borderColor);
             }
           }
 
