@@ -43,11 +43,6 @@ export const getAlgorithmsInDisplayOrder = (): RandomizationAlgorithm[] => {
   return algorithms;
 };
 
-export interface RandomizationOptions {
-  algorithm: RandomizationAlgorithm;
-  selectedCovariates: string[];
-}
-
 export interface SummaryItem {
   combination: string;
   values: { [key: string]: string };
@@ -64,22 +59,6 @@ export interface CovariateColorInfo {
   useStripes: boolean;
   textColor: string; // Pre-calculated text color for readability (white or black)
 }
-
-// Quality Metrics Levels
-export interface QualityLevelConfig {
-  name: string;
-  shortLabel: string;
-  color: string;
-  lowScore: number;
-  highScore: number;
-}
-
-// Utility functions for quality levels
-export const getQualityLevelConfig = (level: QualityLevel): QualityLevelConfig =>
-  QUALITY_LEVEL_CONFIG[level];
-
-export const getAllQualityLevelKeys = (): QualityLevel[] =>
-  Object.keys(QUALITY_LEVEL_CONFIG) as QualityLevel[];
 
 export interface PlateQualityScore {
   plateIndex: number;

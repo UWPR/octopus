@@ -391,23 +391,6 @@ export function distributeGroupsToPlates(
 }
 
 
-/**
- * Scores a recipe by how many distinct group sizes each row contains.
- * Higher score = more mixed-size rows = better covariate diversity.
- *
- * @param recipe - Array of Maps, one per row, mapping group size to count
- * @returns Sum of distinct sizes with count > 0 across all rows
- */
-export function sizeDiversityScore(recipe: Map<number, number>[]): number {
-  let score = 0;
-  for (const rowRecipe of recipe) {
-    for (const [, count] of Array.from(rowRecipe.entries())) {
-      if (count > 0) score++;
-    }
-  }
-  return score;
-}
-
 // ─── Helper types for distributeGroupsToRows internals ──────────────────────
 
 interface RowState {

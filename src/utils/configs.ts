@@ -118,7 +118,7 @@ export const QUALITY_DISPLAY_CONFIG: QualityDisplayConfig = {
 };
 
 // Developer mode configuration
-export const getUrlParams = (): URLSearchParams => {
+const getUrlParams = (): URLSearchParams => {
   return new URLSearchParams(window.location.search);
 };
 
