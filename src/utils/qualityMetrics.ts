@@ -1,5 +1,5 @@
 import { SearchData, QualityMetrics, PlateDiversityMetrics, PlateQualityScore, OverallQualityAssessment, GroupingConstraint } from '../utils/types';
-   import { DEFAULT_QUALITY_DISPLAY_CONFIG, QualityDisplayConfig } from '../utils/configs';
+   import { DEFAULT_QUALITY_DISPLAY_CONFIG, QualityDisplayConfig, debugLog } from '../utils/configs';
 import { groupByCovariates, getQualityLevel } from '../utils/utils';
 
 /**
@@ -220,7 +220,7 @@ const calculateRowClusteringScore = (
 
     // Calculate clustering score
     const rowScore = calculateRowScore(rowKeys);
-    console.log(`Row ${row} keys: ${rowKeys.join(', ')} => Clustering Score: ${rowScore.toFixed(2)}`);
+    debugLog(`Row ${row} keys: ${rowKeys.join(', ')} => Clustering Score: ${rowScore.toFixed(2)}`);
 
     rowScores.push(rowScore);
     totalScore += rowScore;
@@ -229,7 +229,7 @@ const calculateRowClusteringScore = (
 
   if (analyzedRows === 0) return { averageScore: 100, rowScores };
   const averageScore = totalScore / analyzedRows;
-  console.log(`Average Row Clustering Score: ${averageScore.toFixed(2)}`);
+    debugLog(`Average Row Clustering Score: ${averageScore.toFixed(2)}`);
   return { averageScore, rowScores };
 };
 
@@ -350,7 +350,7 @@ export const calculateExpectedRuns = (
 
       totalExpectedRuns += expectedRunsForThisR;
 
-      console.log(`  r=${r}: gaps=${waysToChooseGaps}, remaining=${waysToDistributeRemaining}, arrangements=${arrangementsWithRRuns}, expected=${expectedRunsForThisR}`);
+    debugLog(`  r=${r}: gaps=${waysToChooseGaps}, remaining=${waysToDistributeRemaining}, arrangements=${arrangementsWithRRuns}, expected=${expectedRunsForThisR}`);
     }
   }
 
@@ -437,7 +437,7 @@ const calculateRowScore = (rowKeys: string[]): number => {
   const runs: Array<{ length: number; group: string; }> = getRunsByGroup(rowKeys);
 
   const filteredRuns = runs.filter(run => run.length > 1); // Remove runs of size 1
-  console.log(`Runs: ${filteredRuns.map(r => `${r.group}:${r.length}`).join(', ')}`);
+    debugLog(`Runs: ${filteredRuns.map(r => `${r.group}:${r.length}`).join(', ')}`);
 
   if (filteredRuns.length === 0) return 100;
 
@@ -462,12 +462,12 @@ const calculateRowScore = (rowKeys: string[]): number => {
         const basePenalty = Math.pow(runLength, 1.5) * 10; // Base penalty increases with run length
         const excessPenalty = excess * basePenalty;
 
-        console.log(`  Group ${groupKey}, run length ${runLength}: expected ${expectedCount.toFixed(2)}, actual ${actualCount}, excess ${excess.toFixed(2)}, penalty ${excessPenalty.toFixed(2)}`);
+    debugLog(`  Group ${groupKey}, run length ${runLength}: expected ${expectedCount.toFixed(2)}, actual ${actualCount}, excess ${excess.toFixed(2)}, penalty ${excessPenalty.toFixed(2)}`);
         totalPenalty += excessPenalty;
       }
     });
   });
-  console.log(`Total Penalty: ${totalPenalty.toFixed(2)}`);
+    debugLog(`Total Penalty: ${totalPenalty.toFixed(2)}`);
   const score = (100 - totalPenalty);
 
   // Convert to score (0-100).  If no penalty score is 100.  If penalty is high, score is 0

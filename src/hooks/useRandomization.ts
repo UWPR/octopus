@@ -3,6 +3,7 @@ import { SearchData, RandomizationAlgorithm, RepeatedMeasuresConfig } from '../u
 import { randomizeSearches } from '../utils/utils';
 import { greedyPlaceInRow } from '../algorithms/greedySpatialPlacement';
 import { groupAwareRandomization } from '../algorithms/repeatedMeasuresDistribution';
+import { debugLog } from '../utils/configs';
 
 export function useRandomization() {
   const [isProcessed, setIsProcessed] = useState<boolean>(false);
@@ -74,7 +75,13 @@ export function useRandomization() {
     toRow: number,
     toCol: number
   ) => {
-    const updatedRandomizedPlates = [...randomizedPlates];
+    // Deep copy the plates structure so React detects the state change
+    const updatedRandomizedPlates = randomizedPlates.map((plate, pIdx) => {
+      if (pIdx === fromPlate || pIdx === toPlate) {
+        return plate.map(row => [...row]);
+      }
+      return plate;
+    });
     const sourceSearch = updatedRandomizedPlates[fromPlate][fromRow][fromCol];
     const targetSearch = updatedRandomizedPlates[toPlate][toRow][toCol];
 
@@ -143,7 +150,7 @@ export function useRandomization() {
     if (selectedAlgorithm === 'balanced') {
       // When grouping constraint is active, use groupAwareRandomization on just the plate's samples
       if (repeatedMeasuresConfig?.subjectColumn) {
-        console.log(`Re-randomizing plate ${plateIndex + 1} using group-aware randomization`);
+        debugLog(`Re-randomizing plate ${plateIndex + 1} using group-aware randomization`);
 
         const result = groupAwareRandomization(
           plateSamples,
@@ -160,7 +167,7 @@ export function useRandomization() {
         }
       } else {
         // For balanced randomization without grouping: use row-level greedy spatial placement
-        console.log(`Re-randomizing plate ${plateIndex + 1} using greedy spatial placement`);
+        debugLog(`Re-randomizing plate ${plateIndex + 1} using greedy spatial placement`);
 
         // Create a new empty plate
         const newPlate: (SearchData | undefined)[][] = Array(plateRows)
@@ -182,7 +189,7 @@ export function useRandomization() {
       }
     } else {
       // For other algorithms (greedy): shuffle the entire plate
-      console.log(`Re-randomizing plate ${plateIndex + 1} using simple shuffling with ${plateSamples.length} samples`);
+      debugLog(`Re-randomizing plate ${plateIndex + 1} using simple shuffling with ${plateSamples.length} samples`);
 
       // Create a new empty plate
       const newPlate: (SearchData | undefined)[][] = Array(plateRows)

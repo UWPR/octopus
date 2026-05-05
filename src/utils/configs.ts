@@ -125,7 +125,16 @@ const getUrlParams = (): URLSearchParams => {
 // Check if developer mode is enabled via URL parameter
 // Usage: Add ?dev=true to the URL to enable developer features
 export const isDeveloperMode = (): boolean => {
-  // debugger;
   const params = getUrlParams();
   return params.get('dev') === 'true' || params.get('developer') === 'true';
+};
+
+/**
+ * Log a message only when developer mode is active.
+ * Use this instead of console.log for verbose algorithm diagnostics.
+ */
+export const debugLog = (...args: unknown[]): void => {
+  if (isDeveloperMode()) {
+    console.log(...args);
+  }
 };
