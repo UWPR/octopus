@@ -4,7 +4,6 @@ import Papa from 'papaparse';
 import { balancedBlockRandomization } from '../algorithms/balancedRandomization';
 import { greedyRandomization } from '../algorithms/greedyRandomization';
 import { groupAwareRandomization } from '../algorithms/repeatedMeasuresDistribution';
-// import { groupAwareDPRandomization } from '../algorithms/repeatedMeasuresDPDistribution';
 
 // Utility functions
 export function shuffleArray<T>(array: T[]): T[] {
@@ -225,33 +224,6 @@ export function getWell(searchName: string, randomizedPlates: (SearchData | unde
   return '';
 }
 
-export function getRowName(searchName: string, randomizedPlates: (SearchData | undefined)[][][]) {
-  for (let plateIndex = 0; plateIndex < randomizedPlates.length; plateIndex++) {
-    const plate = randomizedPlates[plateIndex];
-    for (let rowIndex = 0; rowIndex < plate.length; rowIndex++) {
-      const row = plate[rowIndex];
-      if (row.find((search) => search?.name === searchName)) {
-        return String.fromCharCode(65 + rowIndex);
-      }
-    }
-  }
-  return '';
-}
-
-export function getColumnNumber(searchName: string, randomizedPlates: (SearchData | undefined)[][][]) {
-  for (let plateIndex = 0; plateIndex < randomizedPlates.length; plateIndex++) {
-    const plate = randomizedPlates[plateIndex];
-    for (let rowIndex = 0; rowIndex < plate.length; rowIndex++) {
-      const row = plate[rowIndex];
-      for (let columnIndex = 0; columnIndex < row.length; columnIndex++) {
-        if (row[columnIndex]?.name === searchName) {
-          return (columnIndex + 1).toString().padStart(2, '0');
-        }
-      }
-    }
-  }
-  return '';
-}
 /**
 
  * Get color for quality score based on standardized thresholds

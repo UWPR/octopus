@@ -270,15 +270,6 @@ const calculateExpectedRunsByGroup = (
   return expectedRunsByGroup;
 };
 
-/*
- * Export for testing purposes
- */
-export const calculateExpectedRunsByGroupForTest = ( rowKeys: string[] ): Map<string, Map<number, number>> => {
-  // Track runs with their covariate groups
-  const runs: Array<{ length: number; group: string; }> = getRunsByGroup(rowKeys);
-  return calculateExpectedRunsByGroup(rowKeys, getRunCountsByGroup(runs));
-};
-
 
 /**
  * Calculate the expected number of runs using combinatorial gap analysis

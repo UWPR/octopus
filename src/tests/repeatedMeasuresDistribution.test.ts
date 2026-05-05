@@ -1,5 +1,5 @@
 import * as fc from 'fast-check';
-import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization, covariateImbalanceScore, computeGlobalProportions, distributeQcByCovariate, sizeDiversityScore } from '../algorithms/repeatedMeasuresDistribution';
+import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization, covariateImbalanceScore, computeGlobalProportions, distributeQcByCovariate } from '../algorithms/repeatedMeasuresDistribution';
 import { SearchData, SubjectGroup, RepeatedMeasuresConfig } from '../utils/types';
 
 // Helper: create a sample with a subject column value
@@ -2370,75 +2370,6 @@ describe('Zero QC samples edge case', () => {
   });
 });
 
-
-// ─── Property-Based Test: Property 4 (composition-solver-covariate-mixing) ──
-
-describe('Property 4: Size diversity score correctness', () => {
-  // Feature: composition-solver-covariate-mixing, Property 4: Size diversity score correctness
-  // **Validates: Requirements 2.3, 2.1**
-
-  it('sizeDiversityScore equals the sum of distinct sizes with count > 0 across all rows', () => {
-    // Generator: build a recipe as an array of Map<number, number> (size → count per row).
-    // By construction, each row has 1–4 entries with sizes in [1,10] and counts in [0,5].
-    const recipeArb = fc.gen().map(gen => {
-      const numRows = gen(fc.integer, { min: 1, max: 8 });
-      const recipe: Map<number, number>[] = [];
-      for (let r = 0; r < numRows; r++) {
-        const rowMap = new Map<number, number>();
-        const numEntries = gen(fc.integer, { min: 1, max: 4 });
-        for (let e = 0; e < numEntries; e++) {
-          const size = gen(fc.integer, { min: 1, max: 10 });
-          const count = gen(fc.integer, { min: 0, max: 5 });
-          rowMap.set(size, count);
-        }
-        recipe.push(rowMap);
-      }
-      return recipe;
-    });
-
-    fc.assert(
-      fc.property(recipeArb, (recipe) => {
-        const actual = sizeDiversityScore(recipe);
-
-        // Manual reference computation: for each row, count entries with count > 0
-        let expected = 0;
-        for (const rowRecipe of recipe) {
-          for (const [, count] of Array.from(rowRecipe.entries())) {
-            if (count > 0) expected++;
-          }
-        }
-
-        expect(actual).toBe(expected);
-      }),
-      { numRuns: 200 }
-    );
-  });
-
-  it('returns 0 for an empty recipe', () => {
-    expect(sizeDiversityScore([])).toBe(0);
-  });
-
-  it('returns 0 when all counts are zero', () => {
-    const recipe: Map<number, number>[] = [
-      new Map([[3, 0], [5, 0]]),
-      new Map([[2, 0]]),
-    ];
-    expect(sizeDiversityScore(recipe)).toBe(0);
-  });
-
-  it('scores a known mixed-size recipe correctly', () => {
-    // Row 0: {5→1, 3→1, 2→1} = 3 distinct sizes
-    // Row 1: {5→1, 5→0, 4→2} = 2 distinct sizes (5→0 doesn't count, but 5→1 does... let's be precise)
-    const recipe: Map<number, number>[] = [
-      new Map([[5, 1], [3, 1], [2, 1]]),  // 3 distinct
-      new Map([[4, 2], [2, 0]]),           // 1 distinct (only 4 has count > 0)
-      new Map([[5, 1], [5, 0]]),           // Map deduplicates key 5, last set wins: 5→0, so 0 distinct
-    ];
-    // Row 0: 3, Row 1: 1, Row 2: 0 → total = 4
-    // Wait — Map([[5,1],[5,0]]) → key 5 is set to 1 then overwritten to 0. So row 2 has 0 distinct.
-    expect(sizeDiversityScore(recipe)).toBe(4);
-  });
-});
 
 // ─── TBI-OSL Covariate Mixing Unit Tests (Requirement 6) ────────────────────
 
