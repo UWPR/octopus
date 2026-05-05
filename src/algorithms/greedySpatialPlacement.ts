@@ -1,5 +1,6 @@
 import { SearchData } from '../utils/types';
 import { shuffleArray } from '../utils/utils';
+import { debugLog } from '../utils/configs';
 
 /**
  * Local helper to safely get covariate key from a sample (handles undefined)
@@ -137,7 +138,7 @@ export function greedyPlaceInRow(
       availablePositions.splice(posIndex, 1);
     }
 
-    console.log(
+    debugLog(
       `Placed sample with treatment ${treatmentKey} at row ${rowIdx}, col ${chosenCol} (score: ${minScore})`
     );
   }

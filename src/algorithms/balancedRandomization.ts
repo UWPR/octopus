@@ -2,6 +2,7 @@ import { SearchData } from '../utils/types';
 import { BlockType } from '../utils/types';
 import { shuffleArray, groupByCovariates } from '../utils/utils';
 import { greedyPlaceInRow, analyzePlateSpatialQuality } from './greedySpatialPlacement';
+import { debugLog } from '../utils/configs';
 
 enum OverflowPrioritization {
   BY_CAPACITY = 'by_capacity',      // Prioritize higher capacity blocks (for plates)
@@ -22,7 +23,7 @@ export function distributeToBlocks(
   const numBlocks = blockCapacities.length;
   const [blockAssignments, blockCounts] = initializeBlockAssignments(numBlocks);
 
-  console.log(`Distributing samples across ${numBlocks} ${blockType.toLowerCase()}s with capacities: ${blockCapacities.join(', ')}`);
+    debugLog(`Distributing samples across ${numBlocks} ${blockType.toLowerCase()}s with capacities: ${blockCapacities.join(', ')}`);
 
   // PHASE 1: Place samples proportionately
   const [unplacedGroupsMap, remainingSamplesMap] = placeProportionalSamples(
@@ -134,7 +135,7 @@ export function calculateExpectedMinimums(
     );
   }
 
-  console.log(`Calculating expected minimums per ${blockType} based on capacities:`);
+    debugLog(`Calculating expected minimums per ${blockType} based on capacities:`);
   blockCapacities.forEach((capacity, blockIdx) => {
     expectedMinimums[blockIdx] = {};
     let blockTotalExpected = 0;
@@ -148,7 +149,7 @@ export function calculateExpectedMinimums(
       expectedMinimums[blockIdx][groupKey] = Math.round(globalExpected * capacityRatio);
       blockTotalExpected += expectedMinimums[blockIdx][groupKey];
 
-      console.log(`  ${blockType} ${blockIdx + 1},  Group ${groupKey}, Samples ${samples.length}, Expected ${globalExpected},
+    debugLog(`  ${blockType} ${blockIdx + 1},  Group ${groupKey}, Samples ${samples.length}, Expected ${globalExpected},
           Capacity ratio: ${capacityRatio.toFixed(2)}, Expected minimum: ${expectedMinimums[blockIdx][groupKey]}`);
     });
 
@@ -193,7 +194,7 @@ export function assignBlockCapacities(
     // Calculate how many blocks should be completely filled
     const fullBlocks = Math.floor(totalSamples / blockSize);
     const remainingSamples = totalSamples % blockSize;
-    console.log(`Calculating ${blockName} capacities with keepEmptyInLastBlock=true: ${totalSamples} samples, ${fullBlocks} full ${blockName}s, ${remainingSamples} remaining samples`);
+    debugLog(`Calculating ${blockName} capacities with keepEmptyInLastBlock=true: ${totalSamples} samples, ${fullBlocks} full ${blockName}s, ${remainingSamples} remaining samples`);
 
     // Set capacities: full blocks get blockSize, last block gets remaining samples
     blockCapacities = Array(fullBlocks).fill(blockSize);
@@ -201,7 +202,7 @@ export function assignBlockCapacities(
       blockCapacities.push(remainingSamples);
     }
 
-    console.log(`Keep empty in last ${blockName}: ${totalSamples} samples across ${blockCapacities.length} ${blockName}s with capacities: ${blockCapacities.join(', ')}`);
+    debugLog(`Keep empty in last ${blockName}: ${totalSamples} samples across ${blockCapacities.length} ${blockName}s with capacities: ${blockCapacities.join(', ')}`);
   } else {
 
     // Distribute samples across all available blocks
@@ -212,7 +213,7 @@ export function assignBlockCapacities(
     // Calculate values for logging only
     const totalCapacity = actualBlocksToUse * blockSize;
     const totalEmptySpots = totalCapacity - totalSamples;
-    console.log(`Calculating ${blockName} capacities with keepEmptyInLastBlock=false: ${totalSamples} samples, ${actualBlocksToUse} ${blockName}s, ${totalEmptySpots} empty spots to distribute`);
+    debugLog(`Calculating ${blockName} capacities with keepEmptyInLastBlock=false: ${totalSamples} samples, ${actualBlocksToUse} ${blockName}s, ${totalEmptySpots} empty spots to distribute`);
 
     blockCapacities = Array(actualBlocksToUse).fill(baseSamplesPerBlock);
 
@@ -224,7 +225,7 @@ export function assignBlockCapacities(
       blockCapacities[shuffledIndices[i]]++;
     }
 
-    console.log(`Random distribution of empty spots: ${totalSamples} samples across ${actualBlocksToUse} ${blockName}s with capacities: ${blockCapacities.join(', ')}`);
+    debugLog(`Random distribution of empty spots: ${totalSamples} samples across ${actualBlocksToUse} ${blockName}s with capacities: ${blockCapacities.join(', ')}`);
   }
 
   return blockCapacities;
@@ -233,7 +234,7 @@ export function assignBlockCapacities(
 // Helper function to validate capacity
 function validateCapacity(totalSamples: number, plateCapacities: number[]): boolean {
   const totalCapacity = plateCapacities.reduce((sum, capacity) => sum + capacity, 0);
-  console.log(`Plate capacities: ${plateCapacities.join(', ')}; Sample count: ${totalSamples}`);
+    debugLog(`Plate capacities: ${plateCapacities.join(', ')}; Sample count: ${totalSamples}`);
 
   if (totalSamples > totalCapacity) {
     console.error(`Not enough capacity: ${totalSamples} samples > ${totalCapacity} total capacity`);
@@ -262,7 +263,7 @@ function placeProportionalSamples(
     const baseSamplesPerPlate = Math.floor(totalGroupSamples / numPlates);
 
     let sampleIndex = 0;
-    console.log(`Phase 1 (${blockType}): Minimum required samples / plate for group ${groupKey} (${totalGroupSamples}/${numPlates}): ${baseSamplesPerPlate}`);
+    debugLog(`Phase 1 (${blockType}): Minimum required samples / plate for group ${groupKey} (${totalGroupSamples}/${numPlates}): ${baseSamplesPerPlate}`);
 
     // Place samples proportionally in all plates based on capacity ratio or expected minimums
     if (baseSamplesPerPlate > 0) {
@@ -281,7 +282,7 @@ function placeProportionalSamples(
           logMessage = `  Placing proportional samples in ${blockType.toLowerCase()} index ${plateIdx}: ${proportionalSamples} (capacity ratio: ${capacityRatio.toFixed(2)})`;
         }
 
-        console.log(logMessage);
+    debugLog(logMessage);
 
         const availableCapacity = plateCapacities[plateIdx] - blockCounts[plateIdx];
         const samplesToPlace = Math.min(proportionalSamples, availableCapacity);
@@ -329,7 +330,7 @@ function distributeSamplesAcrossBlocks(
     const blockIdx = blocksToUse[blockIndex % blocksToUse.length];
 
     if (blockCounts[blockIdx] < blockCapacities[blockIdx]) {
-      console.log(`  ${logPrefix} sample in block index: ${blockIdx}`);
+    debugLog(`  ${logPrefix} sample in block index: ${blockIdx}`);
       blockAssignments.get(blockIdx)!.push(remainingSamples[sampleIndex]);
       blockCounts[blockIdx]++;
       sampleIndex++;
@@ -392,7 +393,7 @@ function processUnplacedGroups(
   const sortedUnplacedGroups = sortGroupsBySize(unplacedGroupsMap);
 
   sortedUnplacedGroups.forEach(([groupKey, remainingSamples]) => {
-    console.log(`Phase 2A (${blockType}): Unplaced group ${groupKey}: ${remainingSamples.length} samples`);
+    debugLog(`Phase 2A (${blockType}): Unplaced group ${groupKey}: ${remainingSamples.length} samples`);
 
     const availableBlocks = getAvailableBlocks(numBlocks, blockCapacities, blockCounts);
 
@@ -440,7 +441,7 @@ function processOverflowGroups(
   const sortedOverflowGroups = sortGroupsBySize(overflowSamplesMap);
 
   sortedOverflowGroups.forEach(([groupKey, remainingSamples]) => {
-    console.log(`Phase 2B (${blockType}): Overflow group ${groupKey}: ${remainingSamples.length} samples`);
+    debugLog(`Phase 2B (${blockType}): Overflow group ${groupKey}: ${remainingSamples.length} samples`);
 
     const availableBlocks = getAvailableBlocks(numPlates, plateCapacities, blockCounts);
 
@@ -562,11 +563,11 @@ function doBalancedRandomization(
 } {
   const totalSamples = searches.length;
   const plateSize = numRows * numColumns;
-  console.log(`Starting balanced randomization for ${totalSamples} samples with plate size ${plateSize} (${numRows} rows x ${numColumns} columns)`);
+    debugLog(`Starting balanced randomization for ${totalSamples} samples with plate size ${plateSize} (${numRows} rows x ${numColumns} columns)`);
 
   // Calculate number of plates needed
   const actualPlatesNeeded = Math.ceil(totalSamples / plateSize);
-  console.log(`Plates needed: ${actualPlatesNeeded}`);
+    debugLog(`Plates needed: ${actualPlatesNeeded}`);
   const plateCapacities = assignBlockCapacities(totalSamples, plateSize, keepEmptyInLastPlate, actualPlatesNeeded, BlockType.PLATE);
 
   const plates = Array.from({ length: actualPlatesNeeded }, () =>
@@ -607,7 +608,7 @@ function doBalancedRandomization(
   plateAssignments.forEach((plateSamples, plateIdx) => {
 
     // STEP 5B: Row-Based Distribution - Distribute samples across rows
-    console.log(`Applying row-based distribution to plate ${plateIdx + 1} with ${plateSamples.length} samples`);
+    debugLog(`Applying row-based distribution to plate ${plateIdx + 1} with ${plateSamples.length} samples`);
 
     // Shuffle plate samples before grouping to add initial randomization
     const shuffledPlateSamples = shuffleArray([...plateSamples]);
@@ -618,7 +619,7 @@ function doBalancedRandomization(
     // Calculate row capacities based on keepEmptyInLastPlate setting
     const totalPlateSamples = plateSamples.length;
     const plateCapacity = plateCapacities[plateIdx];
-    console.log(`Plate ${plateIdx + 1} has ${totalPlateSamples} samples, capacity ${plateCapacity}, max rows available: ${numRows}`);
+    debugLog(`Plate ${plateIdx + 1} has ${totalPlateSamples} samples, capacity ${plateCapacity}, max rows available: ${numRows}`);
 
     // assignBlockCapacities will determine how many rows to use based on keepEmptyInLastPlate
     // If keepEmptyInLastPlate is true, fill rows sequentially (empty cells in last rows)
@@ -657,7 +658,7 @@ function doBalancedRandomization(
     });
 
     const spatialQuality = analyzePlateSpatialQuality(plates[plateIdx], numRows, numColumns);
-    console.log(`Spatial Quality Analysis: Plate ${plateIdx + 1}: H=${spatialQuality.horizontalClusters}, V=${spatialQuality.verticalClusters}, CR=${spatialQuality.crossRowClusters}, Total=${spatialQuality.totalClusters}`);
+    debugLog(`Spatial Quality Analysis: Plate ${plateIdx + 1}: H=${spatialQuality.horizontalClusters}, V=${spatialQuality.verticalClusters}, CR=${spatialQuality.crossRowClusters}, Total=${spatialQuality.totalClusters}`);
   });
 
   // STEP 6: Global optimization pass - DISABLED to preserve row-level distribution
