@@ -19,6 +19,7 @@ import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useQualityMetrics } from './hooks/useQualityMetrics';
 import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
+import SequenceExportWizard from './components/SequenceExportWizard';
 
 
 
@@ -110,6 +111,7 @@ const App: React.FC = () => {
   const [showPlateDetails, setShowPlateDetails] = useState<boolean>(false);
   const [selectedPlateIndex, setSelectedPlateIndex] = useState<number | null>(null);
   const [showExcelExportModal, setShowExcelExportModal] = useState<boolean>(false);
+  const [showSequenceExportWizard, setShowSequenceExportWizard] = useState<boolean>(false);
   const [randomizationError, setRandomizationError] = useState<string | null>(null);
 
   // Subject placement panel state
@@ -716,6 +718,13 @@ const App: React.FC = () => {
                 <button onClick={handleDownloadExcel} style={styles.downloadButton}>
                   Download Excel
                 </button>
+
+                <button
+                  onClick={() => setShowSequenceExportWizard(true)}
+                  style={styles.downloadButton}
+                >
+                  Export Sequence
+                </button>
               </div>
 
               <SummaryPanel
@@ -799,6 +808,23 @@ const App: React.FC = () => {
           subjectColumn={subjectColumn || undefined}
           qcColumn={qcColumn || undefined}
         />
+
+        {/* Sequence Export Wizard */}
+        {isProcessed && randomizedPlates.length > 0 && (
+          <SequenceExportWizard
+            key={selectedFileName}
+            plates={randomizedPlates}
+            searches={searches}
+            idColumn={selectedIdColumn}
+            qcColumn={qcColumn || undefined}
+            selectedQcValues={selectedQcValues.length > 0 ? selectedQcValues : undefined}
+            plateRows={plateRows}
+            plateCols={plateColumns}
+            onClose={() => setShowSequenceExportWizard(false)}
+            visible={showSequenceExportWizard}
+            inputFileName={selectedFileName}
+          />
+        )}
 
         {/* Help Section */}
         <div style={styles.helpSection}>
