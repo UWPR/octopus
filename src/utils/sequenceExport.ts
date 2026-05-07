@@ -50,19 +50,24 @@ export function generateSequence(input: GenerateSequenceInput): GeneratedSequenc
   if (ssEnabled) {
     totalExpectedRuns += ssConfig.runsAtStart + ssConfig.runsAtEnd;
   }
-  let experimentalSampleCount = 0;
+  // Count total filled wells (all non-undefined cells across all plates, regardless of category).
+  // Used for SS insertion interval calculation and serial ID zero-padding.
+  let totalFilledWellCount = 0;
   for (const plate of plates) {
     for (const row of plate) {
       for (const cell of row) {
         if (cell !== undefined) {
-          experimentalSampleCount++;
+          totalFilledWellCount++;
         }
       }
     }
   }
-  totalExpectedRuns += experimentalSampleCount;
-  if (ssEnabled && ssConfig.runsDuring > 0 && ssConfig.insertionInterval > 0) {
-    const insertions = Math.floor(experimentalSampleCount / ssConfig.insertionInterval);
+  totalExpectedRuns += totalFilledWellCount;
+  // SS insertions trigger when sampleCounter > 0 && sampleCounter % interval == 0.
+  // The first sample (sampleCounter=0) never triggers, so max triggers = floor((count-1)/interval).
+  // The > 1 guard ensures we don't compute floor(0/interval) = 0 needlessly for single-sample plates.
+  if (ssEnabled && ssConfig.runsDuring > 0 && ssConfig.insertionInterval > 0 && totalFilledWellCount > 1) {
+    const insertions = Math.floor((totalFilledWellCount - 1) / ssConfig.insertionInterval);
     totalExpectedRuns += insertions * ssConfig.runsDuring;
   }
 
@@ -97,6 +102,9 @@ export function generateSequence(input: GenerateSequenceInput): GeneratedSequenc
       injectionVolume: ssSettings.injectionVolume,
       category,
       runNumber: runCounter,
+      originalSampleId: '',
+      plateNumber: null,
+      wellPosition: '',
     };
     runCounter++;
     incrementCategory(category);
@@ -133,13 +141,12 @@ export function generateSequence(input: GenerateSequenceInput): GeneratedSequenc
 
         const category = sampleCategories.assignments[sample.name] || 'Experimental';
         const position = formatWellPosition(rowIdx, colIdx, plateSlot);
-        const plateWell = `${String.fromCharCode(65 + rowIdx)}${String.fromCharCode(48 + Math.floor((colIdx + 1) / 10))}${(colIdx + 1) % 10}`.replace(/^([A-Z])0/, '$1');
         const plateWellFormatted = `${String.fromCharCode(65 + rowIdx)}${(colIdx + 1).toString().padStart(2, '0')}`;
 
         // Determine sample ID for filename
         let sampleId: string;
         if (fileNamingConfig.sampleIdMode === 'serial') {
-          sampleId = generateSerialId(fileNamingConfig.serialIdConfig.prefix, serialIdCounter, experimentalSampleCount, fileNamingConfig.serialIdConfig.startNumber);
+          sampleId = generateSerialId(fileNamingConfig.serialIdConfig.prefix, serialIdCounter, totalFilledWellCount, fileNamingConfig.serialIdConfig.startNumber);
           serialIdCounter++;
         } else {
           sampleId = sample.name;
@@ -172,6 +179,9 @@ export function generateSequence(input: GenerateSequenceInput): GeneratedSequenc
           injectionVolume: categorySettings.injectionVolume,
           category,
           runNumber: runCounter,
+          originalSampleId: sample.name,
+          plateNumber: plateIdx + 1,
+          wellPosition: plateWellFormatted,
         };
 
         rows.push(seqRow);
@@ -193,6 +203,7 @@ export function generateSequence(input: GenerateSequenceInput): GeneratedSequenc
     rows,
     categoryCounts,
     totalRuns: rows.length,
+    totalSampleCount: totalFilledWellCount,
   };
 }
 
@@ -296,10 +307,10 @@ export function generateSerialId(
 export function formatThermoCSV(sequence: GeneratedSequence): string {
   const lines: string[] = [];
 
-  // First line: bracket type header
+  // Thermo Fisher sequence file header — fixed format (5 columns: File Name, Path, Instrument Method, Position, Inj Vol)
   lines.push('Bracket Type=4,,,,');
 
-  // Second line: column headers
+  // Column headers
   lines.push('File Name,Path,Instrument Method,Position,Inj Vol');
 
   // Data rows
@@ -318,10 +329,10 @@ export function formatThermoCSV(sequence: GeneratedSequence): string {
 }
 
 /**
- * Quote a CSV field if it contains a comma.
+ * Quote a CSV field if it contains a comma, double-quote, or newline.
  */
 function quoteIfNeeded(value: string): string {
-  if (value.includes(',')) {
+  if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;

@@ -106,9 +106,9 @@ export const PreviewExportStep: React.FC<PreviewExportStepProps> = ({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, idx) => (
+            {rows.map((row) => (
               <tr
-                key={idx}
+                key={row.runNumber}
                 style={{
                   backgroundColor: CATEGORY_COLORS[row.category] || '#fff',
                 }}

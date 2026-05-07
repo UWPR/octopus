@@ -96,6 +96,12 @@ export interface SequenceRow {
   category: string;
   /** 1-based global run number */
   runNumber: number;
+  /** Original sample ID (for mapping CSV); empty for SS rows */
+  originalSampleId: string;
+  /** Plate number (1-based); null for SS rows */
+  plateNumber: number | null;
+  /** Well position (e.g., "A01"); empty for SS rows */
+  wellPosition: string;
 }
 
 /** The complete generated sequence output */
@@ -104,6 +110,8 @@ export interface GeneratedSequence {
   /** Breakdown of row counts by category */
   categoryCounts: Record<string, number>;
   totalRuns: number;
+  /** Total non-SS sample count (used for serial ID padding) */
+  totalSampleCount: number;
 }
 
 /** Mapping between serial IDs and original sample IDs */

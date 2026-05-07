@@ -23,12 +23,13 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
             <button
               style={{
                 ...styles.stepButton,
-                ...(isActive ? styles.activeStep : {}),
                 ...(isCompleted ? styles.completedStep : {}),
+                ...(!isCompleted && !isActive ? styles.disabledStep : {}),
               }}
-              onClick={() => goToStep(stepNum)}
+              onClick={() => { if (isCompleted) goToStep(stepNum); }}
               aria-label={`Step ${stepNum}: ${label}`}
               aria-current={isActive ? 'step' : undefined}
+              disabled={!isCompleted && !isActive}
             >
               <span style={{
                 ...styles.stepNumber,
@@ -112,8 +113,8 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#1976d2',
     fontWeight: 600,
   },
-  activeStep: {},
-  completedStep: {},
+  completedStep: { cursor: 'pointer' },
+  disabledStep: { cursor: 'default', opacity: 0.6 },
   connector: {
     width: '10px',
     height: '2px',

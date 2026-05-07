@@ -9,9 +9,7 @@ import {
   PathsMethodsConfig,
   FileNamingConfig,
   FilenameField,
-  SeparatorChar,
   SerialIdConfig,
-  SampleIdMode,
   GeneratedSequence,
   IdMapping,
 } from '../utils/sequenceExportTypes';
@@ -24,7 +22,6 @@ import {
   generateMappingCSV,
   generateFilename,
   generateSerialId,
-  formatWellPosition,
 } from '../utils/sequenceExport';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -166,6 +163,11 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
         }
       }
       return { categories: newCategories, assignments: newAssignments };
+    });
+    // Remove stale entry from pathsConfig
+    setPathsConfig(prev => {
+      const { [name]: _, ...rest } = prev.categorySettings;
+      return { categorySettings: rest };
     });
   }, []);
 
@@ -343,38 +345,30 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
 
   const exportMappingCSV = useCallback(() => {
     const mappings: IdMapping[] = [];
+    const expRows = generatedSequence.rows.filter(r => r.category !== 'System Suitability');
+    const totalSamples = generatedSequence.totalSampleCount;
     let serialCounter = fileNamingConfig.serialIdConfig.startNumber;
-    const totalSamples = generatedSequence.rows.filter(r => r.category !== 'System Suitability').length;
 
-    for (let plateIdx = 0; plateIdx < plates.length; plateIdx++) {
-      const plate = plates[plateIdx];
-      for (let rowIdx = 0; rowIdx < plate.length; rowIdx++) {
-        for (let colIdx = 0; colIdx < plate[rowIdx].length; colIdx++) {
-          const sample = plate[rowIdx][colIdx];
-          if (sample === undefined) continue;
-
-          const serialId = generateSerialId(
-            fileNamingConfig.serialIdConfig.prefix,
-            serialCounter,
-            totalSamples,
-            fileNamingConfig.serialIdConfig.startNumber
-          );
-          const wellPosition = `${String.fromCharCode(65 + rowIdx)}${(colIdx + 1).toString().padStart(2, '0')}`;
-
-          mappings.push({
-            serialId,
-            originalSampleId: sample.name,
-            plateNumber: plateIdx + 1,
-            wellPosition,
-          });
-          serialCounter++;
-        }
-      }
+    for (const row of expRows) {
+      const serialId = generateSerialId(
+        fileNamingConfig.serialIdConfig.prefix,
+        serialCounter,
+        totalSamples,
+        fileNamingConfig.serialIdConfig.startNumber
+      );
+      mappings.push({
+        serialId,
+        originalSampleId: row.originalSampleId,
+        // Safe: expRows is filtered to non-SS rows, which always have a non-null plateNumber
+        plateNumber: row.plateNumber!,
+        wellPosition: row.wellPosition,
+      });
+      serialCounter++;
     }
 
     const csv = generateMappingCSV(mappings);
     downloadSequenceCSV(csv, 'id_mapping.csv');
-  }, [plates, fileNamingConfig.serialIdConfig, generatedSequence]);
+  }, [generatedSequence, fileNamingConfig.serialIdConfig]);
 
   // ── Validation ───────────────────────────────────────────────────────────
 
@@ -439,10 +433,11 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
   // ── Navigation ───────────────────────────────────────────────────────────
 
   const goToStep = useCallback((step: number) => {
-    if (step >= 1 && step <= TOTAL_STEPS) {
+    // Only allow navigating to completed steps (steps before current)
+    if (step >= 1 && step < currentStep) {
       setCurrentStep(step);
     }
-  }, []);
+  }, [currentStep]);
 
   const nextStep = useCallback(() => {
     if (canProceed && currentStep < TOTAL_STEPS) {

@@ -60,6 +60,7 @@ export const SystemSuitabilityStep: React.FC<SystemSuitabilityStepProps> = ({
               min={1}
               value={ssConfig.insertionInterval}
               onChange={e => updateSSConfig({ insertionInterval: parseInt(e.target.value) || 1 })}
+              disabled={ssConfig.runsDuring === 0}
             />
           </label>
         </div>

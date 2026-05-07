@@ -1,4 +1,5 @@
 import * as fc from 'fast-check';
+import { renderHook, act } from '@testing-library/react';
 import { SearchData } from '../utils/types';
 import {
   generateSequence,
@@ -20,6 +21,7 @@ import {
   FilenameField,
   GeneratedSequence,
 } from '../utils/sequenceExportTypes';
+import { useSequenceExportWizard, UseSequenceExportWizardProps } from '../hooks/useSequenceExportWizard';
 
 // ─── Test Helpers ────────────────────────────────────────────────────────────
 
@@ -179,11 +181,12 @@ describe('sequenceExport - unit tests', () => {
     it('produces correct header lines and field count', () => {
       const sequence: GeneratedSequence = {
         rows: [
-          { fileName: 'file1', path: 'D:\\Data', instrumentMethod: 'C:\\m.meth', position: 'B:A1', injectionVolume: 3, category: 'Experimental', runNumber: 1 },
-          { fileName: 'file2', path: 'D:\\Data', instrumentMethod: 'C:\\m.meth', position: 'B:A2', injectionVolume: 3, category: 'Experimental', runNumber: 2 },
+          { fileName: 'file1', path: 'D:\\Data', instrumentMethod: 'C:\\m.meth', position: 'B:A1', injectionVolume: 3, category: 'Experimental', runNumber: 1, originalSampleId: 'S1', plateNumber: 1, wellPosition: 'A01' },
+          { fileName: 'file2', path: 'D:\\Data', instrumentMethod: 'C:\\m.meth', position: 'B:A2', injectionVolume: 3, category: 'Experimental', runNumber: 2, originalSampleId: 'S2', plateNumber: 1, wellPosition: 'A02' },
         ],
         categoryCounts: { Experimental: 2 },
         totalRuns: 2,
+        totalSampleCount: 2,
       };
       const csv = formatThermoCSV(sequence);
       const lines = csv.split('\n');
@@ -201,14 +204,57 @@ describe('sequenceExport - unit tests', () => {
     it('quotes fields containing commas', () => {
       const sequence: GeneratedSequence = {
         rows: [
-          { fileName: 'a,b', path: 'c,d', instrumentMethod: 'e', position: 'B:A1', injectionVolume: 3, category: 'Experimental', runNumber: 1 },
+          { fileName: 'a,b', path: 'c,d', instrumentMethod: 'e', position: 'B:A1', injectionVolume: 3, category: 'Experimental', runNumber: 1, originalSampleId: 'S1', plateNumber: 1, wellPosition: 'A01' },
         ],
         categoryCounts: { Experimental: 1 },
         totalRuns: 1,
+        totalSampleCount: 1,
       };
       const csv = formatThermoCSV(sequence);
       const lines = csv.split('\n');
       expect(lines[2]).toBe('"a,b","c,d",e,B:A1,3');
+    });
+
+    it('quotes fields containing bare double-quotes', () => {
+      const sequence: GeneratedSequence = {
+        rows: [
+          { fileName: 'file"name', path: 'D:\\Data', instrumentMethod: 'C:\\m.meth', position: 'B:A1', injectionVolume: 3, category: 'Experimental', runNumber: 1, originalSampleId: 'S1', plateNumber: 1, wellPosition: 'A01' },
+        ],
+        categoryCounts: { Experimental: 1 },
+        totalRuns: 1,
+        totalSampleCount: 1,
+      };
+      const csv = formatThermoCSV(sequence);
+      const lines = csv.split('\n');
+      expect(lines[2]).toBe('"file""name",D:\\Data,C:\\m.meth,B:A1,3');
+    });
+
+    it('quotes fields containing newlines', () => {
+      const sequence: GeneratedSequence = {
+        rows: [
+          { fileName: 'line1\nline2', path: 'D:\\Data', instrumentMethod: 'C:\\m.meth', position: 'B:A1', injectionVolume: 3, category: 'Experimental', runNumber: 1, originalSampleId: 'S1', plateNumber: 1, wellPosition: 'A01' },
+        ],
+        categoryCounts: { Experimental: 1 },
+        totalRuns: 1,
+        totalSampleCount: 1,
+      };
+      const csv = formatThermoCSV(sequence);
+      const lines = csv.split('\n');
+      // The quoted field spans the newline, so splitting on \n gives us the first part
+      expect(csv).toContain('"line1\nline2"');
+    });
+
+    it('derives Bracket Type header from column count', () => {
+      const sequence: GeneratedSequence = {
+        rows: [],
+        categoryCounts: {},
+        totalRuns: 0,
+        totalSampleCount: 0,
+      };
+      const csv = formatThermoCSV(sequence);
+      const firstLine = csv.split('\n')[0];
+      // 5 columns → "Bracket Type=4" + 4 commas
+      expect(firstLine).toBe('Bracket Type=4,,,,');
     });
   });
 
@@ -299,6 +345,46 @@ describe('sequenceExport - unit tests', () => {
       // Total: 6 samples + 1 SS = 7
       expect(result.totalRuns).toBe(7);
       expect(result.rows[3].category).toBe('System Suitability');
+    });
+
+    it('assigns correct slot-based position prefixes for multi-plate sequences', () => {
+      const plates = [
+        makePlate([['P1S1', 'P1S2']]),
+        makePlate([['P2S1', 'P2S2']]),
+      ];
+      const input = makeDefaultInput({
+        plates,
+        sampleCategories: {
+          assignments: { P1S1: 'Experimental', P1S2: 'Experimental', P2S1: 'Experimental', P2S2: 'Experimental' },
+          categories: ['Experimental'],
+        },
+        slotAssignment: { ssSlot: null, plateSlots: { 0: 'R', 1: 'B' } },
+      });
+      const result = generateSequence(input);
+      expect(result.rows[0].position).toBe('R:A1');
+      expect(result.rows[1].position).toBe('R:A2');
+      expect(result.rows[2].position).toBe('B:A1');
+      expect(result.rows[3].position).toBe('B:A2');
+    });
+  });
+
+  describe('autoDetectCategories - edge cases', () => {
+    it('assigns Experimental when QC cell metadata value is not in selectedQcValues', () => {
+      const s1 = makeSample('S1', { Condition: 'UnknownQC' }, true);
+      const s2 = makeSample('S2', { Condition: 'BatchQC' }, true);
+      const plates: (SearchData | undefined)[][][] = [[[s1, s2]]];
+      // Only "BatchQC" is in selectedQcValues, not "UnknownQC"
+      const result = autoDetectCategories(plates, 'Condition', ['BatchQC']);
+      expect(result.assignments['S1']).toBe('Experimental');
+      expect(result.assignments['S2']).toBe('BatchQC');
+      expect(result.categories.sort()).toEqual(['BatchQC', 'Experimental'].sort());
+    });
+
+    it('handles empty plates gracefully', () => {
+      const plates: (SearchData | undefined)[][][] = [[[undefined, undefined], [undefined, undefined]]];
+      const result = autoDetectCategories(plates, 'Condition', ['BatchQC']);
+      expect(result.assignments).toEqual({});
+      expect(result.categories).toEqual(['Experimental']);
     });
   });
 });
@@ -440,6 +526,10 @@ describe('sequenceExport - property-based tests', () => {
             for (const row of ssRows) {
               expect(row.position).toBe('Y:A1');
             }
+
+            // Independent check: totalRuns must equal actual row count
+            // (catches prediction/reality divergence in zero-padding)
+            expect(result.totalRuns).toBe(result.rows.length);
           }
         ),
         { numRuns: 100 }
@@ -642,6 +732,88 @@ describe('sequenceExport - property-based tests', () => {
         ),
         { numRuns: 100 }
       );
+    });
+  });
+});
+
+// ─── Hook Tests ──────────────────────────────────────────────────────────────
+
+describe('useSequenceExportWizard hook', () => {
+  function makeHookProps(overrides: Partial<UseSequenceExportWizardProps> = {}): UseSequenceExportWizardProps {
+    const plates = overrides.plates || [
+      [[makeSample('S1'), makeSample('S2')], [makeSample('S3'), makeSample('S4')]],
+    ];
+    return {
+      plates,
+      searches: [makeSample('S1'), makeSample('S2'), makeSample('S3'), makeSample('S4')],
+      idColumn: 'name',
+      plateRows: 2,
+      plateCols: 2,
+      ...overrides,
+    };
+  }
+
+  describe('goToStep validation', () => {
+    it('does not allow jumping forward past current step', () => {
+      const { result } = renderHook(() => useSequenceExportWizard(makeHookProps()));
+
+      // Start at step 1
+      expect(result.current.currentStep).toBe(1);
+
+      // Try to jump to step 4 — should be blocked
+      act(() => { result.current.goToStep(4); });
+      expect(result.current.currentStep).toBe(1);
+
+      // Try to jump to step 6 — should be blocked
+      act(() => { result.current.goToStep(6); });
+      expect(result.current.currentStep).toBe(1);
+    });
+
+    it('allows navigating back to a completed step', () => {
+      const { result } = renderHook(() => useSequenceExportWizard(makeHookProps()));
+
+      // Advance to step 2
+      act(() => { result.current.nextStep(); });
+      expect(result.current.currentStep).toBe(2);
+
+      // Advance to step 3
+      act(() => { result.current.nextStep(); });
+      expect(result.current.currentStep).toBe(3);
+
+      // Go back to step 1 — should work
+      act(() => { result.current.goToStep(1); });
+      expect(result.current.currentStep).toBe(1);
+    });
+  });
+
+  describe('exportMappingCSV', () => {
+    it('generates mapping with correct serial IDs and sample data', () => {
+      const { result } = renderHook(() => useSequenceExportWizard(makeHookProps()));
+
+      // Configure serial ID mode
+      act(() => {
+        result.current.updateFileNaming({
+          selectedFields: [{ id: 'sampleId', label: 'Sample Identifier' }],
+          sampleIdMode: 'serial',
+          serialIdConfig: { prefix: 'TEST', startNumber: 1 },
+          generateMappingFile: true,
+        });
+      });
+
+      // The generatedSequence should have 4 experimental rows
+      const expRows = result.current.generatedSequence.rows.filter(r => r.category !== 'System Suitability');
+      expect(expRows.length).toBe(4);
+
+      // Verify each row has correct originalSampleId and plateNumber
+      expect(expRows[0].originalSampleId).toBe('S1');
+      expect(expRows[0].plateNumber).toBe(1);
+      expect(expRows[0].wellPosition).toBe('A01');
+      expect(expRows[1].originalSampleId).toBe('S2');
+      expect(expRows[1].wellPosition).toBe('A02');
+      expect(expRows[2].originalSampleId).toBe('S3');
+      expect(expRows[2].wellPosition).toBe('B01');
+      expect(expRows[3].originalSampleId).toBe('S4');
+      expect(expRows[3].wellPosition).toBe('B02');
     });
   });
 });
