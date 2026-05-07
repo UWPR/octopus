@@ -65,7 +65,6 @@ const AVAILABLE_FIELDS: FilenameField[] = [
   { id: 'sampleId', label: 'Sample Identifier' },
   { id: 'plateWell', label: 'Plate Well' },
   { id: 'plateNumber', label: 'Plate Number' },
-  { id: 'sampleCategory', label: 'Sample Category' },
 ];
 
 // ─── Hook Props ──────────────────────────────────────────────────────────────
@@ -91,31 +90,31 @@ export interface UseSequenceExportWizardReturn {
   prevStep: () => void;
   canProceed: boolean;
 
-  // Step 1: Sample Categories
+  // Step 1: System Suitability
+  ssConfig: SystemSuitabilityConfig;
+  updateSSConfig: (updates: Partial<SystemSuitabilityConfig>) => void;
+
+  // Step 2: Slot Assignment
+  slotAssignment: SlotAssignment;
+  updateSlotAssignment: (updates: Partial<SlotAssignment>) => void;
+  oversizedPlateWarning: boolean;
+
+  // Step 3: File Naming
+  fileNamingConfig: FileNamingConfig;
+  updateFileNaming: (updates: Partial<FileNamingConfig>) => void;
+  filenamePreview: string;
+  availableFields: FilenameField[];
+
+  // Step 4: Sample Categories
   sampleCategories: SampleCategoryConfig;
   setSampleCategory: (sampleNames: string[], category: string) => void;
   addCategory: (name: string) => void;
   removeCategory: (name: string) => void;
 
-  // Step 2: System Suitability
-  ssConfig: SystemSuitabilityConfig;
-  updateSSConfig: (updates: Partial<SystemSuitabilityConfig>) => void;
-
-  // Step 3: Slot Assignment
-  slotAssignment: SlotAssignment;
-  updateSlotAssignment: (updates: Partial<SlotAssignment>) => void;
-  oversizedPlateWarning: boolean;
-
-  // Step 4: Paths & Methods
+  // Step 5: Paths & Methods
   pathsConfig: PathsMethodsConfig;
   updateCategorySettings: (category: string, settings: Partial<CategorySettings>) => void;
   applyToAllCategories: (settings: Partial<CategorySettings>) => void;
-
-  // Step 5: File Naming
-  fileNamingConfig: FileNamingConfig;
-  updateFileNaming: (updates: Partial<FileNamingConfig>) => void;
-  filenamePreview: string;
-  availableFields: FilenameField[];
 
   // Step 6: Preview & Export
   generatedSequence: GeneratedSequence;
@@ -132,7 +131,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
 
   const [currentStep, setCurrentStep] = useState(1);
 
-  // ── Step 1: Sample Categories ────────────────────────────────────────────
+  // ── Step 4: Sample Categories ────────────────────────────────────────────
 
   const [sampleCategories, setSampleCategories] = useState<SampleCategoryConfig>(() =>
     autoDetectCategories(plates, qcColumn, selectedQcValues)
@@ -170,7 +169,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     });
   }, []);
 
-  // ── Step 2: System Suitability ───────────────────────────────────────────
+  // ── Step 1: System Suitability ───────────────────────────────────────────
 
   const [ssConfig, setSSConfig] = useState<SystemSuitabilityConfig>(DEFAULT_SS_CONFIG);
 
@@ -178,7 +177,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     setSSConfig(prev => ({ ...prev, ...updates }));
   }, []);
 
-  // ── Step 3: Slot Assignment ──────────────────────────────────────────────
+  // ── Step 2: Slot Assignment ──────────────────────────────────────────────
 
   const [slotAssignment, setSlotAssignment] = useState<SlotAssignment>(() => {
     // Auto-assign slots to plates
@@ -222,7 +221,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     }
   }, [ssConfig.runsAtStart, ssConfig.runsAtEnd, ssConfig.runsDuring, slotAssignment.ssSlot, plates.length]);
 
-  // ── Step 4: Paths & Methods ──────────────────────────────────────────────
+  // ── Step 5: Paths & Methods ──────────────────────────────────────────────
 
   const [pathsConfig, setPathsConfig] = useState<PathsMethodsConfig>(() => {
     const categorySettings: Record<string, CategorySettings> = {};
@@ -289,7 +288,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     });
   }, [ssConfig.runsAtStart, ssConfig.runsAtEnd, ssConfig.runsDuring]);
 
-  // ── Step 5: File Naming ──────────────────────────────────────────────────
+  // ── Step 3: File Naming ──────────────────────────────────────────────────
 
   const [fileNamingConfig, setFileNamingConfig] = useState<FileNamingConfig>({
     selectedFields: [],
