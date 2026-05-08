@@ -49,7 +49,6 @@ function makeDefaultInput(overrides: Partial<GenerateSequenceInput> = {}): Gener
     runsAtEnd: 0,
     runsDuring: 0,
     insertionInterval: 12,
-    position: '',
     path: '',
     instrumentMethod: '',
     injectionVolume: 3,
@@ -314,7 +313,7 @@ describe('sequenceExport - unit tests', () => {
       const input = makeDefaultInput({
         ssConfig: {
           enabled: true, runsAtStart: 2, runsAtEnd: 3, runsDuring: 0,
-          insertionInterval: 12, position: '', path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
+          insertionInterval: 12, path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
         },
         slotAssignment: { ssSlot: 'Y', ssWell: 'A1', plateSlots: { 0: 'B' } },
       });
@@ -330,7 +329,7 @@ describe('sequenceExport - unit tests', () => {
       const input = makeDefaultInput({
         ssConfig: {
           enabled: true, runsAtStart: 0, runsAtEnd: 0, runsDuring: 1,
-          insertionInterval: 3, position: '', path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
+          insertionInterval: 3, path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
         },
         slotAssignment: { ssSlot: 'Y', ssWell: 'A1', plateSlots: { 0: 'B' } },
       });

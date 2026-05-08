@@ -36,7 +36,6 @@ const DEFAULT_SS_CONFIG: SystemSuitabilityConfig = {
   runsAtEnd: 0,
   runsDuring: 0,
   insertionInterval: 12,
-  position: '',
   path: '',
   instrumentMethod: '',
   injectionVolume: 3,

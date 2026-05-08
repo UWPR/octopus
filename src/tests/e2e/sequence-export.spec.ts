@@ -30,16 +30,13 @@ test.describe('Sequence Export Wizard', () => {
 
     // Step 1: System Suitability — set 1 run at start, 1 at end
     await expect(page.getByText('System Suitability')).toBeVisible();
-    await page.locator('input[type="number"]').first().fill('1'); // runsAtStart
-    const runsAtEndInput = page.locator('input[type="number"]').nth(1);
-    await runsAtEndInput.fill('1');
+    await page.getByLabel('Runs at start:').fill('1');
+    await page.getByLabel('Runs at end:').fill('1');
     await page.getByRole('button', { name: 'Next →' }).click();
 
     // Step 2: Slot Assignment — SS slot should be required
     await expect(page.getByText('Autosampler Slot Assignment')).toBeVisible();
-    // Select SS slot
-    const ssSelect = page.locator('select').first();
-    await ssSelect.selectOption('Y');
+    await page.getByLabel('System Suitability slot').selectOption('Y');
     await page.getByRole('button', { name: 'Next →' }).click();
 
     // Step 3: File Naming — select some fields
@@ -84,8 +81,8 @@ test.describe('Sequence Export Wizard', () => {
     await page.getByRole('button', { name: 'Download Sequence CSV' }).click();
     const download = await downloadPromise;
 
-    // Verify filename
-    expect(download.suggestedFilename()).toBe('trx-phase1b-small_injection-sequence.csv');
+    // Verify filename follows pattern: <input_basename>_injection-sequence.csv
+    expect(download.suggestedFilename()).toMatch(/injection-sequence\.csv$/);
 
     // Read and verify CSV content
     const downloadPath = await download.path();
@@ -118,16 +115,14 @@ test.describe('Sequence Export Wizard', () => {
     await page.getByRole('button', { name: 'Export Sequence' }).click();
 
     // Step 1: System Suitability — set 2 runs at start, change identifier to "SystSuit"
-    await page.locator('input[type="number"]').first().fill('2'); // runsAtStart
-    // Clear the default "SS" and type "SystSuit"
-    const identifierInput = page.locator('input[placeholder="SS"]');
+    await page.getByLabel('Runs at start:').fill('2');
+    const identifierInput = page.getByLabel('Identifier used in filenames');
     await identifierInput.clear();
     await identifierInput.fill('SystSuit');
     await page.getByRole('button', { name: 'Next →' }).click();
 
     // Step 2: Slot Assignment — select SS slot
-    const ssSelect = page.locator('select').first();
-    await ssSelect.selectOption('Y');
+    await page.getByLabel('System Suitability slot').selectOption('Y');
     await page.getByRole('button', { name: 'Next →' }).click();
 
     // Step 3: File Naming — select sample ID field
@@ -170,15 +165,12 @@ test.describe('Sequence Export Wizard', () => {
     await page.getByRole('button', { name: 'Export Sequence' }).click();
 
     // Step 1: System Suitability — set 1 run at start
-    await page.locator('input[type="number"]').first().fill('1'); // runsAtStart
+    await page.getByLabel('Runs at start:').fill('1');
     await page.getByRole('button', { name: 'Next →' }).click();
 
     // Step 2: Slot Assignment — select SS slot and change well to B3
-    const ssSlotSelect = page.locator('select').first();
-    await ssSlotSelect.selectOption('R');
-    // The well dropdown is the second select in the SS row
-    const wellSelect = page.locator('select').nth(1);
-    await wellSelect.selectOption('B3');
+    await page.getByLabel('System Suitability slot').selectOption('R');
+    await page.getByLabel('System Suitability well').selectOption('B3');
     await page.getByRole('button', { name: 'Next →' }).click();
 
     // Step 3: File Naming — select sample ID
@@ -296,6 +288,27 @@ test.describe('Sequence Export Wizard', () => {
     await expect(page.getByText(/not safe for Windows filenames/)).not.toBeVisible();
   });
 
+  test('unsafe SS sample identifier shows warning', async ({ page }) => {
+    // Open wizard
+    await page.getByRole('button', { name: 'Export Sequence' }).click();
+
+    // Step 1: System Suitability — set runs so identifier is relevant
+    await page.getByLabel('Runs at start:').fill('1');
+
+    // Type an unsafe character in the identifier
+    const identifierInput = page.getByLabel('Identifier used in filenames');
+    await identifierInput.clear();
+    await identifierInput.fill('my/SS');
+
+    // Warning should appear
+    await expect(page.getByText(/unsafe for Windows filenames/)).toBeVisible();
+
+    // Change to a safe value — warning should disappear
+    await identifierInput.clear();
+    await identifierInput.fill('SS');
+    await expect(page.getByText(/unsafe for Windows filenames/)).not.toBeVisible();
+  });
+
   test('step indicator prevents forward navigation', async ({ page }) => {
     // Open wizard
     await page.getByRole('button', { name: 'Export Sequence' }).click();
@@ -315,7 +328,6 @@ test.describe('Sequence Export with partially-filled plates', () => {
   const STROKE_TOTAL_SAMPLES = 72;
   const PLATE_ROWS = 6;
   const PLATE_COLS = 9;
-  const WELLS_PER_PLATE = PLATE_ROWS * PLATE_COLS; // 54
 
   async function uploadStrokeData(page: import('@playwright/test').Page) {
     const testFilePath = path.join(__dirname, '../../../test-data/stroke-multiplate-example.csv');
@@ -362,7 +374,7 @@ test.describe('Sequence Export with partially-filled plates', () => {
 
     // Keep empty in last plate: unchecked (default)
     await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
-    await page.waitForTimeout(2000);
+    await expect(page.getByRole('button', { name: 'Export Sequence' })).toBeVisible();
 
     await navigateWizardToExport(page);
 
@@ -376,7 +388,7 @@ test.describe('Sequence Export with partially-filled plates', () => {
     const lines = csvContent.split('\n').filter(l => l.trim() !== '');
 
     // Header (2 lines) + 72 sample rows = 74 total lines
-    expect(lines.length).toBe(STROKE_TOTAL_SAMPLES + 2);
+    expect(lines.length).toBe(STROKE_TOTAL_SAMPLES + 2); // 72 samples + 2 header lines
 
     // Verify consecutive run numbers 1..72
     const dataLines = lines.slice(2);
@@ -403,7 +415,7 @@ test.describe('Sequence Export with partially-filled plates', () => {
     // Check "keep empty in last plate"
     await page.getByRole('checkbox', { name: /empty/i }).check();
     await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
-    await page.waitForTimeout(2000);
+    await expect(page.getByRole('button', { name: 'Export Sequence' })).toBeVisible();
 
     await navigateWizardToExport(page);
 

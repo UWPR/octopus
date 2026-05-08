@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { FileNamingConfig, FilenameField, SeparatorChar } from '../../../utils/sequenceExportTypes';
+import { FileNamingConfig, FilenameField, SeparatorChar, UNSAFE_FILENAME_CHARS } from '../../../utils/sequenceExportTypes';
 
 interface FileNamingStepProps {
   fileNamingConfig: FileNamingConfig;
@@ -25,7 +25,6 @@ export const FileNamingStep: React.FC<FileNamingStepProps> = ({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const UNSAFE_FILENAME_CHARS = /[/\\:*?"<>|]/;
   const isUnsafeSeparator = UNSAFE_FILENAME_CHARS.test(separator);
 
   const isFieldSelected = (fieldId: string) =>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { SystemSuitabilityConfig } from '../../../utils/sequenceExportTypes';
+import { SystemSuitabilityConfig, UNSAFE_FILENAME_CHARS } from '../../../utils/sequenceExportTypes';
 
 interface SystemSuitabilityStepProps {
   ssConfig: SystemSuitabilityConfig;
@@ -81,6 +81,11 @@ export const SystemSuitabilityStep: React.FC<SystemSuitabilityStepProps> = ({
             value={ssConfig.sampleIdentifier}
             onChange={e => updateSSConfig({ sampleIdentifier: e.target.value })}
           />
+          {UNSAFE_FILENAME_CHARS.test(ssConfig.sampleIdentifier) && (
+            <span style={styles.warningText}>
+              ⚠ Contains characters unsafe for Windows filenames
+            </span>
+          )}
         </label>
       </div>
     </div>
@@ -124,5 +129,11 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '4px',
     fontSize: '14px',
     width: '200px',
+  },
+  warningText: {
+    display: 'block',
+    marginTop: '4px',
+    fontSize: '12px',
+    color: '#856404',
   },
 };

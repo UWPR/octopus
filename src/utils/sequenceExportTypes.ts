@@ -24,8 +24,6 @@ export interface SystemSuitabilityConfig {
   runsDuring: number;
   /** Number of experimental samples between each SS insertion */
   insertionInterval: number;
-  /** Fixed autosampler position for SS vial (e.g., "Y:A1") */
-  position: string;
   /** Folder path for SS data files */
   path: string;
   /** Instrument method path for SS runs */
@@ -125,3 +123,6 @@ export interface IdMapping {
   plateNumber: number;
   wellPosition: string;
 }
+
+/** Regex matching characters unsafe for Windows filenames */
+export const UNSAFE_FILENAME_CHARS = /[/\\:*?"<>|]/;

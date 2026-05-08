@@ -57,6 +57,7 @@ export const SlotAssignmentStep: React.FC<SlotAssignmentStepProps> = ({
           <div style={styles.plateRow}>
             <span style={styles.plateRowLabel}>System Suitability:</span>
             <select
+              aria-label="System Suitability slot"
               style={styles.select}
               value={slotAssignment.ssSlot || ''}
               onChange={e => updateSlotAssignment({ ssSlot: (e.target.value || null) as SlotColor | null })}
@@ -70,6 +71,7 @@ export const SlotAssignmentStep: React.FC<SlotAssignmentStepProps> = ({
             </select>
             <span style={styles.wellLabel}>Well:</span>
             <select
+              aria-label="System Suitability well"
               style={styles.wellSelect}
               value={slotAssignment.ssWell}
               onChange={e => updateSlotAssignment({ ssWell: e.target.value })}
