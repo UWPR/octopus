@@ -65,6 +65,24 @@ export const SystemSuitabilityStep: React.FC<SystemSuitabilityStepProps> = ({
           </label>
         </div>
       </div>
+
+      <div style={styles.fieldGroup}>
+        <h4 style={styles.subheading}>Sample Identifier</h4>
+        <label style={styles.fieldLabel}>
+          Identifier used in filenames for System Suitability runs:
+          <input
+            style={{
+              ...styles.textInput,
+              ...(!ssConfig.sampleIdentifier.trim() && (ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0)
+                ? { borderColor: '#d32f2f' } : {}),
+            }}
+            type="text"
+            placeholder="SS"
+            value={ssConfig.sampleIdentifier}
+            onChange={e => updateSSConfig({ sampleIdentifier: e.target.value })}
+          />
+        </label>
+      </div>
     </div>
   );
 };
@@ -97,5 +115,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     width: '100%',
     boxSizing: 'border-box',
+  },
+  textInput: {
+    padding: '6px 10px',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: '#ccc',
+    borderRadius: '4px',
+    fontSize: '14px',
+    width: '200px',
   },
 };

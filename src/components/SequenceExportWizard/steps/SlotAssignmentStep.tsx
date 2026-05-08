@@ -7,6 +7,8 @@ interface SlotAssignmentStepProps {
   ssEnabled: boolean;
   plateCount: number;
   oversizedPlateWarning: boolean;
+  plateRows: number;
+  plateCols: number;
 }
 
 const ALL_SLOTS: SlotColor[] = ['Y', 'B', 'R', 'G'];
@@ -24,6 +26,8 @@ export const SlotAssignmentStep: React.FC<SlotAssignmentStepProps> = ({
   ssEnabled,
   plateCount,
   oversizedPlateWarning,
+  plateRows,
+  plateCols,
 }) => {
   const availableForPlates = ALL_SLOTS.filter(s => s !== slotAssignment.ssSlot);
 
@@ -63,6 +67,19 @@ export const SlotAssignmentStep: React.FC<SlotAssignmentStepProps> = ({
                   {SLOT_LABELS[slot]} ({slot})
                 </option>
               ))}
+            </select>
+            <span style={styles.wellLabel}>Well:</span>
+            <select
+              style={styles.wellSelect}
+              value={slotAssignment.ssWell}
+              onChange={e => updateSlotAssignment({ ssWell: e.target.value })}
+            >
+              {Array.from({ length: plateRows }, (_, r) =>
+                Array.from({ length: plateCols }, (_, c) => {
+                  const well = `${String.fromCharCode(65 + r)}${c + 1}`;
+                  return <option key={well} value={well}>{well}</option>;
+                })
+              ).flat()}
             </select>
           </div>
         )}
@@ -111,11 +128,20 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '10px',
   },
   plateRowLabel: { fontSize: '13px', fontWeight: 500, minWidth: '160px' },
+  wellLabel: { fontSize: '13px', color: '#555', marginLeft: '12px' },
   select: {
     padding: '6px 10px',
     border: '1px solid #ccc',
     borderRadius: '4px',
     fontSize: '13px',
     minWidth: '140px',
+  },
+  wellSelect: {
+    padding: '6px 10px',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    fontSize: '13px',
+    minWidth: '70px',
+    marginLeft: '4px',
   },
 };

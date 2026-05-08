@@ -53,9 +53,11 @@ function makeDefaultInput(overrides: Partial<GenerateSequenceInput> = {}): Gener
     path: '',
     instrumentMethod: '',
     injectionVolume: 3,
+    sampleIdentifier: 'SS',
   };
   const slotAssignment: SlotAssignment = overrides.slotAssignment || {
     ssSlot: null,
+    ssWell: 'A1',
     plateSlots: { 0: 'B' as SlotColor },
   };
   const pathsConfig: PathsMethodsConfig = overrides.pathsConfig || {
@@ -312,9 +314,9 @@ describe('sequenceExport - unit tests', () => {
       const input = makeDefaultInput({
         ssConfig: {
           enabled: true, runsAtStart: 2, runsAtEnd: 3, runsDuring: 0,
-          insertionInterval: 12, position: '', path: '', instrumentMethod: '', injectionVolume: 3,
+          insertionInterval: 12, position: '', path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
         },
-        slotAssignment: { ssSlot: 'Y', plateSlots: { 0: 'B' } },
+        slotAssignment: { ssSlot: 'Y', ssWell: 'A1', plateSlots: { 0: 'B' } },
       });
       const result = generateSequence(input);
       // 2 SS at start + 6 experimental + 3 SS at end = 11
@@ -328,9 +330,9 @@ describe('sequenceExport - unit tests', () => {
       const input = makeDefaultInput({
         ssConfig: {
           enabled: true, runsAtStart: 0, runsAtEnd: 0, runsDuring: 1,
-          insertionInterval: 3, position: '', path: '', instrumentMethod: '', injectionVolume: 3,
+          insertionInterval: 3, position: '', path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
         },
-        slotAssignment: { ssSlot: 'Y', plateSlots: { 0: 'B' } },
+        slotAssignment: { ssSlot: 'Y', ssWell: 'A1', plateSlots: { 0: 'B' } },
       });
       const result = generateSequence(input);
       // 6 samples, SS after every 3: after sample 3 (1 SS) = 7 total
@@ -358,13 +360,27 @@ describe('sequenceExport - unit tests', () => {
           assignments: { P1S1: 'Experimental', P1S2: 'Experimental', P2S1: 'Experimental', P2S2: 'Experimental' },
           categories: ['Experimental'],
         },
-        slotAssignment: { ssSlot: null, plateSlots: { 0: 'R', 1: 'B' } },
+        slotAssignment: { ssSlot: null, ssWell: 'A1', plateSlots: { 0: 'R', 1: 'B' } },
       });
       const result = generateSequence(input);
       expect(result.rows[0].position).toBe('R:A1');
       expect(result.rows[1].position).toBe('R:A2');
       expect(result.rows[2].position).toBe('B:A1');
       expect(result.rows[3].position).toBe('B:A2');
+    });
+
+    it('uses configured SS well position in SS rows', () => {
+      const input = makeDefaultInput({
+        ssConfig: {
+          enabled: true, runsAtStart: 1, runsAtEnd: 0, runsDuring: 0,
+          insertionInterval: 12, position: '', path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
+        },
+        slotAssignment: { ssSlot: 'G', ssWell: 'C5', plateSlots: { 0: 'B' } },
+      });
+      const result = generateSequence(input);
+      // First row is SS — should use G:C5
+      expect(result.rows[0].category).toBe('System Suitability');
+      expect(result.rows[0].position).toBe('G:C5');
     });
   });
 
@@ -448,9 +464,10 @@ describe('sequenceExport - property-based tests', () => {
         path: '',
         instrumentMethod: '',
         injectionVolume: 3,
+        sampleIdentifier: 'SS',
         ...ssConfig,
       },
-      slotAssignment: { ssSlot: ssConfig.runsAtStart || ssConfig.runsAtEnd || ssConfig.runsDuring ? 'Y' : null, plateSlots },
+      slotAssignment: { ssSlot: ssConfig.runsAtStart || ssConfig.runsAtEnd || ssConfig.runsDuring ? 'Y' : null, ssWell: 'A1', plateSlots },
       pathsConfig: {
         categorySettings: {
           Experimental: { path: 'D:\\Data', instrumentMethod: 'C:\\m.meth', injectionVolume: 3 },

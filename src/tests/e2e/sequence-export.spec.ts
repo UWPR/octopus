@@ -113,6 +113,103 @@ test.describe('Sequence Export Wizard', () => {
     expect(dataLines.length).toBe(290);
   });
 
+  test('custom SS sample identifier appears in filenames', async ({ page }) => {
+    // Open wizard
+    await page.getByRole('button', { name: 'Export Sequence' }).click();
+
+    // Step 1: System Suitability — set 2 runs at start, change identifier to "SystSuit"
+    await page.locator('input[type="number"]').first().fill('2'); // runsAtStart
+    // Clear the default "SS" and type "SystSuit"
+    const identifierInput = page.locator('input[placeholder="SS"]');
+    await identifierInput.clear();
+    await identifierInput.fill('SystSuit');
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 2: Slot Assignment — select SS slot
+    const ssSelect = page.locator('select').first();
+    await ssSelect.selectOption('Y');
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 3: File Naming — select sample ID field
+    await page.getByLabel('Sample Identifier').check();
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 4: Sample Categories
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 5: Paths & Methods
+    const pathInputs = page.locator('input[placeholder="D:\\\\Data\\\\Experiment"]');
+    await pathInputs.first().fill('D:\\Data');
+    const methodInputs = page.locator('input[placeholder="C:\\\\Methods\\\\method.meth"]');
+    await methodInputs.first().fill('C:\\Methods\\m.meth');
+    await page.getByRole('button', { name: /Apply first category/ }).click();
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 6: Preview & Export — download and verify
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download Sequence CSV' }).click();
+    const download = await downloadPromise;
+
+    const downloadPath = await download.path();
+    const csvContent = fs.readFileSync(downloadPath!, 'utf-8');
+    const lines = csvContent.split('\n').filter(l => l.trim() !== '');
+
+    // First 2 data rows should be SS with "SystSuit" in the filename
+    const ssRow1 = lines[2].split(',')[0]; // File Name of first SS row
+    const ssRow2 = lines[3].split(',')[0]; // File Name of second SS row
+    expect(ssRow1).toContain('SystSuit');
+    expect(ssRow2).toContain('SystSuit');
+
+    // Experimental rows should NOT contain "SystSuit"
+    const expRow = lines[4].split(',')[0];
+    expect(expRow).not.toContain('SystSuit');
+  });
+
+  test('custom SS well position appears in exported CSV', async ({ page }) => {
+    // Open wizard
+    await page.getByRole('button', { name: 'Export Sequence' }).click();
+
+    // Step 1: System Suitability — set 1 run at start
+    await page.locator('input[type="number"]').first().fill('1'); // runsAtStart
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 2: Slot Assignment — select SS slot and change well to B3
+    const ssSlotSelect = page.locator('select').first();
+    await ssSlotSelect.selectOption('R');
+    // The well dropdown is the second select in the SS row
+    const wellSelect = page.locator('select').nth(1);
+    await wellSelect.selectOption('B3');
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 3: File Naming — select sample ID
+    await page.getByLabel('Sample Identifier').check();
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 4: Sample Categories
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 5: Paths & Methods
+    const pathInputs = page.locator('input[placeholder="D:\\\\Data\\\\Experiment"]');
+    await pathInputs.first().fill('D:\\Data');
+    const methodInputs = page.locator('input[placeholder="C:\\\\Methods\\\\method.meth"]');
+    await methodInputs.first().fill('C:\\Methods\\m.meth');
+    await page.getByRole('button', { name: /Apply first category/ }).click();
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 6: Download and verify
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download Sequence CSV' }).click();
+    const download = await downloadPromise;
+
+    const downloadPath = await download.path();
+    const csvContent = fs.readFileSync(downloadPath!, 'utf-8');
+    const lines = csvContent.split('\n').filter(l => l.trim() !== '');
+
+    // First data row is SS — position should be R:B3
+    const ssPosition = lines[2].split(',')[3];
+    expect(ssPosition).toBe('R:B3');
+  });
+
   test('wizard with no SS runs produces sequence without SS rows', async ({ page }) => {
     // Open wizard
     await page.getByRole('button', { name: 'Export Sequence' }).click();

@@ -74,6 +74,8 @@ const SequenceExportWizard: React.FC<SequenceExportWizardProps> = ({
             ssEnabled={wizard.ssConfig.runsAtStart > 0 || wizard.ssConfig.runsAtEnd > 0 || wizard.ssConfig.runsDuring > 0}
             plateCount={plates.length}
             oversizedPlateWarning={wizard.oversizedPlateWarning}
+            plateRows={plateRows}
+            plateCols={plateCols}
           />
         );
       case 3:

@@ -85,14 +85,14 @@ export function generateSequence(input: GenerateSequenceInput): GeneratedSequenc
       instrumentMethod: ssConfig.instrumentMethod,
       injectionVolume: ssConfig.injectionVolume,
     };
-    // SS position is derived from the SS slot assignment (e.g., "Y:A1")
-    const ssPosition = slotAssignment.ssSlot ? `${slotAssignment.ssSlot}:A1` : '';
+    // SS position is derived from the SS slot assignment and well (e.g., "Y:A1")
+    const ssPosition = slotAssignment.ssSlot ? `${slotAssignment.ssSlot}:${slotAssignment.ssWell || 'A1'}` : '';
     const fileName = generateFilename(
       fileNamingConfig.selectedFields,
       fileNamingConfig.separator,
       runCounter,
       totalExpectedRuns,
-      { category, sampleId: 'SS', plateWell: '', plateNumber: '' }
+      { category, sampleId: ssConfig.sampleIdentifier || 'SS', plateWell: '', plateNumber: '' }
     );
     const row: SequenceRow = {
       fileName,

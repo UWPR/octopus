@@ -32,12 +32,16 @@ export interface SystemSuitabilityConfig {
   instrumentMethod: string;
   /** Injection volume for SS runs (µL) */
   injectionVolume: number;
+  /** Sample identifier used in SS filenames (default: "SS") */
+  sampleIdentifier: string;
 }
 
 /** Plate-to-slot mapping */
 export interface SlotAssignment {
   /** Which slot is used for SS vial (null if SS disabled) */
   ssSlot: SlotColor | null;
+  /** Well position for SS vial within the slot (e.g., "A1") */
+  ssWell: string;
   /** Map from plate index (0-based) → assigned slot */
   plateSlots: Record<number, SlotColor>;
 }

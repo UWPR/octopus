@@ -40,6 +40,7 @@ const DEFAULT_SS_CONFIG: SystemSuitabilityConfig = {
   path: '',
   instrumentMethod: '',
   injectionVolume: 3,
+  sampleIdentifier: 'SS',
 };
 
 const DEFAULT_CATEGORY_SETTINGS: CategorySettings = {
@@ -188,7 +189,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     for (let i = 0; i < plates.length; i++) {
       plateSlots[i] = availableSlots[i % availableSlots.length];
     }
-    return { ssSlot: null, plateSlots };
+    return { ssSlot: null, ssWell: 'A1', plateSlots };
   });
 
   // Re-compute plate slots when SS slot changes
@@ -219,7 +220,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
       for (let i = 0; i < plates.length; i++) {
         newPlateSlots[i] = ALL_SLOTS[i % ALL_SLOTS.length];
       }
-      setSlotAssignment({ ssSlot: null, plateSlots: newPlateSlots });
+      setSlotAssignment({ ssSlot: null, ssWell: 'A1', plateSlots: newPlateSlots });
     }
   }, [ssConfig.runsAtStart, ssConfig.runsAtEnd, ssConfig.runsDuring, slotAssignment.ssSlot, plates.length]);
 
@@ -375,9 +376,10 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
   const canProceed = useMemo((): boolean => {
     switch (currentStep) {
       case 1: {
-        // Step 1: System Suitability — optional, just validate insertionInterval if runs configured
+        // Step 1: System Suitability — validate when SS runs are configured
         const hasSSRuns = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
         if (hasSSRuns && ssConfig.runsDuring > 0 && ssConfig.insertionInterval <= 0) return false;
+        if (hasSSRuns && !ssConfig.sampleIdentifier.trim()) return false;
         return true;
       }
       case 2: {
