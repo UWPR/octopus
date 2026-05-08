@@ -25,6 +25,9 @@ export const FileNamingStep: React.FC<FileNamingStepProps> = ({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  const UNSAFE_FILENAME_CHARS = /[/\\:*?"<>|]/;
+  const isUnsafeSeparator = UNSAFE_FILENAME_CHARS.test(separator);
+
   const isFieldSelected = (fieldId: string) =>
     selectedFields.some(f => f.id === fieldId);
 
@@ -104,6 +107,11 @@ export const FileNamingStep: React.FC<FileNamingStepProps> = ({
             />
           </label>
         </div>
+        {isUnsafeSeparator && (
+          <div style={styles.separatorWarning}>
+            ⚠ Character "{separator}" is not safe for Windows filenames. Consider using _, -, or . instead.
+          </div>
+        )}
       </div>
 
       {/* Field Selection */}
@@ -292,6 +300,15 @@ const styles: Record<string, React.CSSProperties> = {
   section: { marginBottom: '16px' },
   subheading: { margin: '0 0 8px 0', fontSize: '14px', fontWeight: 600 },
   separatorRow: { display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' },
+  separatorWarning: {
+    marginTop: '6px',
+    padding: '6px 10px',
+    backgroundColor: '#fff3cd',
+    border: '1px solid #ffc107',
+    borderRadius: '4px',
+    fontSize: '12px',
+    color: '#856404',
+  },
   radioLabel: {
     display: 'flex',
     alignItems: 'center',

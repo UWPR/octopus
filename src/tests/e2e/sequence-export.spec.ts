@@ -272,6 +272,30 @@ test.describe('Sequence Export Wizard', () => {
     await expect(page.getByRole('button', { name: 'Export Sequence' })).toBeVisible();
   });
 
+  test('unsafe separator character shows warning', async ({ page }) => {
+    // Open wizard
+    await page.getByRole('button', { name: 'Export Sequence' }).click();
+
+    // Step 1: System Suitability — skip
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 2: Slot Assignment — skip
+    await page.getByRole('button', { name: 'Next →' }).click();
+
+    // Step 3: File Naming — select Custom separator and type "/"
+    const customRadio = page.getByLabel('Custom:');
+    await customRadio.check();
+    const customInput = page.locator('input[maxlength="1"]');
+    await customInput.fill('/');
+
+    // Warning should appear
+    await expect(page.getByText(/not safe for Windows filenames/)).toBeVisible();
+
+    // Change to a safe character — warning should disappear
+    await customInput.fill('~');
+    await expect(page.getByText(/not safe for Windows filenames/)).not.toBeVisible();
+  });
+
   test('step indicator prevents forward navigation', async ({ page }) => {
     // Open wizard
     await page.getByRole('button', { name: 'Export Sequence' }).click();
