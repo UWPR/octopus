@@ -372,7 +372,7 @@ describe('sequenceExport - unit tests', () => {
       const input = makeDefaultInput({
         ssConfig: {
           enabled: true, runsAtStart: 1, runsAtEnd: 0, runsDuring: 0,
-          insertionInterval: 12, position: '', path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
+          insertionInterval: 12, path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
         },
         slotAssignment: { ssSlot: 'G', ssWell: 'C5', plateSlots: { 0: 'B' } },
       });
@@ -459,7 +459,6 @@ describe('sequenceExport - property-based tests', () => {
         runsAtEnd: 0,
         runsDuring: 0,
         insertionInterval: 12,
-        position: '',
         path: '',
         instrumentMethod: '',
         injectionVolume: 3,

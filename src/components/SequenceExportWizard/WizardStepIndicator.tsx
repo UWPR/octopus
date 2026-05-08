@@ -26,7 +26,7 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
                 ...(isCompleted ? styles.completedStep : {}),
                 ...(!isCompleted && !isActive ? styles.disabledStep : {}),
               }}
-              onClick={() => { if (isCompleted) goToStep(stepNum); }}
+              onClick={() => goToStep(stepNum)}
               aria-label={`Step ${stepNum}: ${label}`}
               aria-current={isActive ? 'step' : undefined}
               disabled={!isCompleted && !isActive}

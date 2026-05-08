@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { GeneratedSequence } from '../../../utils/sequenceExportTypes';
 
 interface PreviewExportStepProps {
@@ -32,13 +32,10 @@ export const PreviewExportStep: React.FC<PreviewExportStepProps> = ({
     COLUMNS.map(c => c.defaultWidth)
   );
 
-  const resizingRef = useRef<{ colIndex: number; startX: number; startWidth: number } | null>(null);
-
   const handleMouseDown = useCallback((e: React.MouseEvent, colIndex: number) => {
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = columnWidths[colIndex];
-    resizingRef.current = { colIndex, startX, startWidth };
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const diff = moveEvent.clientX - startX;
@@ -51,7 +48,6 @@ export const PreviewExportStep: React.FC<PreviewExportStepProps> = ({
     };
 
     const handleMouseUp = () => {
-      resizingRef.current = null;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SearchData } from '../../utils/types';
 import { useSequenceExportWizard, UseSequenceExportWizardProps } from '../../hooks/useSequenceExportWizard';
 import { WizardStepIndicator } from './WizardStepIndicator';
@@ -28,7 +28,7 @@ const STEP_LABELS = [
   'Slot Assignment',
   'File Naming',
   'Sample Categories',
-  'Paths & Methods',
+  'Paths & Instrument Methods',
   'Preview & Export',
 ];
 
@@ -121,6 +121,13 @@ const SequenceExportWizard: React.FC<SequenceExportWizardProps> = ({
         return null;
     }
   };
+
+  // Reset to step 1 when wizard is closed (Cancel)
+  useEffect(() => {
+    if (!visible) {
+      wizard.resetStep();
+    }
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!visible) return null;
 

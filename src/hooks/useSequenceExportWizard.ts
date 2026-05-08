@@ -60,8 +60,8 @@ const AVAILABLE_FIELDS: FilenameField[] = [
   { id: 'experimentName', label: 'Experiment Name', value: '' },
   { id: 'instrumentName', label: 'Instrument Name', value: '' },
   { id: 'sampleId', label: 'Sample Identifier' },
-  { id: 'plateWell', label: 'Plate Well' },
   { id: 'plateNumber', label: 'Plate Number' },
+  { id: 'plateWell', label: 'Plate Well' },
 ];
 
 // ─── Hook Props ──────────────────────────────────────────────────────────────
@@ -85,6 +85,7 @@ export interface UseSequenceExportWizardReturn {
   goToStep: (step: number) => void;
   nextStep: () => void;
   prevStep: () => void;
+  resetStep: () => void;
   canProceed: boolean;
 
   // Step 1: System Suitability
@@ -452,6 +453,10 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     }
   }, [currentStep]);
 
+  const resetStep = useCallback(() => {
+    setCurrentStep(1);
+  }, []);
+
   // ── Return ───────────────────────────────────────────────────────────────
 
   return {
@@ -459,6 +464,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     goToStep,
     nextStep,
     prevStep,
+    resetStep,
     canProceed,
 
     sampleCategories,
