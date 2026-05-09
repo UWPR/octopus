@@ -33,7 +33,13 @@ export const FileNamingStep: React.FC<FileNamingStepProps> = ({
   const toggleField = useCallback((field: FilenameField) => {
     const isSelected = selectedFields.some(f => f.id === field.id);
     if (isSelected) {
-      updateFileNaming({ selectedFields: selectedFields.filter(f => f.id !== field.id) });
+      const updates: Partial<FileNamingConfig> = { selectedFields: selectedFields.filter(f => f.id !== field.id) };
+      // Reset serial ID mode when Sample Identifier is deselected
+      if (field.id === 'sampleId') {
+        updates.sampleIdMode = 'original';
+        updates.generateMappingFile = false;
+      }
+      updateFileNaming(updates);
     } else {
       updateFileNaming({ selectedFields: [...selectedFields, field] });
     }

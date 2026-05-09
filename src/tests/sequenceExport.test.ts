@@ -44,7 +44,6 @@ function makeDefaultInput(overrides: Partial<GenerateSequenceInput> = {}): Gener
     categories: ['Experimental'],
   };
   const ssConfig: SystemSuitabilityConfig = overrides.ssConfig || {
-    enabled: true,
     runsAtStart: 0,
     runsAtEnd: 0,
     runsDuring: 0,
@@ -312,7 +311,7 @@ describe('sequenceExport - unit tests', () => {
     it('generates SS rows at start and end', () => {
       const input = makeDefaultInput({
         ssConfig: {
-          enabled: true, runsAtStart: 2, runsAtEnd: 3, runsDuring: 0,
+          runsAtStart: 2, runsAtEnd: 3, runsDuring: 0,
           insertionInterval: 12, path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
         },
         slotAssignment: { ssSlot: 'Y', ssWell: 'A1', plateSlots: { 0: 'B' } },
@@ -328,7 +327,7 @@ describe('sequenceExport - unit tests', () => {
     it('inserts SS runs during experiment at correct intervals', () => {
       const input = makeDefaultInput({
         ssConfig: {
-          enabled: true, runsAtStart: 0, runsAtEnd: 0, runsDuring: 1,
+          runsAtStart: 0, runsAtEnd: 0, runsDuring: 1,
           insertionInterval: 3, path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
         },
         slotAssignment: { ssSlot: 'Y', ssWell: 'A1', plateSlots: { 0: 'B' } },
@@ -371,7 +370,7 @@ describe('sequenceExport - unit tests', () => {
     it('uses configured SS well position in SS rows', () => {
       const input = makeDefaultInput({
         ssConfig: {
-          enabled: true, runsAtStart: 1, runsAtEnd: 0, runsDuring: 0,
+          runsAtStart: 1, runsAtEnd: 0, runsDuring: 0,
           insertionInterval: 12, path: '', instrumentMethod: '', injectionVolume: 3, sampleIdentifier: 'SS',
         },
         slotAssignment: { ssSlot: 'G', ssWell: 'C5', plateSlots: { 0: 'B' } },
@@ -454,7 +453,6 @@ describe('sequenceExport - property-based tests', () => {
       plates,
       sampleCategories: { assignments, categories: ['Experimental'] },
       ssConfig: {
-        enabled: true,
         runsAtStart: 0,
         runsAtEnd: 0,
         runsDuring: 0,
@@ -832,3 +830,4 @@ describe('useSequenceExportWizard hook', () => {
     });
   });
 });
+

@@ -172,6 +172,7 @@ export const SampleCategoryStep: React.FC<SampleCategoryStepProps> = ({
                     style={styles.removeButton}
                     onClick={() => removeCategory(cat)}
                     title={`Remove category "${cat}"`}
+                    aria-label={`Remove category ${cat}`}
                   >
                     ✕
                   </button>

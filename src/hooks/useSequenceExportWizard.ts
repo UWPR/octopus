@@ -31,7 +31,6 @@ const TOTAL_STEPS = 6;
 const ALL_SLOTS: SlotColor[] = ['Y', 'B', 'R', 'G'];
 
 const DEFAULT_SS_CONFIG: SystemSuitabilityConfig = {
-  enabled: true,
   runsAtStart: 0,
   runsAtEnd: 0,
   runsDuring: 0,
@@ -247,7 +246,10 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     });
   }, [sampleCategories.categories]);
 
-  // Reset sample categories and paths when QC config or plates change
+  // Reset sample categories and paths when QC column/values change.
+  // Note: plate changes alone don't trigger a reset because re-randomization doesn't
+  // change sample identities (same names, same QC flags). New file uploads cause a full
+  // remount via the React key={selectedFileName} on the wizard component.
   const prevQcColumnRef = useRef(qcColumn);
   const prevQcValuesRef = useRef(selectedQcValues);
   useEffect(() => {

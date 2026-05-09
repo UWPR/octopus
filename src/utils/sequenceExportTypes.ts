@@ -15,7 +15,6 @@ export interface SampleCategoryConfig {
 
 /** System suitability run configuration */
 export interface SystemSuitabilityConfig {
-  enabled: boolean;
   /** Number of SS runs before experimental samples (0–10) */
   runsAtStart: number;
   /** Number of SS runs after all experimental samples (0–10) */
@@ -73,8 +72,8 @@ export interface FilenameField {
   value?: string;
 }
 
-/** Separator character for filename fields */
-export type SeparatorChar = '-' | '_' | '.' | string;
+/** Separator character for filename fields (single character) */
+export type SeparatorChar = string;
 
 /** File naming template configuration */
 export interface FileNamingConfig {

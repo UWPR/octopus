@@ -9,7 +9,6 @@ import {
   SampleCategoryConfig,
   SystemSuitabilityConfig,
   SlotAssignment,
-  CategorySettings,
   PathsMethodsConfig,
   FileNamingConfig,
   FilenameField,
@@ -17,7 +16,6 @@ import {
   SequenceRow,
   GeneratedSequence,
   IdMapping,
-  SerialIdConfig,
 } from './sequenceExportTypes';
 
 // ─── Sequence Generation ─────────────────────────────────────────────────────
