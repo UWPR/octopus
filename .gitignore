@@ -30,6 +30,3 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 
-# Local data folders
-/ChrisWuData/
-/JPR-TechNote/
