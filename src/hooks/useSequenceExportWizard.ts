@@ -253,7 +253,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
   // Reset sample categories and paths when QC column/values change.
   // Note: plate changes alone don't trigger a reset because re-randomization doesn't
   // change sample identities (same names, same QC flags). New file uploads cause a full
-  // remount via the React key={selectedFileName} on the wizard component.
+  // remount via the React key={uploadCounter} on the wizard component.
   const prevQcColumnRef = useRef(qcColumn);
   const prevQcValuesRef = useRef(selectedQcValues);
   useEffect(() => {
@@ -313,17 +313,28 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
 
   const filenamePreview = useMemo(() => {
     if (fileNamingConfig.selectedFields.length === 0) return '';
+    // Count total samples for realistic padding preview
+    let previewTotalSamples = 0;
+    for (const plate of plates) {
+      for (const row of plate) {
+        for (const cell of row) {
+          if (cell !== undefined) previewTotalSamples++;
+        }
+      }
+    }
+    const totalSamples = Math.max(previewTotalSamples, 1);
+    const { startNumber, prefix } = fileNamingConfig.serialIdConfig;
     const sampleId = fileNamingConfig.sampleIdMode === 'serial'
-      ? `${fileNamingConfig.serialIdConfig.prefix}001`
+      ? generateSerialId(prefix, startNumber, totalSamples, startNumber)
       : 'SampleID';
     return generateFilename(
       fileNamingConfig.selectedFields,
       fileNamingConfig.separator,
       1,
-      100,
+      totalSamples,
       { category: 'Experimental', sampleId, plateWell: 'A01', plateNumber: 'Plate1' }
     );
-  }, [fileNamingConfig]);
+  }, [fileNamingConfig, plates]);
 
   // ── Step 6: Preview & Export ─────────────────────────────────────────────
 
