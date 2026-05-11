@@ -758,8 +758,6 @@ describe('useSequenceExportWizard hook', () => {
     ];
     return {
       plates,
-      searches: [makeSample('S1'), makeSample('S2'), makeSample('S3'), makeSample('S4')],
-      idColumn: 'name',
       plateRows: 2,
       plateCols: 2,
       ...overrides,

@@ -33,6 +33,7 @@ const App: React.FC = () => {
     availableColumns,
     selectedIdColumn,
     selectedFileName,
+    uploadCounter,
     handleFileUpload,
     handleIdColumnChange,
   } = useFileUpload();
@@ -812,10 +813,9 @@ const App: React.FC = () => {
         {/* Sequence Export Wizard */}
         {isProcessed && randomizedPlates.length > 0 && (
           <SequenceExportWizard
-            key={selectedFileName}
+            key={uploadCounter}
             plates={randomizedPlates}
             searches={searches}
-            idColumn={selectedIdColumn}
             qcColumn={qcColumn || undefined}
             selectedQcValues={selectedQcValues.length > 0 ? selectedQcValues : undefined}
             plateRows={plateRows}

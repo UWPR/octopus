@@ -67,8 +67,6 @@ const AVAILABLE_FIELDS: FilenameField[] = [
 
 export interface UseSequenceExportWizardProps {
   plates: (SearchData | undefined)[][][];
-  searches: SearchData[];
-  idColumn: string;
   qcColumn?: string;
   selectedQcValues?: string[];
   plateRows: number;
@@ -122,7 +120,7 @@ export interface UseSequenceExportWizardReturn {
 // ─── Hook Implementation ─────────────────────────────────────────────────────
 
 export function useSequenceExportWizard(props: UseSequenceExportWizardProps): UseSequenceExportWizardReturn {
-  const { plates, searches, idColumn, qcColumn, selectedQcValues, plateRows, plateCols, inputFileName } = props;
+  const { plates, qcColumn, selectedQcValues, plateRows, plateCols, inputFileName } = props;
 
   // ── Step Navigation ──────────────────────────────────────────────────────
 

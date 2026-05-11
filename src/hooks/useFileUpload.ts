@@ -8,6 +8,7 @@ export function useFileUpload() {
   const [selectedIdColumn, setSelectedIdColumn] = useState<string>('');
   const [selectedFileName, setSelectedFileName] = useState<string>('');
   const [searches, setSearches] = useState<SearchData[]>([]);
+  const [uploadCounter, setUploadCounter] = useState<number>(0);
 
   const processSearchData = (data: any[], idColumn: string): SearchData[] => {
     return data
@@ -23,6 +24,7 @@ export function useFileUpload() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setUploadCounter(c => c + 1);
       setSelectedFileName(file.name);
       Papa.parse(file, {
         header: true,
@@ -45,6 +47,8 @@ export function useFileUpload() {
           setSearches(processedSearches);
         },
       });
+      // Clear input value so re-selecting the same file triggers change event
+      event.target.value = '';
     }
   };
 
@@ -63,6 +67,7 @@ export function useFileUpload() {
     availableColumns,
     selectedIdColumn,
     selectedFileName,
+    uploadCounter,
     handleFileUpload,
     handleIdColumnChange,
   };

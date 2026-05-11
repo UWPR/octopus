@@ -13,7 +13,6 @@ import { PreviewExportStep } from './steps/PreviewExportStep';
 interface SequenceExportWizardProps {
   plates: (SearchData | undefined)[][][];
   searches: SearchData[];
-  idColumn: string;
   qcColumn?: string;
   selectedQcValues?: string[];
   plateRows: number;
@@ -35,7 +34,6 @@ const STEP_LABELS = [
 const SequenceExportWizard: React.FC<SequenceExportWizardProps> = ({
   plates,
   searches,
-  idColumn,
   qcColumn,
   selectedQcValues,
   plateRows,
@@ -46,8 +44,6 @@ const SequenceExportWizard: React.FC<SequenceExportWizardProps> = ({
 }) => {
   const wizardProps: UseSequenceExportWizardProps = {
     plates,
-    searches,
-    idColumn,
     qcColumn,
     selectedQcValues,
     plateRows,

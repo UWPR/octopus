@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { GeneratedSequence } from '../../../utils/sequenceExportTypes';
 
 interface PreviewExportStepProps {
@@ -32,8 +32,22 @@ export const PreviewExportStep: React.FC<PreviewExportStepProps> = ({
     COLUMNS.map(c => c.defaultWidth)
   );
 
+  // Store active drag cleanup function so we can call it on unmount
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      // Clean up any active drag listeners if component unmounts mid-drag
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+    };
+  }, []);
+
   const handleMouseDown = useCallback((e: React.MouseEvent, colIndex: number) => {
     e.preventDefault();
+    cleanupRef.current?.(); // dispose any stale listeners before starting a new drag
     const startX = e.clientX;
     const startWidth = columnWidths[colIndex];
 
@@ -50,10 +64,17 @@ export const PreviewExportStep: React.FC<PreviewExportStepProps> = ({
     const handleMouseUp = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      cleanupRef.current = null;
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+
+    // Store cleanup so unmount can remove listeners
+    cleanupRef.current = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
   }, [columnWidths]);
 
   return (
