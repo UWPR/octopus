@@ -213,8 +213,9 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
   const oversizedPlateWarning = plateRows > 8 || plateCols > 12;
 
   // Clear SS slot when SS runs are all set to 0
+  const { runsAtStart, runsAtEnd, runsDuring } = ssConfig;
   useEffect(() => {
-    if (!isSSActive(ssConfig) && slotAssignment.ssSlot !== null) {
+    if (!isSSActive({ runsAtStart, runsAtEnd, runsDuring }) && slotAssignment.ssSlot !== null) {
       // Clear SS slot and reassign all slots to plates
       const newPlateSlots: Record<number, SlotColor> = {};
       for (let i = 0; i < plates.length; i++) {
@@ -222,7 +223,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
       }
       setSlotAssignment({ ssSlot: null, ssWell: 'A1', plateSlots: newPlateSlots });
     }
-  }, [ssConfig.runsAtStart, ssConfig.runsAtEnd, ssConfig.runsDuring, slotAssignment.ssSlot, plates.length]);
+  }, [runsAtStart, runsAtEnd, runsDuring, slotAssignment.ssSlot, plates.length]);
 
   // ── Step 5: Paths & Methods ──────────────────────────────────────────────
 
@@ -285,13 +286,13 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
         newSettings[cat] = { ...existing, ...settings };
       }
       // Also apply to System Suitability if SS runs are configured
-      if (isSSActive(ssConfig)) {
+      if (isSSActive({ runsAtStart, runsAtEnd, runsDuring })) {
         const existing = prev.categorySettings['System Suitability'] || DEFAULT_CATEGORY_SETTINGS;
         newSettings['System Suitability'] = { ...existing, ...settings };
       }
       return { categorySettings: newSettings };
     });
-  }, [ssConfig.runsAtStart, ssConfig.runsAtEnd, ssConfig.runsDuring]);
+  }, [runsAtStart, runsAtEnd, runsDuring]);
 
   // ── Step 3: File Naming ──────────────────────────────────────────────────
 
