@@ -22,6 +22,7 @@ import {
   generateMappingCSV,
   generateFilename,
   generateSerialId,
+  computeTotalRuns,
 } from '../utils/sequenceExport';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -313,28 +314,20 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
 
   const filenamePreview = useMemo(() => {
     if (fileNamingConfig.selectedFields.length === 0) return '';
-    // Count total samples for realistic padding preview
-    let previewTotalSamples = 0;
-    for (const plate of plates) {
-      for (const row of plate) {
-        for (const cell of row) {
-          if (cell !== undefined) previewTotalSamples++;
-        }
-      }
-    }
-    const totalSamples = Math.max(previewTotalSamples, 1);
+    const { totalRuns, totalFilledWells } = computeTotalRuns(plates, ssConfig);
+    const sampleCount = Math.max(totalFilledWells, 1);
     const { startNumber, prefix } = fileNamingConfig.serialIdConfig;
     const sampleId = fileNamingConfig.sampleIdMode === 'serial'
-      ? generateSerialId(prefix, startNumber, totalSamples, startNumber)
+      ? generateSerialId(prefix, startNumber, sampleCount, startNumber)
       : 'SampleID';
     return generateFilename(
       fileNamingConfig.selectedFields,
       fileNamingConfig.separator,
       1,
-      totalSamples,
+      totalRuns,
       { category: 'Experimental', sampleId, plateWell: 'A01', plateNumber: 'Plate1' }
     );
-  }, [fileNamingConfig, plates]);
+  }, [fileNamingConfig, plates, ssConfig]);
 
   // ── Step 6: Preview & Export ─────────────────────────────────────────────
 

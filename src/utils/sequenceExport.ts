@@ -30,6 +30,37 @@ export interface GenerateSequenceInput {
 }
 
 /**
+ * Compute the total expected run count and filled well count for a given plate/SS configuration.
+ * Used for zero-padding width in filenames and serial ID generation.
+ * Shared between preview and export to prevent drift.
+ */
+export function computeTotalRuns(
+  plates: (SearchData | undefined)[][][],
+  ssConfig: { runsAtStart: number; runsAtEnd: number; runsDuring: number; insertionInterval: number }
+): { totalRuns: number; totalFilledWells: number } {
+  let totalFilledWells = 0;
+  for (const plate of plates) {
+    for (const row of plate) {
+      for (const cell of row) {
+        if (cell !== undefined) totalFilledWells++;
+      }
+    }
+  }
+  const ssActive = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
+  let totalRuns = totalFilledWells;
+  if (ssActive) {
+    totalRuns += ssConfig.runsAtStart + ssConfig.runsAtEnd;
+    // SS insertions trigger when sampleCounter > 0 && sampleCounter % interval == 0.
+    // The first sample (sampleCounter=0) never triggers, so max triggers = floor((count-1)/interval).
+    // The > 1 guard ensures we don't compute floor(0/interval) = 0 needlessly for single-sample plates.
+    if (ssConfig.runsDuring > 0 && ssConfig.insertionInterval > 0 && totalFilledWells > 1) {
+      totalRuns += Math.floor((totalFilledWells - 1) / ssConfig.insertionInterval) * ssConfig.runsDuring;
+    }
+  }
+  return { totalRuns, totalFilledWells };
+}
+
+/**
  * Generate the complete injection sequence from configuration and plate data.
  * Pure function — no side effects.
  */
@@ -43,31 +74,8 @@ export function generateSequence(input: GenerateSequenceInput): GeneratedSequenc
   // SS is considered active if any runs are configured
   const ssEnabled = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
 
-  // Compute total expected run count for zero-padding and SS insertion math
-  let totalExpectedRuns = 0;
-  if (ssEnabled) {
-    totalExpectedRuns += ssConfig.runsAtStart + ssConfig.runsAtEnd;
-  }
-  // Count total filled wells (all non-undefined cells across all plates, regardless of category).
-  // Used for SS insertion interval calculation and serial ID zero-padding.
-  let totalFilledWellCount = 0;
-  for (const plate of plates) {
-    for (const row of plate) {
-      for (const cell of row) {
-        if (cell !== undefined) {
-          totalFilledWellCount++;
-        }
-      }
-    }
-  }
-  totalExpectedRuns += totalFilledWellCount;
-  // SS insertions trigger when sampleCounter > 0 && sampleCounter % interval == 0.
-  // The first sample (sampleCounter=0) never triggers, so max triggers = floor((count-1)/interval).
-  // The > 1 guard ensures we don't compute floor(0/interval) = 0 needlessly for single-sample plates.
-  if (ssEnabled && ssConfig.runsDuring > 0 && ssConfig.insertionInterval > 0 && totalFilledWellCount > 1) {
-    const insertions = Math.floor((totalFilledWellCount - 1) / ssConfig.insertionInterval);
-    totalExpectedRuns += insertions * ssConfig.runsDuring;
-  }
+  // Use shared helper for total run count and filled well count
+  const { totalRuns: totalExpectedRuns, totalFilledWells: totalFilledWellCount } = computeTotalRuns(plates, ssConfig);
 
   // Serial ID counter for filename generation
   let serialIdCounter = fileNamingConfig.serialIdConfig.startNumber;
