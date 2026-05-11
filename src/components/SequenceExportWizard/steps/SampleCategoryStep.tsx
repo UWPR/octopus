@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SearchData } from '../../../utils/types';
 import { SampleCategoryConfig } from '../../../utils/sequenceExportTypes';
+import { RESERVED_CATEGORY_NAMES } from '../../../hooks/useSequenceExportWizard';
 
 interface SampleCategoryStepProps {
   sampleCategories: SampleCategoryConfig;
@@ -19,6 +20,7 @@ export const SampleCategoryStep: React.FC<SampleCategoryStepProps> = ({
 }) => {
   const [selectedSamples, setSelectedSamples] = useState<Set<string>>(new Set());
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryError, setCategoryError] = useState('');
 
   const hasExperimental = Object.values(sampleCategories.assignments).some(
     cat => cat === 'Experimental'
@@ -73,10 +75,18 @@ export const SampleCategoryStep: React.FC<SampleCategoryStepProps> = ({
 
   const handleAddCategory = () => {
     const trimmed = newCategoryName.trim();
-    if (trimmed && !sampleCategories.categories.includes(trimmed)) {
-      addCategory(trimmed);
-      setNewCategoryName('');
+    if (!trimmed) return;
+    if (RESERVED_CATEGORY_NAMES.some(r => r.toLowerCase() === trimmed.toLowerCase())) {
+      setCategoryError(`"${trimmed}" is a reserved name and cannot be used.`);
+      return;
     }
+    if (sampleCategories.categories.includes(trimmed)) {
+      setCategoryError(`"${trimmed}" already exists.`);
+      return;
+    }
+    setCategoryError('');
+    addCategory(trimmed);
+    setNewCategoryName('');
   };
 
   const allSelectedInCategory = (cat: string) => {
@@ -140,12 +150,13 @@ export const SampleCategoryStep: React.FC<SampleCategoryStepProps> = ({
           type="text"
           placeholder="New category name..."
           value={newCategoryName}
-          onChange={e => setNewCategoryName(e.target.value)}
+          onChange={e => { setNewCategoryName(e.target.value); setCategoryError(''); }}
           onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
         />
         <button style={styles.addButton} onClick={handleAddCategory}>
           Add Category
         </button>
+        {categoryError && <span style={styles.errorText}>{categoryError}</span>}
       </div>
 
       {/* Category sections */}
@@ -281,6 +292,11 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#1976d2',
     cursor: 'pointer',
     fontSize: '13px',
+  },
+  errorText: {
+    fontSize: '12px',
+    color: '#d32f2f',
+    marginLeft: '8px',
   },
   categoriesContainer: { display: 'flex', flexDirection: 'column', gap: '12px' },
   categorySection: {

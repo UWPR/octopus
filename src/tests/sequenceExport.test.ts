@@ -407,26 +407,6 @@ describe('sequenceExport - unit tests', () => {
 // ─── Property-Based Tests ────────────────────────────────────────────────────
 
 describe('sequenceExport - property-based tests', () => {
-  // Helper: generate a random plate with known samples
-  function arbPlate(rows: number, cols: number) {
-    return fc.gen().map(gen => {
-      const plate: (SearchData | undefined)[][] = [];
-      for (let r = 0; r < rows; r++) {
-        const row: (SearchData | undefined)[] = [];
-        for (let c = 0; c < cols; c++) {
-          const filled = gen(fc.boolean);
-          if (filled) {
-            row.push(makeSample(`P_R${r}C${c}`, {}, false));
-          } else {
-            row.push(undefined);
-          }
-        }
-        plate.push(row);
-      }
-      return plate;
-    });
-  }
-
   // Helper: build a valid GenerateSequenceInput from arbitrary params
   function buildInput(
     plates: (SearchData | undefined)[][][],

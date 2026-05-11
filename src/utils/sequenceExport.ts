@@ -43,7 +43,7 @@ export function generateSequence(input: GenerateSequenceInput): GeneratedSequenc
   // SS is considered active if any runs are configured
   const ssEnabled = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
 
-  // Count total experimental samples first (needed for run counter padding)
+  // Compute total expected run count for zero-padding and SS insertion math
   let totalExpectedRuns = 0;
   if (ssEnabled) {
     totalExpectedRuns += ssConfig.runsAtStart + ssConfig.runsAtEnd;

@@ -52,6 +52,9 @@ const DEFAULT_SERIAL_ID_CONFIG: SerialIdConfig = {
   startNumber: 1,
 };
 
+/** Category names reserved by the system — users cannot create these */
+export const RESERVED_CATEGORY_NAMES = ['Experimental', 'System Suitability'];
+
 const AVAILABLE_FIELDS: FilenameField[] = [
   { id: 'year', label: 'Year' },
   { id: 'month', label: 'Month' },
@@ -143,9 +146,12 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
   }, []);
 
   const addCategory = useCallback((name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (RESERVED_CATEGORY_NAMES.some(r => r.toLowerCase() === trimmed.toLowerCase())) return;
     setSampleCategories(prev => {
-      if (prev.categories.includes(name)) return prev;
-      return { ...prev, categories: [...prev.categories, name] };
+      if (prev.categories.includes(trimmed)) return prev;
+      return { ...prev, categories: [...prev.categories, trimmed] };
     });
   }, []);
 
