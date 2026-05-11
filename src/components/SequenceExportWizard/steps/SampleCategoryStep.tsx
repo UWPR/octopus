@@ -80,7 +80,7 @@ export const SampleCategoryStep: React.FC<SampleCategoryStepProps> = ({
       setCategoryError(`"${trimmed}" is a reserved name and cannot be used.`);
       return;
     }
-    if (sampleCategories.categories.includes(trimmed)) {
+    if (sampleCategories.categories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
       setCategoryError(`"${trimmed}" already exists.`);
       return;
     }
@@ -178,7 +178,7 @@ export const SampleCategoryStep: React.FC<SampleCategoryStepProps> = ({
                     {allSelected ? 'Deselect all' : 'Select all'}
                   </button>
                 )}
-                {cat !== 'Experimental' && (
+                {!RESERVED_CATEGORY_NAMES.includes(cat) && (
                   <button
                     style={styles.removeButton}
                     onClick={() => removeCategory(cat)}

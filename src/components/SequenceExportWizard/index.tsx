@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { SearchData } from '../../utils/types';
 import { useSequenceExportWizard, UseSequenceExportWizardProps } from '../../hooks/useSequenceExportWizard';
+import { isSSActive } from '../../utils/sequenceExport';
 import { WizardStepIndicator } from './WizardStepIndicator';
 import { WizardNavigation } from './WizardNavigation';
 import { SampleCategoryStep } from './steps/SampleCategoryStep';
@@ -67,7 +68,7 @@ const SequenceExportWizard: React.FC<SequenceExportWizardProps> = ({
           <SlotAssignmentStep
             slotAssignment={wizard.slotAssignment}
             updateSlotAssignment={wizard.updateSlotAssignment}
-            ssEnabled={wizard.ssConfig.runsAtStart > 0 || wizard.ssConfig.runsAtEnd > 0 || wizard.ssConfig.runsDuring > 0}
+            ssEnabled={isSSActive(wizard.ssConfig)}
             plateCount={plates.length}
             oversizedPlateWarning={wizard.oversizedPlateWarning}
             plateRows={plateRows}
@@ -94,8 +95,7 @@ const SequenceExportWizard: React.FC<SequenceExportWizardProps> = ({
           />
         );
       case 5: {
-        const ssActive = wizard.ssConfig.runsAtStart > 0 || wizard.ssConfig.runsAtEnd > 0 || wizard.ssConfig.runsDuring > 0;
-        const pathCategories = ssActive
+        const pathCategories = isSSActive(wizard.ssConfig)
           ? [...wizard.sampleCategories.categories, 'System Suitability']
           : wizard.sampleCategories.categories;
         return (

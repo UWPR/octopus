@@ -1,5 +1,5 @@
 import React from 'react';
-import { CategorySettings, PathsMethodsConfig } from '../../../utils/sequenceExportTypes';
+import { CategorySettings, DEFAULT_CATEGORY_SETTINGS, PathsMethodsConfig } from '../../../utils/sequenceExportTypes';
 
 interface PathsMethodsStepProps {
   pathsConfig: PathsMethodsConfig;
@@ -36,11 +36,7 @@ export const PathsMethodsStep: React.FC<PathsMethodsStepProps> = ({
 
       <div style={styles.categoriesContainer}>
         {categories.map(cat => {
-          const settings = pathsConfig.categorySettings[cat] || {
-            path: '',
-            instrumentMethod: '',
-            injectionVolume: 3,
-          };
+          const settings = pathsConfig.categorySettings[cat] || DEFAULT_CATEGORY_SETTINGS;
           const volumeValid = settings.injectionVolume >= 1 && settings.injectionVolume <= 20;
 
           return (

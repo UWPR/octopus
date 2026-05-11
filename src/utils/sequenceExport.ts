@@ -16,6 +16,8 @@ import {
   SequenceRow,
   GeneratedSequence,
   IdMapping,
+  DEFAULT_CATEGORY_SETTINGS,
+  UNSAFE_FILENAME_CHARS,
 } from './sequenceExportTypes';
 
 // ─── Sequence Generation ─────────────────────────────────────────────────────
@@ -27,6 +29,16 @@ export interface GenerateSequenceInput {
   slotAssignment: SlotAssignment;
   pathsConfig: PathsMethodsConfig;
   fileNamingConfig: FileNamingConfig;
+}
+
+/**
+ * True if any System Suitability runs are configured (start, end, or during).
+ * Single source of truth — call this instead of repeating the run-count check inline.
+ */
+export function isSSActive(
+  ssConfig: { runsAtStart: number; runsAtEnd: number; runsDuring: number }
+): boolean {
+  return ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
 }
 
 /**
@@ -46,9 +58,8 @@ export function computeTotalRuns(
       }
     }
   }
-  const ssActive = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
   let totalRuns = totalFilledWells;
-  if (ssActive) {
+  if (isSSActive(ssConfig)) {
     totalRuns += ssConfig.runsAtStart + ssConfig.runsAtEnd;
     // SS insertions trigger when sampleCounter > 0 && sampleCounter % interval == 0.
     // The first sample (sampleCounter=0) never triggers, so max triggers = floor((count-1)/interval).
@@ -71,8 +82,7 @@ export function generateSequence(input: GenerateSequenceInput): GeneratedSequenc
   const categoryCounts: Record<string, number> = {};
   let runCounter = 1;
 
-  // SS is considered active if any runs are configured
-  const ssEnabled = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
+  const ssEnabled = isSSActive(ssConfig);
 
   // Use shared helper for total run count and filled well count
   const { totalRuns: totalExpectedRuns, totalFilledWells: totalFilledWellCount } = computeTotalRuns(plates, ssConfig);
@@ -171,11 +181,7 @@ export function generateSequence(input: GenerateSequenceInput): GeneratedSequenc
           }
         );
 
-        const categorySettings = pathsConfig.categorySettings[category] || {
-          path: '',
-          instrumentMethod: '',
-          injectionVolume: 3,
-        };
+        const categorySettings = pathsConfig.categorySettings[category] || DEFAULT_CATEGORY_SETTINGS;
 
         const seqRow: SequenceRow = {
           fileName,
@@ -252,12 +258,25 @@ export function generateFilename(
 
   const fieldValues = selectedFields
     .filter(field => field.id !== 'runNumber') // run number is always appended last
-    .map(field => resolveFieldValue(field, context))
+    .map(field => sanitizeFilenameSegment(resolveFieldValue(field, context)))
     .filter(value => value !== ''); // skip empty values to avoid extra separators
 
-  // Always append run counter as final segment
+  // Always append run counter as final segment.
+  // Separator is validated upstream (canProceed step 3 rejects unsafe chars),
+  // so it is safe to use as-is here.
   const parts = [...fieldValues, paddedRun];
   return parts.join(separator);
+}
+
+// Global-flag version of UNSAFE_FILENAME_CHARS for use with replace().
+const UNSAFE_FILENAME_CHARS_GLOBAL = new RegExp(UNSAFE_FILENAME_CHARS.source, 'g');
+
+/**
+ * Make a filename segment safe for Windows: replace unsafe characters with
+ * underscore, then strip trailing dots and spaces (Windows rejects those).
+ */
+function sanitizeFilenameSegment(value: string): string {
+  return value.replace(UNSAFE_FILENAME_CHARS_GLOBAL, '_').replace(/[. ]+$/, '');
 }
 
 /**

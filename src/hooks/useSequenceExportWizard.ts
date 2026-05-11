@@ -6,12 +6,14 @@ import {
   SystemSuitabilityConfig,
   SlotAssignment,
   CategorySettings,
+  DEFAULT_CATEGORY_SETTINGS,
   PathsMethodsConfig,
   FileNamingConfig,
   FilenameField,
   SerialIdConfig,
   GeneratedSequence,
   IdMapping,
+  UNSAFE_FILENAME_CHARS,
 } from '../utils/sequenceExportTypes';
 import {
   generateSequence,
@@ -23,6 +25,7 @@ import {
   generateFilename,
   generateSerialId,
   computeTotalRuns,
+  isSSActive,
 } from '../utils/sequenceExport';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -40,12 +43,6 @@ const DEFAULT_SS_CONFIG: SystemSuitabilityConfig = {
   instrumentMethod: '',
   injectionVolume: 3,
   sampleIdentifier: 'SS',
-};
-
-const DEFAULT_CATEGORY_SETTINGS: CategorySettings = {
-  path: '',
-  instrumentMethod: '',
-  injectionVolume: 3,
 };
 
 const DEFAULT_SERIAL_ID_CONFIG: SerialIdConfig = {
@@ -151,7 +148,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     if (!trimmed) return;
     if (RESERVED_CATEGORY_NAMES.some(r => r.toLowerCase() === trimmed.toLowerCase())) return;
     setSampleCategories(prev => {
-      if (prev.categories.includes(trimmed)) return prev;
+      if (prev.categories.some(c => c.toLowerCase() === trimmed.toLowerCase())) return prev;
       return { ...prev, categories: [...prev.categories, trimmed] };
     });
   }, []);
@@ -217,8 +214,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
 
   // Clear SS slot when SS runs are all set to 0
   useEffect(() => {
-    const ssActive = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
-    if (!ssActive && slotAssignment.ssSlot !== null) {
+    if (!isSSActive(ssConfig) && slotAssignment.ssSlot !== null) {
       // Clear SS slot and reassign all slots to plates
       const newPlateSlots: Record<number, SlotColor> = {};
       for (let i = 0; i < plates.length; i++) {
@@ -289,9 +285,8 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
         newSettings[cat] = { ...existing, ...settings };
       }
       // Also apply to System Suitability if SS runs are configured
-      const ssActive = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
-      if (ssActive) {
-        const existing = prev.categorySettings['System Suitability'] || { path: '', instrumentMethod: '', injectionVolume: 3 };
+      if (isSSActive(ssConfig)) {
+        const existing = prev.categorySettings['System Suitability'] || DEFAULT_CATEGORY_SETTINGS;
         newSettings['System Suitability'] = { ...existing, ...settings };
       }
       return { categorySettings: newSettings };
@@ -387,15 +382,14 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     switch (currentStep) {
       case 1: {
         // Step 1: System Suitability — validate when SS runs are configured
-        const hasSSRuns = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
+        const hasSSRuns = isSSActive(ssConfig);
         if (hasSSRuns && ssConfig.runsDuring > 0 && ssConfig.insertionInterval <= 0) return false;
         if (hasSSRuns && !ssConfig.sampleIdentifier.trim()) return false;
         return true;
       }
       case 2: {
         // Step 2: Slot Assignment — SS slot required if SS active, all plates need slots
-        const ssActive2 = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
-        if (ssActive2 && !slotAssignment.ssSlot) return false;
+        if (isSSActive(ssConfig) && !slotAssignment.ssSlot) return false;
         for (let i = 0; i < plates.length; i++) {
           if (!slotAssignment.plateSlots[i]) return false;
         }
@@ -404,6 +398,8 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
       case 3: {
         // Step 3: File Naming
         if (fileNamingConfig.selectedFields.length === 0) return false;
+        // Separator must not contain Windows-unsafe filename characters
+        if (UNSAFE_FILENAME_CHARS.test(fileNamingConfig.separator)) return false;
         // Free-text fields must have a value entered
         const freeTextIds = ['projectName', 'experimentName', 'instrumentName'];
         for (const field of fileNamingConfig.selectedFields) {
@@ -422,8 +418,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
       }
       case 5: {
         // Step 5: Paths & Methods — all categories must have non-empty path and method, volume in 1–20
-        const ssActive = ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0;
-        const categoriesToValidate = ssActive
+        const categoriesToValidate = isSSActive(ssConfig)
           ? [...sampleCategories.categories, 'System Suitability']
           : sampleCategories.categories;
         for (const cat of categoriesToValidate) {

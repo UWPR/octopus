@@ -1,5 +1,6 @@
 import React from 'react';
 import { SystemSuitabilityConfig, UNSAFE_FILENAME_CHARS } from '../../../utils/sequenceExportTypes';
+import { isSSActive } from '../../../utils/sequenceExport';
 
 interface SystemSuitabilityStepProps {
   ssConfig: SystemSuitabilityConfig;
@@ -48,6 +49,7 @@ export const SystemSuitabilityStep: React.FC<SystemSuitabilityStepProps> = ({
               style={styles.numberInput}
               type="number"
               min={0}
+              max={10}
               value={ssConfig.runsDuring}
               onChange={e => updateSSConfig({ runsDuring: parseInt(e.target.value) || 0 })}
             />
@@ -73,7 +75,7 @@ export const SystemSuitabilityStep: React.FC<SystemSuitabilityStepProps> = ({
           <input
             style={{
               ...styles.textInput,
-              ...(!ssConfig.sampleIdentifier.trim() && (ssConfig.runsAtStart > 0 || ssConfig.runsAtEnd > 0 || ssConfig.runsDuring > 0)
+              ...(!ssConfig.sampleIdentifier.trim() && isSSActive(ssConfig)
                 ? { borderColor: '#d32f2f' } : {}),
             }}
             type="text"

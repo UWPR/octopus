@@ -50,6 +50,13 @@ export interface CategorySettings {
   injectionVolume: number;
 }
 
+/** Default values for a newly-created category's path/method/volume settings. */
+export const DEFAULT_CATEGORY_SETTINGS: CategorySettings = {
+  path: '',
+  instrumentMethod: '',
+  injectionVolume: 3,
+};
+
 /** Paths and methods configuration for all categories */
 export interface PathsMethodsConfig {
   categorySettings: Record<string, CategorySettings>;
@@ -123,5 +130,5 @@ export interface IdMapping {
   wellPosition: string;
 }
 
-/** Regex matching characters unsafe for Windows filenames */
-export const UNSAFE_FILENAME_CHARS = /[/\\:*?"<>|]/;
+/** Regex matching characters unsafe for Windows filenames (includes ASCII control chars). */
+export const UNSAFE_FILENAME_CHARS = /[/\\:*?"<>|\x00-\x1F]/;

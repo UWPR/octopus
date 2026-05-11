@@ -90,11 +90,12 @@ export const SlotAssignmentStep: React.FC<SlotAssignmentStepProps> = ({
           <div key={i} style={styles.plateRow}>
             <span style={styles.plateRowLabel}>Plate {i + 1}:</span>
             <select
+              aria-label={`Plate ${i + 1} slot`}
               style={styles.select}
               value={slotAssignment.plateSlots[i] || ''}
               onChange={e => {
                 const newPlateSlots = { ...slotAssignment.plateSlots, [i]: e.target.value as SlotColor };
-                updateSlotAssignment({ plateSlots: newPlateSlots } as Partial<SlotAssignment>);
+                updateSlotAssignment({ plateSlots: newPlateSlots });
               }}
             >
               {availableForPlates.map(slot => (

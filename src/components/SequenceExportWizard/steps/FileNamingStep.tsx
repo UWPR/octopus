@@ -100,7 +100,11 @@ export const FileNamingStep: React.FC<FileNamingStepProps> = ({
               type="radio"
               name="separator"
               checked={isCustomSeparator}
-              onChange={() => updateFileNaming({ separator: '~' })}
+              onChange={() => {
+                // Only seed '~' when switching INTO custom mode;
+                // preserve whatever the user already typed if already custom.
+                if (!isCustomSeparator) updateFileNaming({ separator: '~' });
+              }}
             />
             Custom:
             <input
@@ -182,6 +186,7 @@ export const FileNamingStep: React.FC<FileNamingStepProps> = ({
                     style={styles.orderButton}
                     onClick={() => moveField(idx, idx - 1)}
                     disabled={idx === 0}
+                    aria-label={`Move ${field.label} up`}
                   >
                     ↑
                   </button>
@@ -189,6 +194,7 @@ export const FileNamingStep: React.FC<FileNamingStepProps> = ({
                     style={styles.orderButton}
                     onClick={() => moveField(idx, idx + 1)}
                     disabled={idx === selectedFields.length - 1}
+                    aria-label={`Move ${field.label} down`}
                   >
                     ↓
                   </button>
