@@ -147,8 +147,8 @@ export function calculateExpectedMinimums(
     ([key, samples]) => ({ key, size: samples.length })
   );
 
-  // Precompute surplus samples per group: how many extra slots (beyond floor)
-  // each group can receive across all blocks. This prevents over-allocation
+  // Precompute surplus samples per group: how many extra samples (beyond floor)
+  // each group still needs to place across all blocks. This prevents over-allocation
   // when a later block's unconditional floor would push the group past its total size.
   const surplusSamples = new Map<string, number>();
   groups.forEach(g => {
@@ -202,34 +202,34 @@ export function calculateExpectedMinimums(
       return { key: g.key, frac: quota - floor };
     });
 
-    // Distribute deficit slots one at a time using largest-remainder
-    // with bump budget eligibility and smallest-running-allocation tiebreak.
+    // Distribute deficit wells one at a time using largest-remainder
+    // with surplus-samples eligibility and smallest-running-allocation tiebreak.
     let deficit = cap - placedOnBlock;
-    const bumpedOnThisBlock = new Set<string>();
+    const gotExtraOnThisBlock = new Set<string>();
     while (deficit > 0) {
       const eligible = cells
         .filter(c =>
           surplusUsed.get(c.key)! < surplusSamples.get(c.key)! &&
-          !bumpedOnThisBlock.has(c.key)
+          !gotExtraOnThisBlock.has(c.key)
         )
         .sort((a, b) =>
           b.frac - a.frac || placed.get(a.key)! - placed.get(b.key)!
         );
 
       if (eligible.length === 0) {
-        // All budget-remaining groups have already received +1 on this block.
-        // This can occur when few groups have tight budgets and the tiebreak
-        // concentrates bumps on earlier blocks. Clear the per-block set to
-        // allow a second +1 — the global surplus limit still prevents over-allocation.
-        const budgetRemaining = cells.filter(c =>
+        // All groups with surplus remaining have already received an extra sample
+        // on this block. This can occur when few groups have small surplus and the
+        // tiebreak concentrates extras on earlier blocks. Clear the per-block set
+        // to allow a second extra — the global surplus limit still prevents over-allocation.
+        const surplusRemaining = cells.filter(c =>
           surplusUsed.get(c.key)! < surplusSamples.get(c.key)!
         );
-        if (budgetRemaining.length > 0) {
-          bumpedOnThisBlock.clear();
+        if (surplusRemaining.length > 0) {
+          gotExtraOnThisBlock.clear();
           continue;
         }
-        // Truly no budget remaining anywhere. When totalSamples < totalCapacity
-        // this is expected (remaining deficit = empty slots). Otherwise it's a bug.
+        // Truly no surplus remaining anywhere. When totalSamples < totalCapacity
+        // this is expected (remaining deficit = empty wells). Otherwise it's a bug.
         if (totalSamples < totalCapacity) {
           break;
         }
@@ -243,7 +243,7 @@ export function calculateExpectedMinimums(
       alloc[pick.key] += 1;
       placed.set(pick.key, placed.get(pick.key)! + 1);
       surplusUsed.set(pick.key, surplusUsed.get(pick.key)! + 1);
-      bumpedOnThisBlock.add(pick.key);
+      gotExtraOnThisBlock.add(pick.key);
       deficit -= 1;
     }
 
