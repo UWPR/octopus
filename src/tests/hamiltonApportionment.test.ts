@@ -327,6 +327,44 @@ describe('Hamilton Apportionment - Gap D: Under-capacity over-allocation', () =>
   });
 });
 
+// ─── Gap E: Integer quota under-capacity must not round up ──────────────────
+
+describe('Hamilton Apportionment - Gap E: Integer-quota cells under capacity', () => {
+  // Block capacities [6, 11, 13] (totalCapacity = 30) with one group size 10
+  // (totalSamples = 10). Quotas: 2.0 on the cap-6 block (integer; floor == ceil),
+  // 3.667 on cap-11, 4.333 on cap-13. surplusSamples = 10 - (2+3+4) = 1.
+  // Bug: eligibility filter only checked surplus remaining, so the cap-6 block
+  // could receive the +1 even though its quota was already an integer —
+  // alloc 3 violates ceil(2.0) = 2.
+  const blockCapacities = [6, 11, 13];
+  const groupSizes = { G: 10 };
+  const groups = makeGroups(groupSizes);
+
+  test('integer-quota block does not exceed its quota', () => {
+    const result = calculateExpectedMinimums(blockCapacities, groups, BlockType.PLATE);
+    // Find the block with cap 6 — it's the only one with an integer quota.
+    let cap6BlockIdx = -1;
+    for (let p = 0; p < blockCapacities.length; p++) {
+      if (blockCapacities[p] === 6) {
+        cap6BlockIdx = p;
+        break;
+      }
+    }
+    expect(result[cap6BlockIdx]['G']).toBe(2);
+  });
+
+  test('every cell respects floor ≤ alloc ≤ ceil of (size × cap / totalCap)', () => {
+    const result = calculateExpectedMinimums(blockCapacities, groups, BlockType.PLATE);
+    assertHamiltonInvariants(result, blockCapacities, groupSizes, { expectFilled: false });
+  });
+
+  test('group total equals group size', () => {
+    const result = calculateExpectedMinimums(blockCapacities, groups, BlockType.PLATE);
+    const gTotal = result[0]['G'] + result[1]['G'] + result[2]['G'];
+    expect(gTotal).toBe(10);
+  });
+});
+
 
 // ─── Regression Tests: Unchanged Behavior (3.1–3.4) ─────────────────────────
 

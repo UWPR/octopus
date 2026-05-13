@@ -201,11 +201,17 @@ export function calculateExpectedMinimums(
 
     // Distribute deficit wells one at a time using largest-remainder
     // with surplus-samples eligibility and smallest-running-allocation tiebreak.
+    // The `c.frac > FRAC_EPSILON` filter prevents rounding-up cells whose quota
+    // is already an integer (floor == ceil); allocating an extra to such a cell
+    // would violate Hamilton's ±1 bound. Epsilon guards against floating-point
+    // dust from the quota computation.
     let deficit = cap - placedOnBlock;
     const gotExtraOnThisBlock = new Set<string>();
+    const FRAC_EPSILON = 1e-9;
     while (deficit > 0) {
       const eligible = cells
         .filter(c =>
+          c.frac > FRAC_EPSILON &&
           surplusUsed.get(c.key)! < surplusSamples.get(c.key)! &&
           !gotExtraOnThisBlock.has(c.key)
         )
