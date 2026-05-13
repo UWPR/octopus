@@ -203,7 +203,9 @@ caller chooses.
 
 ### Pointers for whoever picks this up
 
-- `src/algorithms/repeatedMeasuresDistribution.ts:1361` — call site to update.
+- `src/algorithms/repeatedMeasuresDistribution.ts:1365` — the `rowCapacities`
+  assignment to update (and the `calculateExpectedMinimums` call two lines
+  below it).
 - `src/algorithms/balancedRandomization.ts:216–223` — branch to remove from
   Hamilton.
 - `src/tests/hamiltonApportionment.test.ts` "Gap D" describe block — tests to

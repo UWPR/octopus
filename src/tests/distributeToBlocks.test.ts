@@ -528,7 +528,7 @@ describe('calculateExpectedMinimums', () => {
     expect(g3Total).toBe(6);
 
     // Each cell within ±1 of ideal (groupSize × plateCap / totalCap)
-    const totalCap = 36;
+    const totalCap = blockCapacities.reduce((a, b) => a + b, 0);
     for (let p = 0; p < 3; p++) {
       for (const [key, size] of [['Male|P_1|Control', 20], ['Female|P_2|Blinded', 10], ['Male|P_3|X-Ray', 6]] as [string, number][]) {
         const ideal = (size * blockCapacities[p]) / totalCap;
@@ -554,7 +554,7 @@ describe('calculateExpectedMinimums', () => {
     }).toThrow('Cannot distribute 36 samples across rows with total capacity 24');
   });
 
-  test('Should handle single block case (capacity ratio = 1)', () => {
+  test('Should place all samples on the single block when there is only one', () => {
     const covariateGroups = createTestGroups();
     const blockCapacities = [36]; // Single plate with capacity = total samples
     const blockType = BlockType.PLATE;
@@ -565,7 +565,7 @@ describe('calculateExpectedMinimums', () => {
       blockType
     );
 
-    // With single block, capacity ratio should be 1 for all groups
+    // With a single block, every group's quota equals its full size.
     expect(result[0]['Male|P_1|Control']).toBe(20); // All 20 samples
     expect(result[0]['Female|P_2|Blinded']).toBe(10); // All 10 samples
     expect(result[0]['Male|P_3|X-Ray']).toBe(6); // All 6 samples
