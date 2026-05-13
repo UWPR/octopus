@@ -217,10 +217,18 @@ export function calculateExpectedMinimums(
         );
 
       if (eligible.length === 0) {
-        // All groups with surplus remaining have already received an extra sample
-        // on this block, but deficit > 0 remains. This can happen when only a few
-        // groups have surplus to distribute and this block's deficit exceeds the
-        // number of eligible groups.
+        // Under-capacity (totalSamples < totalCapacity): any remaining deficit
+        // becomes empty wells. We must NOT round-reset here — doing so would let
+        // a group exceed ceil(quota) on this block (e.g., 4 blocks cap=10 with
+        // one group of size 35 would put 10 on the first block instead of 9).
+        if (totalSamples < totalCapacity) {
+          break;
+        }
+        // Exact-capacity case (totalSamples == totalCapacity): all groups with
+        // surplus remaining have already received an extra sample on this block,
+        // but deficit > 0 remains. This can happen when only a few groups have
+        // surplus to distribute and this block's deficit exceeds the number of
+        // eligible groups.
         // Clear the per-block "already got an extra" set to allow a second extra —
         // the global surplus limit still prevents over-allocation.
         const surplusRemaining = cells.filter(c =>
@@ -229,11 +237,6 @@ export function calculateExpectedMinimums(
         if (surplusRemaining.length > 0) {
           gotExtraOnThisBlock.clear();
           continue;
-        }
-        // Truly no surplus remaining anywhere. When totalSamples < totalCapacity
-        // this is expected (remaining deficit = empty wells). Otherwise it's a bug.
-        if (totalSamples < totalCapacity) {
-          break;
         }
         throw new Error(
           `${blockType} ${blockIdx + 1}: ${deficit} samples unallocated. ` +

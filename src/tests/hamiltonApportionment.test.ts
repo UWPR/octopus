@@ -287,6 +287,39 @@ describe('Hamilton Apportionment - Gap C: Row-level usage', () => {
   });
 });
 
+// ─── Gap D: Under-capacity must not over-allocate ───────────────────────────
+
+describe('Hamilton Apportionment - Gap D: Under-capacity over-allocation', () => {
+  // 4 blocks cap=10 each (totalCap=40), one group size 35 (totalSamples=35).
+  // Per-block quota = 8.75 → floor=8, ceil=9. Hamilton requires every cell to
+  // be 8 or 9; ideal distribution is 9, 9, 9, 8 with empty wells trailing.
+  // Bug: round-reset path could place G=10 on the first processed block (floor+2).
+  const blockCapacities = [10, 10, 10, 10];
+  const groupSizes = { G: 35 };
+  const groups = makeGroups(groupSizes);
+
+  test('no block exceeds ceil(quota) when totalSamples < totalCapacity', () => {
+    const result = calculateExpectedMinimums(blockCapacities, groups, 10, BlockType.PLATE);
+    for (let p = 0; p < 4; p++) {
+      expect(result[p]['G']).toBeGreaterThanOrEqual(8);
+      expect(result[p]['G']).toBeLessThanOrEqual(9);
+    }
+  });
+
+  test('group total equals group size (all 35 samples placed)', () => {
+    const result = calculateExpectedMinimums(blockCapacities, groups, 10, BlockType.PLATE);
+    const gTotal = result[0]['G'] + result[1]['G'] + result[2]['G'] + result[3]['G'];
+    expect(gTotal).toBe(35);
+  });
+
+  test('exactly three blocks get 9 and one block gets 8', () => {
+    const result = calculateExpectedMinimums(blockCapacities, groups, 10, BlockType.PLATE);
+    const counts = [result[0]['G'], result[1]['G'], result[2]['G'], result[3]['G']];
+    expect(counts.filter(c => c === 9).length).toBe(3);
+    expect(counts.filter(c => c === 8).length).toBe(1);
+  });
+});
+
 
 // ─── Regression Tests: Unchanged Behavior (3.1–3.4) ─────────────────────────
 
