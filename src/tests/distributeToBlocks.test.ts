@@ -77,7 +77,7 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
 
     const maxCapacity = 20;
     const blockType = BlockType.PLATE;
-    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, maxCapacity, blockType);
+    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, blockType);
 
     const result = distributeToBlocks(
       covariateGroups,
@@ -159,7 +159,7 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
 
     const maxCapacity = 30;
     const blockType = BlockType.PLATE;
-    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, maxCapacity, blockType);
+    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, blockType);
 
     const result = distributeToBlocks(
       covariateGroups,
@@ -245,7 +245,7 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
 
     const maxCapacity = 40;
     const blockType = BlockType.PLATE;
-    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, maxCapacity, blockType);
+    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, blockType);
     expect(expectedMinimums).toBeDefined();
     expect(Object.keys(expectedMinimums).length).toBe(3);
 
@@ -459,13 +459,11 @@ describe('calculateExpectedMinimums', () => {
   test('Should calculate expected minimums for plates with equal capacities', () => {
     const covariateGroups = createTestGroups();
     const blockCapacities = [12, 12, 12]; // 3 plates with 12 capacity each
-    const fullBlockCapacity = 12;
     const blockType = BlockType.PLATE;
 
     const result = calculateExpectedMinimums(
       blockCapacities,
       covariateGroups,
-      fullBlockCapacity,
       blockType
     );
 
@@ -506,13 +504,11 @@ describe('calculateExpectedMinimums', () => {
   test('Should calculate expected minimums for plates with unequal capacities', () => {
     const covariateGroups = createTestGroups();
     const blockCapacities = [20, 10, 6]; // Different capacities
-    const fullBlockCapacity = 20; // Full capacity
     const blockType = BlockType.PLATE;
 
     const result = calculateExpectedMinimums(
       blockCapacities,
       covariateGroups,
-      fullBlockCapacity,
       blockType
     );
 
@@ -545,7 +541,6 @@ describe('calculateExpectedMinimums', () => {
   test('Should calculate expected minimums for rows with equal capacities', () => {
     const covariateGroups = createTestGroups();
     const blockCapacities = [6, 6, 6, 6]; // 4 rows with 6 columns each
-    const fullBlockCapacity = 6; // Full row capacity
     const blockType = BlockType.ROW;
 
     // This test case has 36 total samples but only 24 total capacity (4 * 6)
@@ -554,7 +549,6 @@ describe('calculateExpectedMinimums', () => {
       calculateExpectedMinimums(
         blockCapacities,
         covariateGroups,
-        fullBlockCapacity,
         blockType
       );
     }).toThrow('Cannot distribute 36 samples across rows with total capacity 24');
@@ -562,14 +556,12 @@ describe('calculateExpectedMinimums', () => {
 
   test('Should handle single block case (capacity ratio = 1)', () => {
     const covariateGroups = createTestGroups();
-    const blockCapacities = [36]; // Single plate with capacity = total samples. This is less than full block capacity.
-    const fullBlockCapacity = 50;
+    const blockCapacities = [36]; // Single plate with capacity = total samples
     const blockType = BlockType.PLATE;
 
     const result = calculateExpectedMinimums(
       blockCapacities,
       covariateGroups,
-      fullBlockCapacity,
       blockType
     );
 

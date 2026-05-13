@@ -1364,7 +1364,6 @@ export function groupAwareRandomization(
       const expectedRowMinimums = calculateExpectedMinimums(
         rowCapacities,
         plateGroups2,
-        maxEffectiveRowCapacity,
         BlockType.ROW
       );
 

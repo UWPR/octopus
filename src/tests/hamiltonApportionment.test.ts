@@ -97,12 +97,12 @@ describe('Hamilton Apportionment - Example 1: 127-sample asymmetric', () => {
   const groups = makeGroups(groupSizes);
 
   test('invariants hold (per-plate sum, per-group sum, ±1 of ideal)', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 96, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
   test('exact values: Plate 2 allocation matches Hamilton trace', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 96, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     // From bugfix.md Example 1 Hamilton trace:
     expect(result[1]['Red']).toBe(11);
     expect(result[1]['Blue']).toBe(6);
@@ -113,7 +113,7 @@ describe('Hamilton Apportionment - Example 1: 127-sample asymmetric', () => {
   });
 
   test('exact values: Plate 1 allocation matches Hamilton trace', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 96, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     expect(result[0]['Red']).toBe(33);
     expect(result[0]['Blue']).toBe(21);
     expect(result[0]['Green']).toBe(15);
@@ -131,12 +131,12 @@ describe('Hamilton Apportionment - Example 2: Three plates, tiny last', () => {
   const groups = makeGroups(groupSizes);
 
   test('invariants hold', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 96, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
   test('Plate 3 (smallest) allocation is deterministic', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 96, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     // P3 processed first (smallest). Quotas: A=3.2, B=2.4, C=1.6, D=0.8
     // Floors: A=3, B=2, C=1, D=0. Deficit=2. Top remainders: D(0.8), C(0.6)
     expect(result[2]['GroupA']).toBe(3);
@@ -154,12 +154,12 @@ describe('Hamilton Apportionment - Example 3: Many small QC groups', () => {
   const groups = makeGroups(groupSizes);
 
   test('invariants hold', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 72, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
   test('all 4 QC types get exactly 3 on Plate 2', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 72, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     // QC quotas on P2: 10×28/100 = 2.8 → floor 2, remainder 0.8 (top remainders)
     expect(result[1]['QCA']).toBe(3);
     expect(result[1]['QCB']).toBe(3);
@@ -168,7 +168,7 @@ describe('Hamilton Apportionment - Example 3: Many small QC groups', () => {
   });
 
   test('exactly one experimental group gets 4 on Plate 2 (others get 3)', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 72, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     const expCounts = [result[1]['Exp1'], result[1]['Exp2'], result[1]['Exp3'], result[1]['Exp4'], result[1]['Exp5']];
     expect(expCounts.filter(c => c === 4).length).toBe(1);
     expect(expCounts.filter(c => c === 3).length).toBe(4);
@@ -183,12 +183,12 @@ describe('Hamilton Apportionment - Example 4: keepEmpty=false equal plates', () 
   const groups = makeGroups(groupSizes);
 
   test('invariants hold', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 96, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
   test('exact values: tiebreak picks D over B (smallest running allocation)', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 96, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     // Quotas: A=30.0, B=22.5, C=15.0, D=7.5. Deficit=1.
     // Tied remainders: B(0.5), D(0.5). Tiebreak: D has smaller running (7 vs 22).
     // First plate processed: D gets +1 → D=8. Second plate: D gets 7, B gets 23.
@@ -210,12 +210,12 @@ describe('Hamilton Apportionment - Example 5: Group smaller than numPlates', () 
   const groups = makeGroups(groupSizes);
 
   test('invariants hold', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 16, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
   test('Plate 4 (smallest) gets Large=2, Tiny=0, Medium=0', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 16, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     // P4 quota: Large 40×2/50=1.6, Tiny 3×2/50=0.12, Medium 7×2/50=0.28
     // Floors: Large=1, Tiny=0, Medium=0. Deficit=1. Top remainder: Large(0.6)
     expect(result[3]['Large']).toBe(2);
@@ -224,7 +224,7 @@ describe('Hamilton Apportionment - Example 5: Group smaller than numPlates', () 
   });
 
   test('Tiny is distributed across exactly 3 plates (1 each)', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 16, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     const tinyPerPlate = [result[0]['Tiny'], result[1]['Tiny'], result[2]['Tiny'], result[3]['Tiny']];
     expect(tinyPerPlate.filter(c => c === 1).length).toBe(3);
     expect(tinyPerPlate.filter(c => c === 0).length).toBe(1);
@@ -245,12 +245,12 @@ describe('Hamilton Apportionment - Gap A: Surplus limit eligibility', () => {
   const groups = makeGroups(groupSizes);
 
   test('invariants hold (invariant to plate shuffle order since all four plates have equal capacity)', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 4, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
   test('group totals are exact (G=6, H=10) — catches placed<size eligibility bug', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 4, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     let gTotal = 0, hTotal = 0;
     for (let p = 0; p < 4; p++) {
       gTotal += result[p]['G'];
@@ -272,12 +272,12 @@ describe('Hamilton Apportionment - Gap B: Order trap tiebreak', () => {
   const groups = makeGroups(groupSizes);
 
   test('invariants hold', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 2, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
   test('every plate has at least 2 distinct groups — catches missing tiebreak', () => {
-    const result = calculateExpectedMinimums(plateCapacities, groups, 2, BlockType.PLATE);
+    const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     for (let p = 0; p < 3; p++) {
       const distinctGroups = Object.values(result[p]).filter(c => c > 0).length;
       expect(distinctGroups).toBeGreaterThanOrEqual(2);
@@ -295,7 +295,7 @@ describe('Hamilton Apportionment - Gap C: Row-level usage', () => {
   const groups = makeGroups(groupSizes);
 
   test('invariants hold for row-level distribution', () => {
-    const result = calculateExpectedMinimums(rowCapacities, groups, 12, BlockType.ROW);
+    const result = calculateExpectedMinimums(rowCapacities, groups, BlockType.ROW);
     assertHamiltonInvariants(result, rowCapacities, groupSizes);
   });
 });
@@ -312,18 +312,18 @@ describe('Hamilton Apportionment - Gap D: Under-capacity over-allocation', () =>
   const groups = makeGroups(groupSizes);
 
   test('no block exceeds ceil(quota) when totalSamples < totalCapacity', () => {
-    const result = calculateExpectedMinimums(blockCapacities, groups, 10, BlockType.PLATE);
+    const result = calculateExpectedMinimums(blockCapacities, groups, BlockType.PLATE);
     assertHamiltonInvariants(result, blockCapacities, groupSizes, { expectFilled: false });
   });
 
   test('group total equals group size (all 35 samples placed)', () => {
-    const result = calculateExpectedMinimums(blockCapacities, groups, 10, BlockType.PLATE);
+    const result = calculateExpectedMinimums(blockCapacities, groups, BlockType.PLATE);
     const gTotal = result[0]['G'] + result[1]['G'] + result[2]['G'] + result[3]['G'];
     expect(gTotal).toBe(35);
   });
 
   test('exactly three blocks get 9 and one block gets 8', () => {
-    const result = calculateExpectedMinimums(blockCapacities, groups, 10, BlockType.PLATE);
+    const result = calculateExpectedMinimums(blockCapacities, groups, BlockType.PLATE);
     const counts = [result[0]['G'], result[1]['G'], result[2]['G'], result[3]['G']];
     expect(counts.filter(c => c === 9).length).toBe(3);
     expect(counts.filter(c => c === 8).length).toBe(1);
@@ -342,7 +342,7 @@ describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
     const groups = makeGroups(groupSizes);
 
     test('each group is split evenly (±1) across equal plates', () => {
-      const result = calculateExpectedMinimums(plateCapacities, groups, 48, BlockType.PLATE);
+      const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
       for (const [key, size] of Object.entries(groupSizes)) {
         const p1 = result[0][key];
         const p2 = result[1][key];
@@ -352,7 +352,7 @@ describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
     });
 
     test('no plate allocation exceeds plate capacity', () => {
-      const result = calculateExpectedMinimums(plateCapacities, groups, 48, BlockType.PLATE);
+      const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
       for (let p = 0; p < plateCapacities.length; p++) {
         const plateSum = Object.values(result[p]).reduce((a, b) => a + b, 0);
         expect(plateSum).toBeLessThanOrEqual(plateCapacities[p]);
@@ -367,7 +367,7 @@ describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
     const groups = makeGroups(groupSizes);
 
     test('single plate allocation equals group sizes exactly', () => {
-      const result = calculateExpectedMinimums(plateCapacities, groups, 96, BlockType.PLATE);
+      const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
       expect(result[0]['X']).toBe(20);
       expect(result[0]['Y']).toBe(15);
       expect(result[0]['Z']).toBe(15);
@@ -380,7 +380,7 @@ describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
       const plateCapacities = [10, 10];
       const groups = makeGroups({ A: 15, B: 10 }); // 25 > 20
       expect(() =>
-        calculateExpectedMinimums(plateCapacities, groups, 10, BlockType.PLATE)
+        calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE)
       ).toThrow();
     });
   });
@@ -397,7 +397,7 @@ describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
         groupSizes[`G${i}`] = 7;
       }
       const groups = makeGroups(groupSizes);
-      const result = calculateExpectedMinimums(plateCapacities, groups, 60, BlockType.PLATE);
+      const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
 
       // Verify no plate exceeds capacity
       for (let p = 0; p < plateCapacities.length; p++) {
@@ -413,7 +413,7 @@ describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
       const plateCapacities = [20, 7];
       const groupSizes = { A: 9, B: 9, C: 9 };
       const groups = makeGroups(groupSizes);
-      const result = calculateExpectedMinimums(plateCapacities, groups, 20, BlockType.PLATE);
+      const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
 
       const p2Sum = Object.values(result[1]).reduce((a, b) => a + b, 0);
       expect(p2Sum).toBeLessThanOrEqual(7);

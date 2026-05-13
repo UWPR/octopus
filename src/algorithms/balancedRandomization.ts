@@ -110,13 +110,10 @@ function sortGroupsBySize(
 // When totalSamples < totalCapacity (e.g., row-level with empty slots), allocates proportionally
 // and leaves remaining capacity unfilled. Throws when totalSamples > totalCapacity.
 //
-// The `fullBlockCapacity` parameter is kept for signature compatibility but unused by Hamilton.
-//
 // Exported for testing purposes
 export function calculateExpectedMinimums(
   blockCapacities: number[],
   covariateGroups: Map<string, SearchData[]>,
-  fullBlockCapacity: number,
   blockType: BlockType
 ): { [blockIdx: number]: { [groupKey: string]: number } } {
 
@@ -686,7 +683,6 @@ function doBalancedRandomization(
   const expectedMinimumsPerPlate = calculateExpectedMinimums(
     plateCapacities,
     covariateGroups,
-    plateSize,
     BlockType.PLATE
   );
 
@@ -725,7 +721,6 @@ function doBalancedRandomization(
     const expectedRowMinimums = calculateExpectedMinimums(
       rowCapacities,
       plateGroups,
-      numColumns,
       BlockType.ROW
     );
 
