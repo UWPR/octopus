@@ -5,9 +5,9 @@ This document explains how `calculateExpectedMinimums` (in
 codebase, why one caller reaches an under-capacity branch the others don't, and
 what a future cleanup refactor would look like.
 
-It is written for developers maintaining the plate-distribution algorithms. It
-assumes familiarity with the constrained Hamilton apportionment design in
-`.kiro/specs/hamilton-plate-apportionment/bugfix.md`.
+It is written for developers maintaining the plate-distribution algorithms
+and assumes familiarity with the constrained Hamilton (largest-remainder)
+apportionment design used by `calculateExpectedMinimums`.
 
 ## The three call sites
 

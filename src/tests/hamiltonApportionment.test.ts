@@ -1,11 +1,8 @@
 /**
  * Tests for Hamilton (largest-remainder) plate apportionment in
- * `calculateExpectedMinimums`. Covers the five worked examples from the spec
- * plus three gap cases (surplus limit eligibility, running-ascending tiebreak,
- * row-level usage) that exercise mechanisms not directly covered by the
- * examples.
- *
- * See: .kiro/specs/hamilton-plate-apportionment/bugfix.md
+ * `calculateExpectedMinimums`. Covers five worked examples plus three gap
+ * cases (surplus limit eligibility, running-ascending tiebreak, row-level
+ * usage) that exercise mechanisms not directly covered by the examples.
  */
 
 import { calculateExpectedMinimums } from '../algorithms/balancedRandomization';

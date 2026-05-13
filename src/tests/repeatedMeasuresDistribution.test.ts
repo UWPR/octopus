@@ -1167,7 +1167,7 @@ describe('Fix Checking: Valid packings never throw after fix', () => {
       // Add minimum slack per row so the greedy FFD heuristic has room to
       // find a valid packing. Without slack, tight packings can cause the
       // greedy algorithm to paint itself into a corner even when a valid
-      // assignment exists. See .kiro/specs/greedy-ffd-backtracking/README.md.
+      // assignment exists.
       for (let r = 0; r < rowCapacities.length; r++) {
         rowCapacities[r] += gen(fc.integer, { min: 1, max: 3 });
       }
