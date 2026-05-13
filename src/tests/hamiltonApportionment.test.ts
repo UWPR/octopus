@@ -31,22 +31,35 @@ function makeGroups(spec: Record<string, number>): Map<string, SearchData[]> {
   return groups;
 }
 
-/** 
- * Invariant assertions that must hold for ANY valid Hamilton output.
- * These are the universal correctness properties.
+/**
+ * Invariant assertions for Hamilton output.
+ *
+ * Universal invariants (always checked):
+ *   - Per-group sum equals group size (all samples placed)
+ *   - Every cell within ±1 of the continuous ideal
+ *
+ * Plate-fill invariant (checked only when `expectFilled` is true, the default):
+ *   - Per-plate sum equals plate capacity
+ *
+ * Pass `expectFilled: false` for under-capacity inputs (totalSamples < totalCapacity)
+ * where empty wells are legitimate and per-plate sums will be below capacity.
  */
 function assertHamiltonInvariants(
   result: { [plateIdx: number]: { [groupKey: string]: number } },
   plateCapacities: number[],
-  groupSizes: Record<string, number>
+  groupSizes: Record<string, number>,
+  options: { expectFilled?: boolean } = {}
 ) {
+  const { expectFilled = true } = options;
   const totalCapacity = plateCapacities.reduce((a, b) => a + b, 0);
   const totalSamples = Object.values(groupSizes).reduce((a, b) => a + b, 0);
 
-  // Invariant 1: Per-plate sum equals plate capacity
-  for (let p = 0; p < plateCapacities.length; p++) {
-    const plateSum = Object.values(result[p]).reduce((a, b) => a + b, 0);
-    expect(plateSum).toBe(plateCapacities[p]);
+  // Invariant 1: Per-plate sum equals plate capacity (only when fully filled)
+  if (expectFilled) {
+    for (let p = 0; p < plateCapacities.length; p++) {
+      const plateSum = Object.values(result[p]).reduce((a, b) => a + b, 0);
+      expect(plateSum).toBe(plateCapacities[p]);
+    }
   }
 
   // Invariant 2: Per-group sum equals group size
@@ -300,10 +313,7 @@ describe('Hamilton Apportionment - Gap D: Under-capacity over-allocation', () =>
 
   test('no block exceeds ceil(quota) when totalSamples < totalCapacity', () => {
     const result = calculateExpectedMinimums(blockCapacities, groups, 10, BlockType.PLATE);
-    for (let p = 0; p < 4; p++) {
-      expect(result[p]['G']).toBeGreaterThanOrEqual(8);
-      expect(result[p]['G']).toBeLessThanOrEqual(9);
-    }
+    assertHamiltonInvariants(result, blockCapacities, groupSizes, { expectFilled: false });
   });
 
   test('group total equals group size (all 35 samples placed)', () => {
