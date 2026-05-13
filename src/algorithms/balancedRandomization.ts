@@ -105,7 +105,12 @@ function sortGroupsBySize(
 }
 
 // Helper function to calculate expected minimum samples per block (plates or rows) for each covariate group
-// Throws an error if the total samples exceed available capacity or if any block's expected minimums exceed its capacity
+// Computes per-block expected minimums using constrained Hamilton (largest-remainder)
+// apportionment. Places all samples proportionally in Phase 1 when totalSamples === totalCapacity.
+// When totalSamples < totalCapacity (e.g., row-level with empty slots), allocates proportionally
+// and leaves remaining capacity unfilled. Throws when totalSamples > totalCapacity.
+//
+// The `fullBlockCapacity` parameter is kept for signature compatibility but unused by Hamilton.
 //
 // Exported for testing purposes
 export function calculateExpectedMinimums(
@@ -115,17 +120,13 @@ export function calculateExpectedMinimums(
   blockType: BlockType
 ): { [blockIdx: number]: { [groupKey: string]: number } } {
 
-  const expectedMinimums: { [blockIdx: number]: { [groupKey: string]: number } } = {};
-  const totalBlocksNeeded = blockCapacities.length;
+  const totalCapacity = blockCapacities.reduce((sum, capacity) => sum + capacity, 0);
 
   // Calculate total samples across all groups
   let totalSamples = 0;
   covariateGroups.forEach((samples) => {
     totalSamples += samples.length;
   });
-
-  // Calculate total available capacity
-  const totalCapacity = blockCapacities.reduce((sum, capacity) => sum + capacity, 0);
 
   // Validate that total samples don't exceed total capacity
   if (totalSamples > totalCapacity) {
@@ -135,34 +136,123 @@ export function calculateExpectedMinimums(
     );
   }
 
-    debugLog(`Calculating expected minimums per ${blockType} based on capacities:`);
-  blockCapacities.forEach((capacity, blockIdx) => {
-    expectedMinimums[blockIdx] = {};
-    let blockTotalExpected = 0;
+  // Use totalCapacity as denominator. When totalSamples === totalCapacity this
+  // is standard Hamilton (plates fill exactly). When totalSamples < totalCapacity,
+  // per-plate quotas sum to (totalSamples/totalCapacity) × plate_cap, naturally
+  // leaving empty slots without forcing over-allocation.
+  const quotaDenominator = totalCapacity;
 
-    covariateGroups.forEach((samples, groupKey) => {
-      // Calculate expected minimum for this covariate group on this specific block
-      // Based on the block's capacity relative to a full block
-      const capacityRatio = totalBlocksNeeded === 1 ? 1 : capacity / fullBlockCapacity;
-      const globalExpected = Math.floor(samples.length / totalBlocksNeeded);
+  // Build group entries array
+  const groups = Array.from(covariateGroups.entries()).map(
+    ([key, samples]) => ({ key, size: samples.length })
+  );
 
-      expectedMinimums[blockIdx][groupKey] = Math.round(globalExpected * capacityRatio);
-      blockTotalExpected += expectedMinimums[blockIdx][groupKey];
+  // Precompute surplus samples per group: how many extra slots (beyond floor)
+  // each group can receive across all blocks. This prevents over-allocation
+  // when a later block's unconditional floor would push the group past its total size.
+  const surplusSamples = new Map<string, number>();
+  groups.forEach(g => {
+    let floorSum = 0;
+    for (const cap of blockCapacities) {
+      floorSum += Math.floor((g.size * cap) / quotaDenominator);
+    }
+    surplusSamples.set(g.key, g.size - floorSum);
+  });
+  const surplusUsed = new Map<string, number>(groups.map(g => [g.key, 0]));
+  const placed = new Map<string, number>(groups.map(g => [g.key, 0]));
+  const result: { [blockIdx: number]: { [groupKey: string]: number } } = {};
 
-    debugLog(`  ${blockType} ${blockIdx + 1},  Group ${groupKey}, Samples ${samples.length}, Expected ${globalExpected},
-          Capacity ratio: ${capacityRatio.toFixed(2)}, Expected minimum: ${expectedMinimums[blockIdx][groupKey]}`);
+  // Process blocks smallest-capacity-first to lock tight allocations early.
+  // Among equal-capacity blocks, randomize order to prevent systematic bias.
+  const blockOrder = blockCapacities
+    .map((cap, idx) => ({ idx, cap }))
+    .sort((a, b) => a.cap - b.cap);
+
+  // Shuffle blocks with equal capacity
+  let i = 0;
+  while (i < blockOrder.length) {
+    let j = i;
+    while (j < blockOrder.length && blockOrder[j].cap === blockOrder[i].cap) {
+      j++;
+    }
+    // Shuffle the range [i, j) — blocks with equal capacity
+    if (j - i > 1) {
+      const slice = blockOrder.slice(i, j);
+      const shuffled = shuffleArray(slice);
+      for (let k = 0; k < shuffled.length; k++) {
+        blockOrder[i + k] = shuffled[k];
+      }
+    }
+    i = j;
+  }
+
+  debugLog(`Calculating expected minimums per ${blockType} using Hamilton apportionment:`);
+
+  for (const { idx: blockIdx, cap } of blockOrder) {
+    const alloc: { [key: string]: number } = {};
+    let placedOnBlock = 0;
+
+    // Compute floors and remainders for this block
+    const cells = groups.map(g => {
+      const quota = (g.size * cap) / quotaDenominator;
+      const floor = Math.floor(quota);
+      alloc[g.key] = floor;
+      placedOnBlock += floor;
+      placed.set(g.key, placed.get(g.key)! + floor);
+      return { key: g.key, frac: quota - floor };
     });
 
-    // Validate that expected minimums for this block don't exceed its capacity
-    if (blockTotalExpected > capacity) {
-      throw new Error(
-        `${blockType} ${blockIdx + 1} expected minimums (${blockTotalExpected}) exceed its capacity (${capacity}). ` +
-        `This indicates an impossible distribution scenario.`
-      );
-    }
-  });
+    // Distribute deficit slots one at a time using largest-remainder
+    // with bump budget eligibility and smallest-running-allocation tiebreak.
+    let deficit = cap - placedOnBlock;
+    const bumpedOnThisBlock = new Set<string>();
+    while (deficit > 0) {
+      const eligible = cells
+        .filter(c =>
+          surplusUsed.get(c.key)! < surplusSamples.get(c.key)! &&
+          !bumpedOnThisBlock.has(c.key)
+        )
+        .sort((a, b) =>
+          b.frac - a.frac || placed.get(a.key)! - placed.get(b.key)!
+        );
 
-  return expectedMinimums;
+      if (eligible.length === 0) {
+        // All budget-remaining groups have already received +1 on this block.
+        // This can occur when few groups have tight budgets and the tiebreak
+        // concentrates bumps on earlier blocks. Clear the per-block set to
+        // allow a second +1 — the global surplus limit still prevents over-allocation.
+        const budgetRemaining = cells.filter(c =>
+          surplusUsed.get(c.key)! < surplusSamples.get(c.key)!
+        );
+        if (budgetRemaining.length > 0) {
+          bumpedOnThisBlock.clear();
+          continue;
+        }
+        // Truly no budget remaining anywhere. When totalSamples < totalCapacity
+        // this is expected (remaining deficit = empty slots). Otherwise it's a bug.
+        if (totalSamples < totalCapacity) {
+          break;
+        }
+        throw new Error(
+          `${blockType} ${blockIdx + 1}: ${deficit} samples unallocated. ` +
+          `Input invariant violated — total samples should equal total capacity.`
+        );
+      }
+
+      const pick = eligible[0];
+      alloc[pick.key] += 1;
+      placed.set(pick.key, placed.get(pick.key)! + 1);
+      surplusUsed.set(pick.key, surplusUsed.get(pick.key)! + 1);
+      bumpedOnThisBlock.add(pick.key);
+      deficit -= 1;
+    }
+
+    result[blockIdx] = alloc;
+
+    debugLog(`  ${blockType} ${blockIdx + 1} (cap ${cap}): ${JSON.stringify(alloc)}`);
+  }
+
+  return result;
 }
 
 // Helper function to assign block capacities based on distribution strategy
