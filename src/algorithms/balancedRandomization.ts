@@ -218,6 +218,8 @@ export function calculateExpectedMinimums(
         // becomes empty wells. We must NOT round-reset here — doing so would let
         // a group exceed ceil(quota) on this block (e.g., 4 blocks cap=10 with
         // one group of size 35 would put 10 on the first block instead of 9).
+        // See docs/expected-minimums-architecture.md for the production path
+        // and a proposed refactor that would make this branch dead code.
         if (totalSamples < totalCapacity) {
           break;
         }
