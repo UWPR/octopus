@@ -1,13 +1,10 @@
 /**
- * Tests for Hamilton (largest-remainder) plate apportionment.
- * 
- * These tests define the expected behavior of `calculateProportionalExpectedMinimums`,
- * which replaces `calculateExpectedMinimums` to fix poor balance on asymmetric plates.
- * 
- * TDD approach: these tests are written BEFORE the implementation.
- * They should FAIL against the current `calculateExpectedMinimums` and PASS
- * after the constrained Hamilton implementation is in place.
- * 
+ * Tests for Hamilton (largest-remainder) plate apportionment in
+ * `calculateExpectedMinimums`. Covers the five worked examples from the spec
+ * plus three gap cases (surplus limit eligibility, running-ascending tiebreak,
+ * row-level usage) that exercise mechanisms not directly covered by the
+ * examples.
+ *
  * See: .kiro/specs/hamilton-plate-apportionment/bugfix.md
  */
 
@@ -223,7 +220,7 @@ describe('Hamilton Apportionment - Example 5: Group smaller than numPlates', () 
   });
 });
 
-// ─── Gap A: Bump budget vs placed < size ────────────────────────────────────
+// ─── Gap A: Surplus limit vs placed < size ──────────────────────────────────
 
 describe('Hamilton Apportionment - Gap A: Surplus limit eligibility', () => {
   // 4 plates of capacity 4, G=6, H=10. Total=16=capacity.
@@ -239,7 +236,7 @@ describe('Hamilton Apportionment - Gap A: Surplus limit eligibility', () => {
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
-  test('group totals are exact (G=6, H=10) — catches placed<size bug', () => {
+  test('group totals are exact (G=6, H=10) — catches placed<size eligibility bug', () => {
     const result = calculateExpectedMinimums(plateCapacities, groups, 4, BlockType.PLATE);
     let gTotal = 0, hTotal = 0;
     for (let p = 0; p < 4; p++) {

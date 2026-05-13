@@ -218,9 +218,11 @@ export function calculateExpectedMinimums(
 
       if (eligible.length === 0) {
         // All groups with surplus remaining have already received an extra sample
-        // on this block. This can occur when few groups have small surplus and the
-        // tiebreak concentrates extras on earlier blocks. Clear the per-block set
-        // to allow a second extra — the global surplus limit still prevents over-allocation.
+        // on this block, but deficit > 0 remains. This can happen when only a few
+        // groups have surplus to distribute and this block's deficit exceeds the
+        // number of eligible groups.
+        // Clear the per-block "already got an extra" set to allow a second extra —
+        // the global surplus limit still prevents over-allocation.
         const surplusRemaining = cells.filter(c =>
           surplusUsed.get(c.key)! < surplusSamples.get(c.key)!
         );

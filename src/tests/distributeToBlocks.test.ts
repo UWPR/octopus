@@ -476,7 +476,6 @@ describe('calculateExpectedMinimums', () => {
     expect(result[2]).toBeDefined();
 
     // Hamilton invariants: per-plate sum = capacity, per-group sum = group size
-    const totalCap = 36;
     for (let p = 0; p < 3; p++) {
       const plateSum = Object.values(result[p]).reduce((a: number, b: number) => a + b, 0);
       expect(plateSum).toBe(12);
@@ -558,7 +557,7 @@ describe('calculateExpectedMinimums', () => {
         fullBlockCapacity,
         blockType
       );
-    }).toThrow();
+    }).toThrow('Cannot distribute 36 samples across rows with total capacity 24');
   });
 
   test('Should handle single block case (capacity ratio = 1)', () => {
