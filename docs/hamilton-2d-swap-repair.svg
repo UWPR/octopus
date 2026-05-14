@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 820" font-family="Consolas, monospace" font-size="13">
+  <!-- White background -->
+  <rect width="920" height="820" fill="white"/>
+
+  <!-- Title -->
+  <text x="460" y="30" text-anchor="middle" font-size="18" font-weight="bold">2D Proportional Distribution: Why Greedy Fails &amp; Swap Repair</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 1: Simple 1D case -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <text x="30" y="65" font-size="14" font-weight="bold" fill="#333">Simple case: distributing groups across a single block</text>
+  
+  <rect x="30" y="78" width="700" height="70" rx="4" fill="#e8f4fd" stroke="#2196F3" stroke-width="1.5"/>
+  <text x="40" y="98" font-size="11">Block capacity = 10 wells.  Groups: A has 4 samples, B has 2 samples, C has 4 samples (total = 10).</text>
+  <text x="40" y="116" font-size="11">Proportional quota per group: A = 4×10/10 = 4.0,  B = 2×10/10 = 2.0,  C = 4×10/10 = 4.0</text>
+  <text x="40" y="134" font-size="11">All quotas are integers here → trivial. Each group gets exactly its quota.</text>
+  
+  <rect x="30" y="155" width="700" height="70" rx="4" fill="#fff3e0" stroke="#FF9800" stroke-width="1.5"/>
+  <text x="40" y="175" font-size="11">Non-trivial: Block capacity = 10.  Groups: A has 4 samples, B has 3 samples, C has 3 (total = 10).</text>
+  <text x="40" y="193" font-size="11">Quotas: A = 4×10/10 = 4.0, B = 3×10/10 = 3.0, C = 3×10/10 = 3.0 — still integer, still trivial!</text>
+  <text x="40" y="211" font-size="11">With 1 block, quota = groupSize × blockCap / totalCap = groupSize. Always integer. Never a problem.</text>
+
+  <text x="30" y="240" font-size="11" fill="#388E3C" font-weight="bold">With a single block, there's only one constraint and it's always satisfiable. The challenge is multiple blocks.</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 2: 2D problem setup -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <text x="30" y="275" font-size="14" font-weight="bold" fill="#333">Our problem: distributing groups across MULTIPLE blocks simultaneously</text>
+  
+  <text x="30" y="298" font-size="11" fill="#555">3 blocks with capacities 5, 4, 3 (total capacity = 12).  3 groups with sizes A=5, B=4, C=3 (total samples = 12).</text>
+  <text x="30" y="316" font-size="11" fill="#555">Quota for cell (group, block) = groupSize × blockCapacity / totalCapacity.  Floor each, then distribute remainders.</text>
+
+  <!-- Example matrix -->
+  <text x="145" y="348" font-size="11" font-weight="bold">Block 0 (cap=5)</text>
+  <text x="320" y="348" font-size="11" font-weight="bold">Block 1 (cap=4)</text>
+  <text x="495" y="348" font-size="11" font-weight="bold">Block 2 (cap=3)</text>
+  <text x="645" y="348" font-size="11" font-weight="bold">Group total</text>
+
+  <!-- Grid line -->
+  <line x1="60" y1="356" x2="780" y2="356" stroke="#ccc" stroke-width="1"/>
+  
+  <!-- Group A row: size=5, quotas: 5*5/12=2.083, 5*4/12=1.667, 5*3/12=1.250 -->
+  <text x="30" y="380" font-size="11" font-weight="bold">G_A (5)</text>
+  <rect x="115" y="363" width="155" height="24" rx="3" fill="#fff3e0" stroke="#FF9800" stroke-width="1"/>
+  <text x="122" y="380" font-size="10">5×5/12=2.08 →fl 2 (.08)</text>
+  <rect x="290" y="363" width="155" height="24" rx="3" fill="#fff3e0" stroke="#FF9800" stroke-width="1"/>
+  <text x="297" y="380" font-size="10">5×4/12=1.67 →fl 1 (.67)</text>
+  <rect x="465" y="363" width="155" height="24" rx="3" fill="#fff3e0" stroke="#FF9800" stroke-width="1"/>
+  <text x="472" y="380" font-size="10">5×3/12=1.25 →fl 1 (.25)</text>
+  <text x="650" y="380" font-size="11">5 (floor sum=4, need +1)</text>
+
+  <!-- Group B row: size=4, quotas: 4*5/12=1.667, 4*4/12=1.333, 4*3/12=1.000 -->
+  <text x="30" y="415" font-size="11" font-weight="bold">G_B (4)</text>
+  <rect x="115" y="398" width="155" height="24" rx="3" fill="#e8f5e9" stroke="#4CAF50" stroke-width="1"/>
+  <text x="122" y="415" font-size="10">4×5/12=1.67 →fl 1 (.67)</text>
+  <rect x="290" y="398" width="155" height="24" rx="3" fill="#e8f5e9" stroke="#4CAF50" stroke-width="1"/>
+  <text x="297" y="415" font-size="10">4×4/12=1.33 →fl 1 (.33)</text>
+  <rect x="465" y="398" width="155" height="24" rx="3" fill="#e8f5e9" stroke="#4CAF50" stroke-width="1"/>
+  <text x="472" y="415" font-size="10">4×3/12=1.00 →fl 1 (.00)</text>
+  <text x="650" y="415" font-size="11">4 (floor sum=3, need +1)</text>
+
+  <!-- Group C row: size=3, quotas: 3*5/12=1.250, 3*4/12=1.000, 3*3/12=0.750 -->
+  <text x="30" y="450" font-size="11" font-weight="bold">G_C (3)</text>
+  <rect x="115" y="433" width="155" height="24" rx="3" fill="#e3f2fd" stroke="#2196F3" stroke-width="1"/>
+  <text x="122" y="450" font-size="10">3×5/12=1.25 →fl 1 (.25)</text>
+  <rect x="290" y="433" width="155" height="24" rx="3" fill="#e3f2fd" stroke="#2196F3" stroke-width="1"/>
+  <text x="297" y="450" font-size="10">3×4/12=1.00 →fl 1 (.00)</text>
+  <rect x="465" y="433" width="155" height="24" rx="3" fill="#e3f2fd" stroke="#2196F3" stroke-width="1"/>
+  <text x="472" y="450" font-size="10">3×3/12=0.75 →fl 0 (.75)</text>
+  <text x="650" y="450" font-size="11">3 (floor sum=2, need +1)</text>
+
+  <!-- Column deficit row -->
+  <line x1="60" y1="466" x2="780" y2="466" stroke="#ccc" stroke-width="1"/>
+  <text x="30" y="486" font-size="11" fill="#666">Block deficit:</text>
+  <text x="155" y="486" font-size="11" fill="#D32F2F" font-weight="bold">5−4 = 1</text>
+  <text x="330" y="486" font-size="11" fill="#D32F2F" font-weight="bold">4−3 = 1</text>
+  <text x="505" y="486" font-size="11" fill="#D32F2F" font-weight="bold">3−2 = 1</text>
+  <text x="650" y="486" font-size="11" fill="#666">total +1s needed: 3</text>
+
+  <!-- Note about zero-remainder cells -->
+  <text x="30" y="512" font-size="11" fill="#666">Cells with remainder .000 are ineligible for +1 (giving +1 would push allocation above the proportional ceiling).</text>
+  <text x="30" y="528" font-size="11" fill="#666">Ineligible: G_B on Block 2 (remainder=.00), G_C on Block 1 (remainder=.00)</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 3: Greedy gets stuck -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <text x="30" y="565" font-size="14" font-weight="bold" fill="#D32F2F">Greedy by largest remainder — can get stuck on harder inputs</text>
+  
+  <text x="30" y="588" font-size="11">Eligible cells sorted by remainder:</text>
+  <text x="30" y="606" font-size="11">  G_C.B2(.75), G_A.B1(.67), G_B.B0(.67), G_B.B1(.33), G_A.B2(.25), G_C.B0(.25), G_A.B0(.08)</text>
+  
+  <text x="30" y="630" font-size="11">This 3×3 example resolves fine. But with 5+ blocks and 6+ groups, the greedy pass can fail:</text>
+
+  <rect x="30" y="643" width="860" height="80" rx="4" fill="#ffebee" stroke="#D32F2F" stroke-width="1.5"/>
+  <text x="45" y="663" font-size="11" fill="#D32F2F" font-weight="bold">Failure scenario (with many groups and blocks):</text>
+  <text x="45" y="683" font-size="11">• Greedy awards +1 to (G_X, Block_j) because G_X has a high remainder there</text>
+  <text x="45" y="700" font-size="11">• This uses up Block_j's last available +1 slot (block deficit → 0)</text>
+  <text x="45" y="717" font-size="11" fill="#D32F2F" font-weight="bold">• Later, G_Y still needs +1 but Block_j was its only eligible block → STUCK, 1 sample unplaced</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 4: Swap repair -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <text x="30" y="755" font-size="14" font-weight="bold" fill="#1565C0">Swap Repair (fixes the dead end)</text>
+  
+  <rect x="30" y="768" width="860" height="42" rx="6" fill="#e3f2fd" stroke="#1565C0" stroke-width="1.5"/>
+  <text x="45" y="785" font-size="11">1. Find (G_X, Block_j) that received +1, where G_Y also needs Block_j.  Revoke +1 from G_X, give to G_Y.</text>
+  <text x="45" y="802" font-size="11">2. Find another Block_k with remaining deficit where G_X can take its +1 instead. Always possible if totals balance.</text>
+</svg>

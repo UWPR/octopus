@@ -1,0 +1,237 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 820" font-family="Consolas, monospace" font-size="13">
+  <rect width="1100" height="820" fill="white"/>
+
+  <defs>
+    <marker id="orangearrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#FF6F00"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="550" y="30" text-anchor="middle" font-size="16" font-weight="bold">Augmenting Path Repair for the Minimal Failure Case</text>
+  <text x="550" y="52" text-anchor="middle" font-size="12" fill="#555">3 groups × 2 samples each, 3 blocks × capacity 2 each. All quotas = 0.667, all floors = 0.</text>
+  <text x="550" y="70" text-anchor="middle" font-size="12" fill="#555">Every sample must be placed via +1 awards. Need 6 total: 2 per group, 2 per block.</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LEGEND -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <g transform="translate(40, 90)">
+    <text x="0" y="0" font-size="12" font-weight="bold" fill="#333">Edge legend</text>
+    <line x1="0" y1="20" x2="60" y2="20" stroke="#2E7D32" stroke-width="3"/>
+    <text x="70" y="24" font-size="11">awarded +1 (cell value = 1)</text>
+
+    <line x1="320" y1="20" x2="380" y2="20" stroke="#999" stroke-width="2" stroke-dasharray="5,4"/>
+    <text x="390" y="24" font-size="11">not yet awarded (cell value = 0, eligible for +1)</text>
+
+    <line x1="700" y1="20" x2="760" y2="20" stroke="#FF6F00" stroke-width="4" marker-end="url(#orangearrow)"/>
+    <text x="775" y="24" font-size="11">augmenting path (BFS direction)</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LEFT: Bipartite graph after greedy gets stuck -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <g transform="translate(30, 150)">
+    <text x="280" y="0" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">After greedy gets stuck</text>
+    <text x="280" y="18" text-anchor="middle" font-size="11" fill="#555">Greedy order: (G0,B0), (G0,B1), (G1,B1), (G1,B0), (G2,B2)</text>
+    <text x="280" y="34" text-anchor="middle" font-size="11" fill="#555">5 of 6 +1s awarded. G2 still needs 1 more, B2 still needs 1 more.</text>
+
+    <!-- Edges: awarded (+1) -->
+    <!-- G0-B0: awarded -->
+    <line x1="200" y1="80" x2="380" y2="80" stroke="#2E7D32" stroke-width="3"/>
+    <!-- G0-B1: awarded -->
+    <path d="M 200 88 Q 290 130, 380 180" stroke="#2E7D32" stroke-width="3" fill="none"/>
+    <!-- G1-B1: awarded -->
+    <line x1="200" y1="190" x2="380" y2="190" stroke="#2E7D32" stroke-width="3"/>
+    <!-- G1-B0: awarded -->
+    <path d="M 200 182 Q 290 140, 380 88" stroke="#2E7D32" stroke-width="3" fill="none"/>
+    <!-- G2-B2: awarded -->
+    <line x1="200" y1="300" x2="380" y2="300" stroke="#2E7D32" stroke-width="3"/>
+
+    <!-- Edges: not yet awarded (eligible) -->
+    <!-- G0-B2 -->
+    <path d="M 200 95 Q 290 160, 380 292" stroke="#999" stroke-width="2" stroke-dasharray="5,4" fill="none"/>
+    <!-- G1-B2 -->
+    <path d="M 200 205 Q 290 260, 380 292" stroke="#999" stroke-width="2" stroke-dasharray="5,4" fill="none"/>
+    <!-- G2-B0 -->
+    <path d="M 200 285 Q 290 230, 380 88" stroke="#999" stroke-width="2" stroke-dasharray="5,4" fill="none"/>
+    <!-- G2-B1 -->
+    <path d="M 200 290 Q 290 250, 380 198" stroke="#999" stroke-width="2" stroke-dasharray="5,4" fill="none"/>
+
+    <!-- Augmenting path overlay -->
+    <!-- Step 1: G2 -> B0 (along not-yet-awarded edge) -->
+    <path d="M 200 285 Q 290 230, 380 88" stroke="#FF6F00" stroke-width="4" fill="none" opacity="0.8" marker-end="url(#orangearrow)"/>
+    <!-- Step 2: B0 -> G0 (along awarded edge, reversed) -->
+    <line x1="380" y1="80" x2="200" y2="80" stroke="#FF6F00" stroke-width="4" opacity="0.8" marker-end="url(#orangearrow)"/>
+    <!-- Step 3: G0 -> B2 (along not-yet-awarded edge) -->
+    <path d="M 200 95 Q 290 160, 380 292" stroke="#FF6F00" stroke-width="4" fill="none" opacity="0.8" marker-end="url(#orangearrow)"/>
+
+    <!-- Step labels -->
+    <text x="330" y="210" font-size="22" font-weight="bold" fill="#FF6F00">①</text>
+    <text x="280" y="65" font-size="22" font-weight="bold" fill="#FF6F00">②</text>
+    <text x="330" y="145" font-size="22" font-weight="bold" fill="#FF6F00">③</text>
+
+    <!-- Group nodes -->
+    <circle cx="180" cy="80" r="22" fill="#fff3e0" stroke="#FF9800" stroke-width="2"/>
+    <text x="180" y="84" text-anchor="middle" font-weight="bold" font-size="12">G0</text>
+    <text x="140" y="84" text-anchor="end" font-size="10" fill="#388E3C">done</text>
+
+    <circle cx="180" cy="190" r="22" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2"/>
+    <text x="180" y="194" text-anchor="middle" font-weight="bold" font-size="12">G1</text>
+    <text x="140" y="194" text-anchor="end" font-size="10" fill="#388E3C">done</text>
+
+    <circle cx="180" cy="300" r="24" fill="#ffebee" stroke="#D32F2F" stroke-width="3"/>
+    <text x="180" y="304" text-anchor="middle" font-weight="bold" font-size="12">G2</text>
+    <text x="136" y="304" text-anchor="end" font-size="10" fill="#D32F2F" font-weight="bold">needs 1</text>
+
+    <!-- Block nodes -->
+    <circle cx="400" cy="80" r="22" fill="#e3f2fd" stroke="#2196F3" stroke-width="2"/>
+    <text x="400" y="84" text-anchor="middle" font-weight="bold" font-size="12">B0</text>
+    <text x="440" y="84" text-anchor="start" font-size="10" fill="#388E3C">full</text>
+
+    <circle cx="400" cy="190" r="22" fill="#e3f2fd" stroke="#2196F3" stroke-width="2"/>
+    <text x="400" y="194" text-anchor="middle" font-weight="bold" font-size="12">B1</text>
+    <text x="440" y="194" text-anchor="start" font-size="10" fill="#388E3C">full</text>
+
+    <circle cx="400" cy="300" r="24" fill="#ffebee" stroke="#D32F2F" stroke-width="3"/>
+    <text x="400" y="304" text-anchor="middle" font-weight="bold" font-size="12">B2</text>
+    <text x="440" y="304" text-anchor="start" font-size="10" fill="#D32F2F" font-weight="bold">needs 1</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- RIGHT: BFS trace and flip -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <g transform="translate(640, 150)">
+    <text x="0" y="0" font-size="13" font-weight="bold" fill="#FF6F00">BFS from deficient group G2</text>
+    <text x="0" y="18" font-size="11" fill="#555">Alternates: not-yet-awarded edges → awarded edges (reversed)</text>
+
+    <g font-size="12" fill="#333">
+      <text x="0" y="50">Start: G2 (needs 1 more +1)</text>
+
+      <text x="0" y="80">Layer 1 — follow not-yet-awarded edges from G2:</text>
+      <text x="20" y="100">→ B0 (already full, but reachable)</text>
+      <text x="20" y="118">→ B1 (already full, but reachable)</text>
+
+      <text x="0" y="148">Layer 2 — follow awarded edges INTO B0, B1:</text>
+      <text x="20" y="168">B0 has awarded edges from G0, G1</text>
+      <text x="20" y="186">→ reach G0 (via B0)</text>
+
+      <text x="0" y="216">Layer 3 — follow not-yet-awarded edges from G0:</text>
+      <text x="20" y="236" fill="#FF6F00" font-weight="bold">→ B2 (needs 1 more!) — PATH FOUND</text>
+    </g>
+
+    <text x="0" y="278" font-size="13" font-weight="bold" fill="#FF6F00">Path: G2 → B0 → G0 → B2</text>
+
+    <rect x="0" y="295" width="400" height="90" rx="4" fill="#fafafa" stroke="#ddd" stroke-width="1"/>
+    <text x="10" y="315" font-size="12" font-weight="bold">Flip each edge along the path:</text>
+    <g font-size="12" fill="#333">
+      <text x="10" y="338">① (G2, B0): 0 → 1  <tspan fill="#388E3C">G2 gains a sample on B0</tspan></text>
+      <text x="10" y="358">② (G0, B0): 1 → 0  <tspan fill="#D32F2F">G0 loses its sample on B0</tspan></text>
+      <text x="10" y="378">③ (G0, B2): 0 → 1  <tspan fill="#388E3C">G0 gains a sample on B2 instead</tspan></text>
+    </g>
+
+    <g font-size="11" fill="#555">
+      <text x="0" y="415">Net effect on groups: G2 +1, G0 net 0 (lost one, gained one).</text>
+      <text x="0" y="433">Net effect on blocks: B2 +1, B0 net 0 (lost one, gained one).</text>
+      <text x="0" y="451">Every cell stays 0 or 1 (within the [floor, floor+1] = [0, 1] bound).</text>
+    </g>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- BOTTOM: Before and After matrices side by side -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <g transform="translate(0, 620)">
+    <text x="550" y="0" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Before and After Repair</text>
+
+    <!-- BEFORE matrix -->
+    <g transform="translate(100, 25)">
+      <text x="150" y="0" text-anchor="middle" font-size="12" font-weight="bold" fill="#D32F2F">Before (stuck)</text>
+      <rect x="0" y="12" width="300" height="115" fill="#fafafa" stroke="#ccc"/>
+      <line x1="75" y1="12" x2="75" y2="127" stroke="#ccc"/>
+      <line x1="150" y1="12" x2="150" y2="127" stroke="#ccc"/>
+      <line x1="225" y1="12" x2="225" y2="127" stroke="#ccc"/>
+      <line x1="0" y1="37" x2="300" y2="37" stroke="#ccc"/>
+      <line x1="0" y1="60" x2="300" y2="60" stroke="#ccc"/>
+      <line x1="0" y1="83" x2="300" y2="83" stroke="#ccc"/>
+      <line x1="0" y1="106" x2="300" y2="106" stroke="#ccc"/>
+
+      <text x="37" y="30" text-anchor="middle" font-size="11" font-weight="bold"></text>
+      <text x="112" y="30" text-anchor="middle" font-size="11" font-weight="bold">B0</text>
+      <text x="187" y="30" text-anchor="middle" font-size="11" font-weight="bold">B1</text>
+      <text x="262" y="30" text-anchor="middle" font-size="11" font-weight="bold">B2</text>
+
+      <text x="37" y="53" text-anchor="middle" font-size="11" font-weight="bold">G0</text>
+      <text x="112" y="53" text-anchor="middle" font-size="11">1</text>
+      <text x="187" y="53" text-anchor="middle" font-size="11">1</text>
+      <text x="262" y="53" text-anchor="middle" font-size="11">0</text>
+
+      <text x="37" y="76" text-anchor="middle" font-size="11" font-weight="bold">G1</text>
+      <text x="112" y="76" text-anchor="middle" font-size="11">1</text>
+      <text x="187" y="76" text-anchor="middle" font-size="11">1</text>
+      <text x="262" y="76" text-anchor="middle" font-size="11">0</text>
+
+      <text x="37" y="99" text-anchor="middle" font-size="11" font-weight="bold">G2</text>
+      <text x="112" y="99" text-anchor="middle" font-size="11">0</text>
+      <text x="187" y="99" text-anchor="middle" font-size="11">0</text>
+      <text x="262" y="99" text-anchor="middle" font-size="11">1</text>
+
+      <text x="37" y="121" text-anchor="middle" font-size="10" fill="#666">sum</text>
+      <text x="112" y="121" text-anchor="middle" font-size="10" fill="#388E3C">2 ✓</text>
+      <text x="187" y="121" text-anchor="middle" font-size="10" fill="#388E3C">2 ✓</text>
+      <text x="262" y="121" text-anchor="middle" font-size="10" fill="#D32F2F">1 ✗</text>
+
+      <text x="315" y="53" font-size="10" fill="#388E3C">= 2 ✓</text>
+      <text x="315" y="76" font-size="10" fill="#388E3C">= 2 ✓</text>
+      <text x="315" y="99" font-size="10" fill="#D32F2F">= 1 ✗</text>
+    </g>
+
+    <!-- Arrow between matrices -->
+    <text x="550" y="90" text-anchor="middle" font-size="24" fill="#FF6F00">→</text>
+    <text x="550" y="112" text-anchor="middle" font-size="10" fill="#FF6F00">repair</text>
+
+    <!-- AFTER matrix -->
+    <g transform="translate(620, 25)">
+      <text x="150" y="0" text-anchor="middle" font-size="12" font-weight="bold" fill="#1565C0">After (all satisfied)</text>
+      <rect x="0" y="12" width="300" height="115" fill="#fafafa" stroke="#ccc"/>
+      <line x1="75" y1="12" x2="75" y2="127" stroke="#ccc"/>
+      <line x1="150" y1="12" x2="150" y2="127" stroke="#ccc"/>
+      <line x1="225" y1="12" x2="225" y2="127" stroke="#ccc"/>
+      <line x1="0" y1="37" x2="300" y2="37" stroke="#ccc"/>
+      <line x1="0" y1="60" x2="300" y2="60" stroke="#ccc"/>
+      <line x1="0" y1="83" x2="300" y2="83" stroke="#ccc"/>
+      <line x1="0" y1="106" x2="300" y2="106" stroke="#ccc"/>
+
+      <text x="37" y="30" text-anchor="middle" font-size="11" font-weight="bold"></text>
+      <text x="112" y="30" text-anchor="middle" font-size="11" font-weight="bold">B0</text>
+      <text x="187" y="30" text-anchor="middle" font-size="11" font-weight="bold">B1</text>
+      <text x="262" y="30" text-anchor="middle" font-size="11" font-weight="bold">B2</text>
+
+      <text x="37" y="53" text-anchor="middle" font-size="11" font-weight="bold">G0</text>
+      <text x="112" y="53" text-anchor="middle" font-size="11" fill="#D32F2F">0</text>
+      <text x="187" y="53" text-anchor="middle" font-size="11">1</text>
+      <text x="262" y="53" text-anchor="middle" font-size="11" fill="#388E3C">1</text>
+
+      <text x="37" y="76" text-anchor="middle" font-size="11" font-weight="bold">G1</text>
+      <text x="112" y="76" text-anchor="middle" font-size="11">1</text>
+      <text x="187" y="76" text-anchor="middle" font-size="11">1</text>
+      <text x="262" y="76" text-anchor="middle" font-size="11">0</text>
+
+      <text x="37" y="99" text-anchor="middle" font-size="11" font-weight="bold">G2</text>
+      <text x="112" y="99" text-anchor="middle" font-size="11" fill="#388E3C">1</text>
+      <text x="187" y="99" text-anchor="middle" font-size="11">0</text>
+      <text x="262" y="99" text-anchor="middle" font-size="11">1</text>
+
+      <text x="37" y="121" text-anchor="middle" font-size="10" fill="#666">sum</text>
+      <text x="112" y="121" text-anchor="middle" font-size="10" fill="#388E3C">2 ✓</text>
+      <text x="187" y="121" text-anchor="middle" font-size="10" fill="#388E3C">2 ✓</text>
+      <text x="262" y="121" text-anchor="middle" font-size="10" fill="#388E3C">2 ✓</text>
+
+      <text x="315" y="53" font-size="10" fill="#388E3C">= 2 ✓</text>
+      <text x="315" y="76" font-size="10" fill="#388E3C">= 2 ✓</text>
+      <text x="315" y="99" font-size="10" fill="#388E3C">= 2 ✓</text>
+    </g>
+
+    <text x="550" y="165" text-anchor="middle" font-size="11" fill="#555">
+      Cells changed by repair shown in color. G1 row unchanged.
+    </text>
+  </g>
+</svg>
