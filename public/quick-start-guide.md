@@ -117,6 +117,21 @@ Click **"Download Excel"** to get:
 - Select which covariates to include
 - Formatted for easy printing and reference
 
+### Step 8: Export Injection Sequence (Optional)
+
+If you want to produce a Thermo Fisher instrument-ready acquisition sequence, click **"Export Sequence"** to launch the Injection Sequence Export wizard. The wizard walks you through six configuration steps and produces a CSV in the Thermo `Bracket Type=4` format with file names, folder paths, instrument methods, autosampler positions, and injection volumes.
+
+For this test dataset, a typical configuration is:
+
+1. **System Suitability**: Skip (leave all run counts at 0) for a quick test, or set 2 runs at start and 2 at end to see SS rows in the preview.
+2. **Slot Assignment**: Accept the default — Plate 1 → Yellow, Plate 2 → Blue, Plate 3 → Red.
+3. **File Naming**: Add fields like `experiment name`, `plate well`, and `sample identifier`. Set Experiment Name to something like `trx_phase1b_small`. The Run Number is appended automatically.
+4. **Sample Categories**: `BatchQC` and `BatchRef` samples are auto-assigned to their respective QC categories; everything else lands in **Experimental**. No changes needed for the default test data.
+5. **Paths & Instrument Methods**: Enter any folder path (e.g., `D:\Data\trx_phase1b`) and instrument method path (e.g., `D:\Methods\standard.meth`). Use **"Apply to all categories"** to fill every category at once. Keep injection volume at 3 µL.
+6. **Preview & Export**: Verify the run order and file names, then click **Export Sequence CSV**.
+
+See [octopus_doc.html](octopus_doc.html#step-7-export-injection-sequence-optional) for the full wizard reference.
+
 ## Expected Results
 
 ### Small Dataset (288 samples, 3 plates)

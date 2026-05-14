@@ -16,6 +16,8 @@ Octopus Plate Designer is a web application designed to optimize the distributio
 
 **Flexible Configuration**: Customizable plate dimensions allow you to adapt the randomization strategy to your specific experimental needs.
 
+**Injection Sequence Export**: Once plates are finalized, a guided wizard generates a Thermo Fisher Scientific-compatible CSV sequence — including experimental runs, optional system suitability injections, autosampler slot assignments, folder paths, instrument methods, and a configurable file-naming template — so the output can be loaded directly into the instrument software.
+
 ---
 
 ## How Octopus Plate Designer Works
@@ -259,6 +261,91 @@ Once satisfied with the distribution, click **"Download CSV"** or **"Download Ex
 - Plate and well position assignments
 - A Legend sheet mapping covariate groups to colors
 - A Sample Details sheet with all sample metadata and plate/well assignments
+
+### Step 7: Export Injection Sequence (Optional)
+
+Once you are happy with your plate layouts, click **"Export Sequence"** to launch the Injection Sequence Export wizard. The wizard generates a CSV acquisition sequence in the Thermo Fisher Scientific format (`Bracket Type=4` header with columns *File Name, Path, Instrument Method, Position, Inj Vol*) that can be loaded directly into the instrument software.
+
+The wizard reads your finalized plate assignments — it does not modify them — and walks you through six steps. Each step validates before you can proceed; you can move back and forward freely without losing data. Closing the wizard with **Cancel** preserves all settings; only the step position resets. Uploading a new input file resets the wizard completely.
+
+#### Wizard Step 1: System Suitability
+
+System Suitability runs are QC injections drawn from a dedicated standard vial on a separate autosampler slot, used to verify instrument performance throughout the sequence. This step is optional — leave all run counts at 0 to skip System Suitability entirely.
+
+When System Suitability is enabled, you can configure:
+- **Runs at start** (0–10): Injections before the first experimental sample
+- **Runs at end** (0–10): Injections after the last experimental sample
+- **Runs during**: Injections interspersed through the experiment, with a configurable interval (e.g., 1 System Suitability run every 12 experimental samples)
+- **System Suitability vial well**: The specific well on the System Suitability slot (default A1) where the standard vial is loaded
+
+The folder path, instrument method, and injection volume for System Suitability runs are configured in Step 5 alongside the other categories.
+
+#### Wizard Step 2: Autosampler Slot Assignment
+
+Assign each plate (and the System Suitability vial, if configured) to one of the four color-coded autosampler slots: **Yellow (Y), Blue (B), Red (R), Green (G)**.
+
+- If System Suitability is enabled, you choose the System Suitability slot first; the remaining slots become available for plates.
+- Plates are auto-assigned to slots in order, and you can override any assignment from the dropdowns.
+- If you have more plates than available slots, you will be warned that multiple plates must share a slot — meaning you will need to physically swap plates partway through the run.
+- A warning appears if your plate dimensions exceed standard 8×12 (96-well) autosampler capacity. This is informational only; export is not blocked.
+
+Each sample's position in the exported CSV uses the format `{SlotColor}:{RowLetter}{ColumnNumber}` (e.g., `B:A1`, `Y:F12`), derived automatically from the plate's slot and the sample's well.
+
+#### Wizard Step 3: File Naming
+
+Build a file naming template by selecting which fields appear in each row's file name and in what order. Available fields include:
+
+- Year, month
+- Project name, experiment name, instrument name (free-text values you enter)
+- Sample identifier
+- Plate well, plate number
+- Sample category
+- Run number (always appended last, see below)
+
+**Reorder** selected fields via drag-and-drop. Choose a **separator** character — hyphen `-`, underscore `_`, period `.`, or a custom single character. A warning is shown if the separator is a character that is unsafe in Windows filenames.
+
+**Sample identifier**: choose between
+- **Original**: Uses the sample ID from your input data's selected ID column
+- **Serial**: Generates sequential IDs with a prefix and zero-padded number you specify (e.g., prefix `LTC` starting at 1 produces `LTC001, LTC002, LTC003, ...`). When using serial IDs, you can also choose to download a separate **mapping CSV** that links each serial ID to the original sample ID, plate, and well.
+
+A **live preview** of the resulting file name updates as you change the template.
+
+**Run number**: The Global Run Counter is always appended as the final field. It starts at 1 and increments for every row in the sequence regardless of category, zero-padded to at least three digits (e.g., `001, 002, ..., 099, 100`). Padding expands automatically for sequences with more than 999 rows.
+
+#### Wizard Step 4: Sample Categories
+
+Every sample is assigned a category that determines its export settings (folder path, instrument method, injection volume). Categories are auto-detected from your plate configuration:
+
+- Samples flagged as QC (via the QC/Reference column in the main app) are assigned to their detected QC category (e.g., `BatchQC`, `BatchRef`).
+- All other samples are assigned to the **Experimental** category.
+
+You can:
+- **Reassign individual samples** to a different category via the dropdown next to each sample
+- **Bulk reassign** by selecting multiple samples and choosing a target category
+- **Create custom categories** (e.g., `Pool`, `Library`) — these appear in Step 5 for path/method/volume configuration
+
+At least one sample must remain in the **Experimental** category to proceed. A handful of category names (such as `System Suitability`) are reserved and cannot be reused.
+
+#### Wizard Step 5: Paths & Instrument Methods
+
+For each category (including System Suitability, when enabled), specify:
+- **Folder path**: Windows-style path where the instrument should write data files (pasted as text — no filesystem validation is performed)
+- **Instrument method path**: Path to the `.meth` file the instrument should use
+- **Injection volume**: Integer microliters from 1–20 (default 3)
+
+Use **"Apply to all categories"** to copy a path or method to every category at once; you can still override individual rows after a bulk apply.
+
+#### Wizard Step 6: Preview & Export
+
+The final step shows a scrollable preview table of every row in the sequence with columns: Row #, File Name, Path, Instrument Method, Position, and Inj Vol. Rows are color-coded by sample category and System Suitability runs are visually distinct. The header shows the total run count broken down by category.
+
+Sequence ordering:
+1. System Suitability runs scheduled at the start
+2. Experimental rows, ordered by plate (Plate 1 first), then by well in row-major order (A1, A2, …, A12, B1, …, H12)
+3. System Suitability runs are interleaved at the configured interval through the experimental rows
+4. System Suitability runs scheduled at the end
+
+If you change any setting by navigating back, the preview updates automatically. When everything looks right, click **Export Sequence CSV** to download the file. If you configured serial sample IDs with mapping enabled, an **Export Mapping CSV** button is also available, producing a file with columns *Serial ID, Original Sample ID, Plate Number, Well Position*.
 
 ---
 
