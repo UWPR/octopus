@@ -1,8 +1,10 @@
 /**
  * Tests for Hamilton (largest-remainder) plate apportionment in
- * `calculateExpectedMinimums`. Covers five worked examples plus three gap
- * cases (surplus limit eligibility, running-ascending tiebreak, row-level
- * usage) that exercise mechanisms not directly covered by the examples.
+ * `calculateExpectedMinimums`. Covers five worked examples plus five gap
+ * cases (Gap A-E: surplus-limit eligibility, swap-repair stuck state,
+ * row-level usage, under-capacity over-allocation, integer-quota cells
+ * under capacity) that exercise mechanisms not directly covered by the
+ * examples.
  */
 
 import { calculateExpectedMinimums } from '../algorithms/balancedRandomization';
@@ -259,12 +261,17 @@ describe('Hamilton Apportionment - Gap A: Surplus limit eligibility', () => {
   });
 });
 
-// ─── Gap B: Order trap / running-ascending tiebreak ─────────────────────────
+// ─── Gap B: Swap-repair stuck state ─────────────────────────────────────────
 
-describe('Hamilton Apportionment - Gap B: Order trap tiebreak', () => {
+describe('Hamilton Apportionment - Gap B: Swap-repair stuck state', () => {
   // 3 plates of capacity 2, 3 groups of size 2. Total=6=capacity.
   // All quotas = 0.667, all floors = 0, all deficits = 2.
-  // Bug: without running-asc tiebreak, one plate ends up 100% one group.
+  // With every cell at the same fractional remainder, an unlucky shuffle order
+  // can leave one group needing a +1 on a plate that has already filled its
+  // wells from other groups. The algorithm resolves this via a BFS swap chain
+  // through the bipartite group/plate graph (see
+  // docs/hamilton-2d-augmenting-path.svg). Without the repair, one plate
+  // would end up 100% one group.
   const plateCapacities = [2, 2, 2];
   const groupSizes = { G1: 2, G2: 2, G3: 2 };
   const groups = makeGroups(groupSizes);
@@ -274,7 +281,7 @@ describe('Hamilton Apportionment - Gap B: Order trap tiebreak', () => {
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
-  test('every plate has at least 2 distinct groups — catches missing tiebreak', () => {
+  test('every plate has at least 2 distinct groups -- catches missing repair', () => {
     const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     for (let p = 0; p < 3; p++) {
       const distinctGroups = Object.values(result[p]).filter(c => c > 0).length;
