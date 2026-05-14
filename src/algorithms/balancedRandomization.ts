@@ -104,13 +104,19 @@ function sortGroupsBySize(
   return result;
 }
 
-// Helper function to calculate expected minimum samples per block (plates or rows) for each covariate group
-// Computes per-block expected minimums using constrained Hamilton (largest-remainder)
-// apportionment. Places all samples proportionally in Phase 1 when totalSamples === totalCapacity.
-// When totalSamples < totalCapacity (e.g., row-level with empty slots), allocates proportionally
-// and leaves remaining capacity unfilled. Throws when totalSamples > totalCapacity.
+// Returns, for each (block, group) pair, how many samples of that group should
+// land in that block. Uses largest-remainder (Hamilton) apportionment over the
+// whole (group, block) grid:
 //
-// Exported for testing purposes
+//   quota = groupSize * blockCap / totalCapacity
+//   each (group, block) gets floor(quota), then +1s are awarded by descending
+//   fractional remainder until every sample is placed.
+//
+// When totalSamples == totalCapacity, blocks fill exactly. When
+// totalSamples < totalCapacity (rows can be under-filled), the unfilled wells
+// fall out naturally. Throws when totalSamples > totalCapacity.
+//
+// Exported for testing purposes.
 export function calculateExpectedMinimums(
   blockCapacities: number[],
   covariateGroups: Map<string, SearchData[]>,
@@ -119,13 +125,9 @@ export function calculateExpectedMinimums(
 
   const totalCapacity = blockCapacities.reduce((sum, capacity) => sum + capacity, 0);
 
-  // Calculate total samples across all groups
   let totalSamples = 0;
-  covariateGroups.forEach((samples) => {
-    totalSamples += samples.length;
-  });
+  covariateGroups.forEach(samples => { totalSamples += samples.length; });
 
-  // Validate that total samples don't exceed total capacity
   if (totalSamples > totalCapacity) {
     throw new Error(
       `Cannot distribute ${totalSamples} samples across ${blockType.toLowerCase()}s with total capacity ${totalCapacity}. ` +
@@ -133,133 +135,159 @@ export function calculateExpectedMinimums(
     );
   }
 
-  // Use totalCapacity as denominator. When totalSamples === totalCapacity this
-  // is standard Hamilton (plates fill exactly). When totalSamples < totalCapacity,
-  // per-plate quotas sum to (totalSamples/totalCapacity) × plate_cap, naturally
-  // leaving empty slots without forcing over-allocation.
-  const quotaDenominator = totalCapacity;
-
-  // Build group entries array
-  const groups = Array.from(covariateGroups.entries()).map(
-    ([key, samples]) => ({ key, size: samples.length })
-  );
-
-  // Precompute surplus samples per group: how many extra samples (beyond floor)
-  // each group still needs to place across all blocks. This prevents over-allocation
-  // when a later block's unconditional floor would push the group past its total size.
-  const surplusSamples = new Map<string, number>();
-  groups.forEach(g => {
-    let floorSum = 0;
-    for (const cap of blockCapacities) {
-      floorSum += Math.floor((g.size * cap) / quotaDenominator);
-    }
-    surplusSamples.set(g.key, g.size - floorSum);
-  });
-  const surplusUsed = new Map<string, number>(groups.map(g => [g.key, 0]));
-  const placed = new Map<string, number>(groups.map(g => [g.key, 0]));
+  const numBlocks = blockCapacities.length;
   const result: { [blockIdx: number]: { [groupKey: string]: number } } = {};
+  for (let b = 0; b < numBlocks; b++) result[b] = {};
 
-  // Process blocks smallest-capacity-first to lock tight allocations early.
-  // Among equal-capacity blocks, randomize order to prevent systematic bias.
-  const blockOrder = blockCapacities
-    .map((cap, idx) => ({ idx, cap }))
-    .sort((a, b) => a.cap - b.cap);
+  // Pass 1: compute the floor and fractional remainder for each (group, block).
+  // `groupSurplus` tracks how many samples from each group still need to be
+  // placed on some block (groupSize minus the sum of floors across all blocks).
+  // `blockDeficit` tracks how many more samples each block needs to reach its capacity.
+  // `eligibleByGroup` records which blocks have non-zero remainder for the group
+  // (frac > 0) and could receive a +1; `awardedByGroup` tracks which ones did,
+  // for the repair pass below.
+  type QuotaRemainder = { groupKey: string; blockIdx: number; frac: number };
+  const FRAC_EPSILON = 1e-9;
+  const quotaRemainders: QuotaRemainder[] = [];
+  const groupSurplus = new Map<string, number>();
+  const eligibleByGroup = new Map<string, Set<number>>();
+  const awardedByGroup = new Map<string, Set<number>>();
+  const blockFloorSum = new Array<number>(numBlocks).fill(0);
 
-  // Shuffle blocks with equal capacity
-  let i = 0;
-  while (i < blockOrder.length) {
-    let j = i;
-    while (j < blockOrder.length && blockOrder[j].cap === blockOrder[i].cap) {
-      j++;
+  covariateGroups.forEach((samples, groupKey) => {
+    const groupSize = samples.length;
+    let floorSum = 0;
+    const eligibleBlocks = new Set<number>();
+    for (let b = 0; b < numBlocks; b++) {
+      const quota = (groupSize * blockCapacities[b]) / totalCapacity;
+      const floor = Math.floor(quota);
+      const frac = quota - floor;
+      result[b][groupKey] = floor;
+      floorSum += floor;
+      blockFloorSum[b] += floor;
+      quotaRemainders.push({ groupKey, blockIdx: b, frac });
+      if (frac > FRAC_EPSILON) eligibleBlocks.add(b);
     }
-    // Shuffle the range [i, j) — blocks with equal capacity
-    if (j - i > 1) {
-      const slice = blockOrder.slice(i, j);
-      const shuffled = shuffleArray(slice);
-      for (let k = 0; k < shuffled.length; k++) {
-        blockOrder[i + k] = shuffled[k];
+    groupSurplus.set(groupKey, groupSize - floorSum);
+    eligibleByGroup.set(groupKey, eligibleBlocks);
+    awardedByGroup.set(groupKey, new Set<number>());
+  });
+
+  const blockDeficit = blockCapacities.map((cap, b) => cap - blockFloorSum[b]);
+
+  // Pass 2: award +1s by descending fractional remainder (random tiebreak),
+  // skipping cells with zero frac (integer quota; +1 there would over-place
+  // the group on that block).
+  let unplaced = 0;
+  groupSurplus.forEach(n => { unplaced += n; });
+
+  const ordered = shuffleArray(quotaRemainders.filter(c => c.frac > FRAC_EPSILON));
+  ordered.sort((a, b) => b.frac - a.frac);
+
+  for (const c of ordered) {
+    if (unplaced <= 0) break;
+    if ((groupSurplus.get(c.groupKey) ?? 0) <= 0) continue;
+    if (blockDeficit[c.blockIdx] <= 0) continue;
+    result[c.blockIdx][c.groupKey] += 1;
+    awardedByGroup.get(c.groupKey)!.add(c.blockIdx);
+    groupSurplus.set(c.groupKey, groupSurplus.get(c.groupKey)! - 1);
+    blockDeficit[c.blockIdx] -= 1;
+    unplaced -= 1;
+  }
+
+  // Pass 3: repair. The greedy pass can leave a group with samples still unplaced
+  // while every block that could accept one of its samples is already full from
+  // other groups' +1s. Fix this by finding a swap chain (BFS along alternating
+  // not-yet-awarded / awarded edges) from a group with unplaced samples to a
+  // block that still has room, then flipping each edge along the chain. One
+  // group places a sample, one block fills a slot, and every intermediate
+  // group/block nets zero change.
+  // See docs/hamilton-2d-augmenting-path.svg for a worked example.
+  while (unplaced > 0) {
+    let startGroup: string | null = null;
+    groupSurplus.forEach((n, g) => {
+      if (startGroup === null && n > 0) { startGroup = g; }
+    });
+    if (startGroup === null) break;
+
+    const visitedGroups = new Set<string>([startGroup]);
+    const visitedBlocks = new Set<number>();
+    const blockFrom = new Map<number, string>();
+    const groupFrom = new Map<string, number>();
+
+    let frontierGroups: string[] = [startGroup];
+    let endBlock = -1;
+
+    bfs:
+    while (frontierGroups.length > 0) {
+      const frontierBlocks: number[] = [];
+      for (let fi = 0; fi < frontierGroups.length; fi++) {
+        const g = frontierGroups[fi];
+        const elig = eligibleByGroup.get(g);
+        if (!elig) continue;
+        const awarded = awardedByGroup.get(g)!;
+        const eligArr = Array.from(elig);
+        for (let ei = 0; ei < eligArr.length; ei++) {
+          const b = eligArr[ei];
+          if (visitedBlocks.has(b)) continue;
+          if (awarded.has(b)) continue;
+          visitedBlocks.add(b);
+          blockFrom.set(b, g);
+          if (blockDeficit[b] > 0) {
+            endBlock = b;
+            break bfs;
+          }
+          frontierBlocks.push(b);
+        }
       }
+      if (frontierBlocks.length === 0) break;
+
+      const nextGroups: string[] = [];
+      for (let bi = 0; bi < frontierBlocks.length; bi++) {
+        const b = frontierBlocks[bi];
+        awardedByGroup.forEach((awarded, g) => {
+          if (!awarded.has(b)) return;
+          if (visitedGroups.has(g)) return;
+          visitedGroups.add(g);
+          groupFrom.set(g, b);
+          nextGroups.push(g);
+        });
+      }
+      frontierGroups = nextGroups;
     }
-    i = j;
+
+    if (endBlock < 0) {
+      // Unreachable for quotas of the form groupSize * blockCap / totalCapacity:
+      // every still-needy group has at least one eligible block, every block
+      // with room has at least one eligible group, and the row/column totals
+      // are consistent, so a swap chain always exists. Treated as an assertion.
+      throw new Error(
+        `Hamilton apportionment invariant violated: no swap chain from group ` +
+        `${startGroup} to a ${blockType.toLowerCase()} with remaining room.`
+      );
+    }
+
+    // Walk the chain backwards from the room-having block, flipping each edge.
+    let curBlock = endBlock;
+    while (true) {
+      const g = blockFrom.get(curBlock)!;
+      result[curBlock][g] += 1;
+      awardedByGroup.get(g)!.add(curBlock);
+      if (g === startGroup) break;
+      const prevBlock = groupFrom.get(g)!;
+      result[prevBlock][g] -= 1;
+      awardedByGroup.get(g)!.delete(prevBlock);
+      curBlock = prevBlock;
+    }
+
+    groupSurplus.set(startGroup, groupSurplus.get(startGroup)! - 1);
+    blockDeficit[endBlock] -= 1;
+    unplaced -= 1;
   }
 
   debugLog(`Calculating expected minimums per ${blockType} using Hamilton apportionment:`);
-
-  for (const { idx: blockIdx, cap } of blockOrder) {
-    const alloc: { [key: string]: number } = {};
-    let placedOnBlock = 0;
-
-    // Compute floors and remainders for this block
-    const cells = groups.map(g => {
-      const quota = (g.size * cap) / quotaDenominator;
-      const floor = Math.floor(quota);
-      alloc[g.key] = floor;
-      placedOnBlock += floor;
-      placed.set(g.key, placed.get(g.key)! + floor);
-      return { key: g.key, frac: quota - floor };
-    });
-
-    // Distribute deficit wells one at a time using largest-remainder
-    // with surplus-samples eligibility and smallest-running-allocation tiebreak.
-    // The `c.frac > FRAC_EPSILON` filter prevents rounding-up cells whose quota
-    // is already an integer (floor == ceil); allocating an extra to such a cell
-    // would violate Hamilton's ±1 bound. Epsilon guards against floating-point
-    // dust from the quota computation.
-    let deficit = cap - placedOnBlock;
-    const gotExtraOnThisBlock = new Set<string>();
-    const FRAC_EPSILON = 1e-9;
-    while (deficit > 0) {
-      const eligible = cells
-        .filter(c =>
-          c.frac > FRAC_EPSILON &&
-          surplusUsed.get(c.key)! < surplusSamples.get(c.key)! &&
-          !gotExtraOnThisBlock.has(c.key)
-        )
-        .sort((a, b) =>
-          b.frac - a.frac || placed.get(a.key)! - placed.get(b.key)!
-        );
-
-      if (eligible.length === 0) {
-        // Under-capacity (totalSamples < totalCapacity): any remaining deficit
-        // becomes empty wells. We must NOT round-reset here — doing so would let
-        // a group exceed ceil(quota) on this block (e.g., 4 blocks cap=10 with
-        // one group of size 35 would put 10 on the first block instead of 9).
-        // See docs/expected-minimums-architecture.md for the production path
-        // and a proposed refactor that would make this branch dead code.
-        if (totalSamples < totalCapacity) {
-          break;
-        }
-        // Exact-capacity case (totalSamples == totalCapacity): all groups with
-        // surplus remaining have already received an extra sample on this block,
-        // but deficit > 0 remains. This can happen when only a few groups have
-        // surplus to distribute and this block's deficit exceeds the number of
-        // eligible groups.
-        // Clear the per-block "already got an extra" set to allow a second extra —
-        // the global surplus limit still prevents over-allocation.
-        const surplusRemaining = cells.filter(c =>
-          surplusUsed.get(c.key)! < surplusSamples.get(c.key)!
-        );
-        if (surplusRemaining.length > 0) {
-          gotExtraOnThisBlock.clear();
-          continue;
-        }
-        throw new Error(
-          `${blockType} ${blockIdx + 1}: ${deficit} samples unallocated. ` +
-          `Input invariant violated — total samples should equal total capacity.`
-        );
-      }
-
-      const pick = eligible[0];
-      alloc[pick.key] += 1;
-      placed.set(pick.key, placed.get(pick.key)! + 1);
-      surplusUsed.set(pick.key, surplusUsed.get(pick.key)! + 1);
-      gotExtraOnThisBlock.add(pick.key);
-      deficit -= 1;
-    }
-
-    result[blockIdx] = alloc;
-
-    debugLog(`  ${blockType} ${blockIdx + 1} (cap ${cap}): ${JSON.stringify(alloc)}`);
+  for (let b = 0; b < numBlocks; b++) {
+    debugLog(`  ${blockType} ${b + 1} (cap ${blockCapacities[b]}): ${JSON.stringify(result[b])}`);
   }
 
   return result;

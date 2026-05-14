@@ -66,12 +66,12 @@ function partitionIntoParts(total: number, numParts: number, gen: fc.GeneratorVa
     cuts.add(i);
   }
 
-  const sorted = [...cuts].sort((a, b) => a - b);
+  const sorted = Array.from(cuts).sort((a, b) => a - b);
   const parts: number[] = [];
   let prev = 0;
-  for (const c of sorted) {
-    parts.push(c - prev);
-    prev = c;
+  for (let i = 0; i < sorted.length; i++) {
+    parts.push(sorted[i] - prev);
+    prev = sorted[i];
   }
   parts.push(total - prev);
   return parts;

@@ -1,13 +1,13 @@
-# `calculateExpectedMinimums`: callers and the pre-shrink contract
+# `calculateExpectedMinimums`: callers and the under-capacity contract
 
 This document explains how `calculateExpectedMinimums` (in
 `src/algorithms/balancedRandomization.ts`) is called from the rest of the
-codebase, why one caller reaches an under-capacity branch the others don't, and
-what a future cleanup refactor would look like.
+codebase, and how the global Hamilton implementation handles both exact-capacity
+and under-capacity inputs uniformly.
 
 It is written for developers maintaining the plate-distribution algorithms
-and assumes familiarity with the constrained Hamilton (largest-remainder)
-apportionment design used by `calculateExpectedMinimums`.
+and assumes familiarity with the global Hamilton (largest-remainder +
+augmenting-path repair) design used by `calculateExpectedMinimums`.
 
 ## The three call sites
 
@@ -16,11 +16,11 @@ is called from three places. The important contract for each is what
 `Σ blockCapacities` represents relative to `totalSamples` (the sum of group
 sizes across `covariateGroups`).
 
-| # | File / line | Level | How `blockCapacities` is built | `Σ blockCapacities` vs `totalSamples` |
+| # | File | Level | How `blockCapacities` is built | `Σ blockCapacities` vs `totalSamples` |
 |---|---|---|---|---|
-| 1 | `balancedRandomization.ts:685` | plate | `assignBlockCapacities(totalSamples, plateSize, keepEmptyInLastPlate, maxPlates, PLATE)` | **Equal** |
-| 2 | `balancedRandomization.ts:722` | row (standard flow) | `assignBlockCapacities(plateCapacity, numColumns, keepEmptyInLastPlate, numRows, ROW)` | **Equal** |
-| 3 | `repeatedMeasuresDistribution.ts:1364` | row (repeated-measures, `same-plate` constraint) | `effectiveRowCapacitiesPerPlate[plateIdx]` — physical row size minus QC slots | **Σ ≥ totalSamples** (can be strictly greater) |
+| 1 | `balancedRandomization.ts` | plate | `assignBlockCapacities(totalSamples, plateSize, keepEmptyInLastPlate, maxPlates, PLATE)` | **Equal** |
+| 2 | `balancedRandomization.ts` | row (standard flow) | `assignBlockCapacities(plateCapacity, numColumns, keepEmptyInLastPlate, numRows, ROW)` | **Equal** |
+| 3 | `repeatedMeasuresDistribution.ts` | row (repeated-measures, `same-plate` constraint) | `effectiveRowCapacitiesPerPlate[plateIdx]` — physical row size minus QC slots | **Σ ≥ totalSamples** (can be strictly greater) |
 
 Sites 1 and 2 always invoke Hamilton with the exact-capacity case
 (`totalSamples === totalCapacity`). Site 3 can invoke Hamilton with the
@@ -67,7 +67,7 @@ block," and the empty wells are someone else's problem upstream.
 
 ## The repeated-measures asymmetry
 
-Site 3 (`repeatedMeasuresDistribution.ts:1364`) does **not** pre-shrink. It
+Site 3 (`repeatedMeasuresDistribution.ts`) does **not** pre-shrink. It
 passes `effectiveRowCapacitiesPerPlate[plateIdx]` directly:
 
 ```js
@@ -84,134 +84,47 @@ which happens whenever the chosen plate layout has empty wells, i.e.,
 `totalSamples + totalQCs < numPlates × wellsPerPlate` — Hamilton at site 3
 sees `totalSamples < Σ rowCapacities`. That is the under-capacity case.
 
-**Why is site 3 written this way?** Historical. The repeated-measures row pass
-predates the Hamilton refactor. Before Hamilton, `calculateExpectedMinimums`
-intentionally under-allocated, and Phase 2B's round-robin overflow placed the
-remainder. Passing the full effective row capacities gave the overflow loop
-room to maneuver. After the Hamilton refactor, the under-allocation problem
-moved into `calculateExpectedMinimums` itself, but the caller wasn't updated.
+## How the global Hamilton handles under-capacity
 
-## The under-capacity branch in Hamilton
+The current implementation uses `totalCapacity` (the sum of block capacities)
+as the quota denominator in all cases:
 
-Hamilton's deficit-distribution loop has this branch at the top of the
-"no eligible group" path:
-
-```js
-if (eligible.length === 0) {
-  // Under-capacity (totalSamples < totalCapacity): any remaining deficit
-  // becomes empty wells. We must NOT round-reset here — doing so would let
-  // a group exceed ceil(quota) on this block.
-  if (totalSamples < totalCapacity) {
-    break;
-  }
-  // Exact-capacity case: round-reset to distribute remaining surplus...
-}
+```
+quota[group][block] = groupSize × blockCapacity / totalCapacity
 ```
 
-This branch (a) prevents Hamilton from over-allocating a group on a single
-block when the algorithm has slack to spare and (b) leaves the residual deficit
-as empty wells.
+When `totalSamples < totalCapacity`, the sum of all quotas across all blocks
+for a group equals `groupSize` (not `totalCapacity`). The floors are
+conservative, and the global largest-remainder pass awards +1s until all
+`totalSamples - totalFloorSum` surplus samples are placed. The remaining
+block deficit (empty wells) is simply never filled — blocks whose deficit
+isn't consumed by the remainder pass end up with fewer samples than their
+physical capacity.
 
-### The Gap D bug it protects against
+This works correctly because:
+- The surplus limit per group (`groupSize - Σ floors`) ensures no group is
+  over-allocated.
+- The block deficit limit (`blockCapacity - Σ floors on that block`) ensures
+  no block is over-filled.
+- The augmenting-path repair guarantees all surplus samples are placed even
+  when the greedy pass gets stuck.
 
-Without the `break`, the round-reset path could allocate `floor(quota) + 2` to
-a group on a single block — violating Hamilton's ±1 bound (every cell must be
-`floor(quota)` or `ceil(quota)`). The Hamilton spec's worked example: 4 blocks
-of cap=10 with one group of size 35, per-block quota 8.75, `ceil = 9`. Without
-the break, the round-reset could place G=10 on the first block instead of
-distributing 9, 9, 9, 8 across the four.
+The net effect: under-capacity inputs produce allocations where each group's
+total equals its size (all samples placed), each block's total is ≤ its
+capacity, and every cell is within ±1 of its continuous ideal quota. Empty
+wells are distributed across blocks proportionally to their capacity.
 
-The regression test for this (Gap D in `src/tests/hamiltonApportionment.test.ts`)
-uses synthetic inputs. The **production scenario** that reaches this branch is
-exactly one: repeated-measures + `same-plate` grouping constraint + a plate
-layout with empty wells.
+## Historical note
 
-### Why repeated-measures + same-plate is the only production trigger
+Prior to the global Hamilton refactor, `calculateExpectedMinimums` processed
+blocks sequentially (smallest-capacity-first) and had a special `break` branch
+for the under-capacity case that could leave samples unplaced. The caller
+(`distributeToBlocks`) compensated via Phase 2B overflow distribution. The
+global Hamilton implementation eliminated both the per-block processing order
+and the under-capacity branch, making the function self-contained: it always
+places all samples regardless of whether `totalSamples` equals or is less than
+`totalCapacity`.
 
-- Sites 1 and 2 always invoke Hamilton with exact-capacity inputs (see above).
-- Repeated-measures + `same-row` constraint does not call
-  `calculateExpectedMinimums` at all — it uses `distributeGroupsToRows`
-  (bin-packing) instead.
-- Repeated-measures + `same-plate` constraint hits site 3, and any plate
-  carrying fewer experimental samples than its effective row caps sum to
-  triggers the under-capacity case.
-
-The under-filled plate is typically (but not always) the last plate. Empty
-wells redistribute across that plate's rows according to Hamilton's
-smallest-row-first processing order.
-
-## Proposed cleanup refactor
-
-The asymmetry could be removed by pre-shrinking the row capacities at site 3
-before calling `calculateExpectedMinimums`, mirroring what `assignBlockCapacities`
-does for site 2.
-
-### Sketch
-
-In `repeatedMeasuresDistribution.ts` around line 1361, replace:
-
-```js
-const rowCapacities = effectiveRowCapacitiesPerPlate[plateIdx];
-```
-
-with something like:
-
-```js
-const samplesOnThisPlate = experimentalPlateSamples.length;
-const physicalRowCaps = effectiveRowCapacitiesPerPlate[plateIdx];
-const rowCapacities = shrinkToTotal(physicalRowCaps, samplesOnThisPlate);
-```
-
-where `shrinkToTotal(caps, target)` returns a new array of caps such that
-`Σ result === target` and each `result[i] ≤ caps[i]`. The distribution of the
-empty wells is a design choice — possibilities include:
-
-- Reduce the smallest rows first (concentrates empty wells away from full rows).
-- Random reduction (spreads empty wells uniformly).
-- Reduce rows by QC-row proximity (keeps empty wells near QC clusters).
-
-### What becomes dead code
-
-- The `if (totalSamples < totalCapacity) break;` branch in Hamilton.
-- The Gap D regression test in `hamiltonApportionment.test.ts` (would need to
-  move to a test for `shrinkToTotal` instead).
-
-### Trade-offs
-
-| Aspect | Current design | Proposed refactor |
-|---|---|---|
-| Where empty-well placement is decided | Hamilton (last-processed row in smallest-first order) | Caller (explicit `shrinkToTotal` choice) |
-| Hamilton output (covariate balance per row) | Same | Same |
-| Code complexity | Under-capacity branch in Hamilton | `shrinkToTotal` helper + caller change |
-| Symmetry with standard flow | Asymmetric (site 3 special) | Symmetric (all sites pre-shrunk) |
-| Testability | Gap D test needed | `shrinkToTotal` test sufficient |
-| Predictability of empty-well placement | Implicit | Explicit, configurable |
-
-The Hamilton output is identical between the two approaches — only the
-*physical placement* of empty wells differs. With the current design, empty
-wells cluster on the last-processed-smallest row; with the refactor, the
-caller chooses.
-
-### Why we are deferring
-
-- The current design works correctly (Gap D fix + test).
-- The refactor is a non-trivial change to a flow that has been stable for a
-  long time.
-- A clean `shrinkToTotal` requires a design decision about empty-well
-  placement that has UX implications (where do the empty wells "look like" on
-  the plate?) — this deserves user input rather than being a developer choice.
-
-### Pointers for whoever picks this up
-
-- `src/algorithms/repeatedMeasuresDistribution.ts:1365` — the `rowCapacities`
-  assignment to update (and the `calculateExpectedMinimums` call two lines
-  below it).
-- `src/algorithms/balancedRandomization.ts:216–223` — branch to remove from
-  Hamilton.
-- `src/tests/hamiltonApportionment.test.ts` "Gap D" describe block — tests to
-  retarget at `shrinkToTotal`.
-- `src/algorithms/balancedRandomization.ts:262–317` (`assignBlockCapacities`)
-  — reference implementation for the pre-shrink pattern. Note that
-  `assignBlockCapacities` assumes uniform physical block size; `shrinkToTotal`
-  needs to handle non-uniform input caps (because QC rows can have different
-  effective capacities within one plate).
+The "pre-shrink refactor" previously proposed in this document (shrinking row
+capacities at site 3 before calling Hamilton) is no longer needed — the global
+algorithm handles both cases uniformly.

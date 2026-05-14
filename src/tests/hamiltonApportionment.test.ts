@@ -211,13 +211,14 @@ describe('Hamilton Apportionment - Example 5: Group smaller than numPlates', () 
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
-  test('Plate 4 (smallest) gets Large=2, Tiny=0, Medium=0', () => {
+  test('Plate 4 (smallest) gets Large=1, Medium=1, Tiny=0', () => {
+    // One of several valid Hamilton outputs (tiebreak among equal-frac cells is random).
+    // Global remainder sort awards Large's +1s to P1/P2/P3 (frac 0.8) before P4 (frac 0.6).
+    // P4's deficit of 1 goes to Medium (frac 0.28 > Tiny's 0.12).
     const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
-    // P4 quota: Large 40×2/50=1.6, Tiny 3×2/50=0.12, Medium 7×2/50=0.28
-    // Floors: Large=1, Tiny=0, Medium=0. Deficit=1. Top remainder: Large(0.6)
-    expect(result[3]['Large']).toBe(2);
+    expect(result[3]['Large']).toBe(1);
     expect(result[3]['Tiny']).toBe(0);
-    expect(result[3]['Medium']).toBe(0);
+    expect(result[3]['Medium']).toBe(1);
   });
 
   test('Tiny is distributed across exactly 3 plates (1 each)', () => {
