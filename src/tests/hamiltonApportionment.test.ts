@@ -102,11 +102,12 @@ describe('Hamilton Apportionment - Example 1: 127-sample asymmetric', () => {
 
   test('exact values: Plate 2 allocation matches Hamilton trace', () => {
     const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
-    // From the Hamilton trace in specs/hamilton-plate-apportionment/bugfix.md
-    // Example 1. BatchQC and BatchRef share a fractional remainder (both
-    // 11 samples), but the tie is uncontested (both groups have surplus 1
-    // and both can take +1 on P2 within the same deficit budget), so the
-    // result is deterministic regardless of random tiebreak.
+    // P2 quotas (size * 31 / 127): Red=10.74, Blue=6.59, Green=4.88,
+    // Orange=3.42, BatchQC=2.69, BatchRef=2.69. Floors sum to 27, deficit 4.
+    // Top remainders on P2: Green(.88), Red(.74), BatchQC(.69), BatchRef(.69)
+    // -- the last two are tied but uncontested: both groups have surplus 1 and
+    // both can take +1 on P2 within the deficit budget, so the result is
+    // deterministic regardless of random tiebreak.
     expect(result[1]['Red']).toBe(11);
     expect(result[1]['Blue']).toBe(6);
     expect(result[1]['Green']).toBe(5);

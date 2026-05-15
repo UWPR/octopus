@@ -286,7 +286,10 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
     // Verify proportional distribution
     const groupCounts = countSamplesPerGroup(result, selectedCovariates);
 
-    // With Hamilton apportionment, all samples are placed in Phase 1.
+    // Both groups in this test have size >= numPlates, so Phase 1 follows
+    // Hamilton's per-plate expected counts directly (no Phase 2 spillover).
+    // (Smaller groups, where groupSize < numPlates, bypass Phase 1's baseline
+    // loop and end up in Phase 2A; that path uses a different heuristic.)
     // G1 (70): quota per plate = 70*cap/100. P1: 28, P2: 28, P3: 14.
     // G2 (30): quota per plate = 30*cap/100. P1: 12, P2: 12, P3: 6.
     const group1Counts = groupCounts.get('Female|P_1|Control');
