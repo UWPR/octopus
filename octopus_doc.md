@@ -16,6 +16,8 @@ Octopus Plate Designer is a web application designed to optimize the distributio
 
 **Flexible Configuration**: Customizable plate dimensions allow you to adapt the randomization strategy to your specific experimental needs.
 
+**Injection Sequence Export**: Once plates are finalized, a guided wizard generates a Thermo Fisher Scientific-compatible CSV sequence — including experimental runs, optional system suitability injections, autosampler slot assignments, folder paths, instrument methods, and a configurable file-naming template — so the output can be loaded directly into the instrument software.
+
 ---
 
 ## How Octopus Plate Designer Works
@@ -260,6 +262,109 @@ Once satisfied with the distribution, click **"Download CSV"** or **"Download Ex
 - A Legend sheet mapping covariate groups to colors
 - A Sample Details sheet with all sample metadata and plate/well assignments
 
+### Step 7: Export Injection Sequence (Optional)
+
+Once you are happy with your plate layouts, click **"Export Sequence"** to launch the Injection Sequence Export wizard. The wizard generates a CSV acquisition sequence in the Thermo Fisher Scientific format (`Bracket Type=4` header with columns *File Name, Path, Instrument Method, Position, Inj Vol*) that can be loaded directly into the instrument software.
+
+The wizard reads your finalized plate assignments and walks you through six steps.
+
+![Sequence Export Wizard - Step Indicator](images/octopus_sequence-wizard-step-indicator.png)
+
+#### Wizard Step 1: System Suitability
+
+System Suitability runs are QC injections drawn from a dedicated standard vial on a separate autosampler slot, used to verify instrument performance throughout the sequence. This step is optional — leave all run counts at 0 to skip System Suitability entirely.
+
+When System Suitability is enabled, you can configure:
+- **Runs at start** (0–10): Injections before the first experimental sample
+- **Runs at end** (0–10): Injections after the last experimental sample
+- **Runs during**: Injections interspersed through the experiment, with a configurable interval (e.g., 1 System Suitability run every 12 experimental samples)
+- **System Suitability vial well**: The specific well on the System Suitability slot (default A1) where the standards vial is loaded
+
+The folder path, instrument method, and injection volume for System Suitability runs are configured in Step 5 alongside the other categories.
+
+![Wizard Step 1 - System Suitability](images/octopus_sequence-step1-ss-enabled.png)
+
+#### Wizard Step 2: Autosampler Slot Assignment
+
+Assign each plate (and the System Suitability vial, if configured) to one of the four color-coded autosampler slots: **Yellow (Y), Blue (B), Red (R), Green (G)**.
+
+- If System Suitability is enabled, you choose the System Suitability slot first; the remaining slots become available for plates.
+- Plates are auto-assigned to slots in order, and you can override any assignment from the dropdowns.
+- If you have more plates than available slots, you will be warned that multiple plates must share a slot — meaning you will need to physically swap plates.
+- A warning appears if your plate dimensions exceed standard 8×12 (96-well) autosampler capacity. This is informational only; export is not blocked.
+
+![Wizard Step 2 - Slot Assignment](images/octopus_sequence-step2-slots.png)
+
+Each sample's position in the exported CSV uses the format `{SlotColor}:{RowLetter}{ColumnNumber}` (e.g., `B:A1`, `Y:F12`), derived automatically from the plate's slot and the sample's well.
+
+#### Wizard Step 3: File Naming
+
+![Wizard Step 3 - File Naming Template Builder](images/octopus_sequence-step3-template-builder.png)
+
+Build a file naming template by selecting which fields appear in each row's file name and in what order. Available fields include:
+
+- Year, month
+- Project name, experiment name, instrument name (free-text values you enter)
+- Sample identifier
+- Plate well, plate number
+- Sample category
+- Run number (always appended last, see below)
+
+**Reorder** selected fields via drag-and-drop. Choose a **separator** character — hyphen `-`, underscore `_`, period `.`, or a custom single character. A warning is shown if the separator is a character that is unsafe in Windows filenames.
+
+**Sample identifier**: choose between
+- **Original**: Uses the sample ID from your input data's selected ID column
+- **Serial**: Generates sequential IDs with a prefix and zero-padded number you specify (e.g., prefix `LTC` starting at 1 produces `LTC001, LTC002, LTC003, ...`). When using serial IDs, you can also choose to download a separate **mapping CSV** that links each serial ID to the original sample ID, plate, and well.
+
+![Wizard Step 3 - Serial Sample ID Mode](images/octopus_sequence-step3-serial-id.png)
+
+A **live preview** of the resulting file name updates as you change the template.
+
+**Run number**: The Global Run Counter is always appended as the final field. It starts at 1 and increments for every row in the sequence regardless of category, zero-padded to at least three digits (e.g., `001, 002, ..., 099, 100`).
+
+#### Wizard Step 4: Sample Categories
+
+Every sample is assigned a category that determines its export settings (folder path, instrument method, injection volume). Categories are auto-detected from your plate configuration:
+
+- Samples flagged as QC (via the QC/Reference column in the main app) are assigned to their detected QC category (e.g., `BatchQC`, `BatchRef`).
+- All other samples are assigned to the **Experimental** category.
+
+You can:
+- **Reassign individual samples** to a different category via the dropdown next to each sample
+- **Bulk reassign** by selecting multiple samples and choosing a target category
+- **Create custom categories** (e.g., `Pool`, `Library`) — these appear in Step 5 for path/method/volume configuration
+
+![Wizard Step 4 - Sample Categories](images/octopus_sequence-step4-categories.png)
+
+At least one sample must remain in the **Experimental** category to proceed. A handful of category names (such as `System Suitability`) are reserved and cannot be reused.
+
+#### Wizard Step 5: Paths & Instrument Methods
+
+For each category (including System Suitability, when enabled), specify:
+- **Folder path**: Windows-style path where the instrument should write data files (pasted as text — no filesystem validation is performed)
+- **Instrument method path**: Path to the method file the instrument should use
+- **Injection volume**: Integer microliters from 1–20 (default 3)
+
+Use **"Apply to all categories"** to copy a path or method to every category at once; you can still override individual rows after a bulk apply.
+
+![Wizard Step 5 - Paths and Instrument Methods](images/octopus_sequence-step5-paths.png)
+
+#### Wizard Step 6: Preview & Export
+
+The final step shows a scrollable preview table of every row in the sequence with columns: Row #, File Name, Path, Instrument Method, Position, and Inj Vol. Rows are color-coded by sample category and System Suitability runs are visually distinct. The header shows the total run count broken down by category.
+
+Sequence ordering:
+1. System Suitability runs scheduled at the start
+2. Experimental rows, ordered by plate (Plate 1 first), then by well in row-major order (A1, A2, …, A12, B1, …, H12)
+3. System Suitability runs are interleaved at the configured interval through the experimental rows
+4. System Suitability runs scheduled at the end
+
+If you change any setting by navigating back, the preview updates automatically. When everything looks right, click **Export Sequence CSV** to download the file, which is named `<input_file_name>_injection-sequence.csv` (using the base name of your uploaded CSV).
+
+If you configured serial sample IDs with mapping enabled, an **Export Mapping CSV** button is also available, producing a file named `<input_file_name>_id-mapping.csv` with columns *Serial ID, Original Sample ID, Plate Number, Well Position*.
+
+![Wizard Step 6 - Preview and Export](images/octopus_sequence-step6-preview.png)
+
 ---
 
 ## Understanding Quality Scores
@@ -354,15 +459,27 @@ This system supports up to 72 unique covariate groups while maintaining visual d
 - Uses greedy spatial placement to minimize adjacency clustering
 
 Detailed Steps:
-1. **Grouping**: Samples are grouped by concatenated covariate values (e.g. `Treatment|Time|Dose`).
-2. **Plate Capacity Assignment**: Plate capacities are computed based on total sample count, plate size and whether empty wells are concentrated in the final plate or spread across plates.
-3. **Expected Minimums (Plate Level)**: For every (plate, group) an expected minimum count is computed from `floor(groupSize / numPlates)` scaled by plate capacity ratio (for partial plates). Prevents early overfilling.
-4. **Phase 1 Proportional Placement**: Baseline expected minimum samples for each group are placed into plates. Remaining samples are tagged as either unplaced (group too small for baseline) or overflow (extras beyond baseline).
-5. **Phase 2A (Unplaced Groups)**: Small groups are added to plates prioritizing those with the most remaining capacity—spreads rare groups.
-6. **Phase 2B (Overflow Samples)**: Remaining samples of larger groups are added with a prioritization strategy: plate level prefers higher-capacity plates; row level prefers rows currently containing fewer of that group.
-7. **Row Distribution**: For each plate, rows are treated as mini-blocks; the same proportional + overflow logic is applied using row capacities.
-8. **Greedy Spatial Placement**: Within each populated row, samples are placed into columns minimizing a cluster score (penalties for same-group left/right/above and cross-row adjacency). Random tie-breaking preserves diversity.
-9. **Final Spatial Metrics**: Horizontal, vertical and cross-row cluster counts logged for diagnostic quality analysis.
+1. **Grouping**: Samples are grouped by their combined covariate values (e.g. `Treatment|Time|Dose`).
+2. **Plate Capacity Assignment**: The app determines how many wells each plate will hold, based on total sample count, plate size, and whether empty wells are concentrated in the final plate or spread evenly.
+3. **Proportional Allocation Across Plates**: The algorithm decides how many samples from each group belong on each plate. It calculates an ideal (fractional) count for every group-plate pair — `groupSize × plateCapacity / totalCapacity` — then rounds down to get a guaranteed minimum. The leftover slots are filled one at a time, prioritizing the pairs with the largest fractional remainders. Ties are broken randomly. If this greedy process gets stuck — a group still has samples to place but every plate that could take one is full from other groups — a swap-chain repair rearranges earlier assignments to free a slot.
+
+   **Example:** 127 samples across 2 plates (capacities 96 and 31):
+
+   | Group | Samples | Ideal on Plate 1 | Ideal on Plate 2 | Rounded down (P1) | Rounded down (P2) | Leftover |
+   |-------|---------|-------------------|-------------------|--------------------|--------------------|----------|
+   | Red | 44 | 33.26 | 10.74 | 33 | 10 | 1 |
+   | Blue | 27 | 20.41 | 6.59 | 20 | 6 | 1 |
+   | Green | 20 | 15.12 | 4.88 | 15 | 4 | 1 |
+   | Orange | 14 | 10.58 | 3.42 | 10 | 3 | 1 |
+   | BatchQC | 11 | 8.31 | 2.69 | 8 | 2 | 1 |
+   | BatchRef | 11 | 8.31 | 2.69 | 8 | 2 | 1 |
+   | **Totals** | **127** | | | **94** | **27** | **6** |
+
+   After rounding down, Plate 1 has 2 empty slots (96 − 94) and Plate 2 has 4 empty slots (31 − 27). The 6 leftover samples are awarded to the pairs with the highest fractional remainders: Green (.88), Red (.74), BatchQC (.69), BatchRef (.69) go to Plate 2; Blue (.41) and Orange (.58) go to Plate 1. Final result: every plate is exactly full, every group places all its samples, and no pair deviates by more than 1 from its ideal.
+4. **Placing Samples on Plates**: Each group's samples are shuffled and placed into plates following the counts from step 3.
+5. **Row Distribution**: Within each plate, the same proportional allocation logic from step 3 is applied again — this time distributing each group's samples across rows. Rows with fewer available wells (e.g., the last row on a partially-filled plate) receive proportionally fewer samples.
+6. **Greedy Spatial Placement**: Within each row, samples are placed into columns one at a time, choosing the position that minimizes clustering (same-group neighbors horizontally, vertically, and across row boundaries). Random tie-breaking preserves diversity.
+7. **Quality Metrics**: Adjacency counts are computed for the final layout to produce the balance and clustering scores shown in the UI.
 
 
 #### **Group-Aware Randomization** (when a Subject ID Column and grouping constraint are configured)
