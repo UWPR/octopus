@@ -374,8 +374,13 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     }
 
     const csv = generateMappingCSV(mappings);
-    downloadSequenceCSV(csv, 'id_mapping.csv');
-  }, [generatedSequence, fileNamingConfig.serialIdConfig]);
+    let baseName = 'output';
+    if (inputFileName) {
+      const stripped = inputFileName.replace(/\.[^/.]+$/, '').trim();
+      if (stripped) baseName = stripped;
+    }
+    downloadSequenceCSV(csv, `${baseName}_id-mapping.csv`);
+  }, [generatedSequence, fileNamingConfig.serialIdConfig, inputFileName]);
 
   // ── Validation ───────────────────────────────────────────────────────────
 

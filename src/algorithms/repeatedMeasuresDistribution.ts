@@ -1357,14 +1357,17 @@ export function groupAwareRandomization(
       const plateGroups2 = groupByCovariates(experimentalPlateSamples, selectedCovariates);
 
       // Use the effective row capacities that already account for QC allocations
-      // (not assignBlockCapacities, which assumes full numColumns per row)
+      // (not assignBlockCapacities, which assumes full numColumns per row).
+      // Note: Σ rowCapacities can exceed the experimental sample count on this
+      // plate when the layout has empty wells; Hamilton handles that as the
+      // under-capacity case. See docs/expected-minimums-architecture.md for the
+      // asymmetry between this caller and the standard-flow row pass.
       const rowCapacities = effectiveRowCapacitiesPerPlate[plateIdx];
 
       const maxEffectiveRowCapacity = Math.max(...rowCapacities);
       const expectedRowMinimums = calculateExpectedMinimums(
         rowCapacities,
         plateGroups2,
-        maxEffectiveRowCapacity,
         BlockType.ROW
       );
 

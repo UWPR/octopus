@@ -1,5 +1,4 @@
-import { SearchData } from '../utils/types';
-import { BlockType } from '../utils/types';
+import { SearchData, BlockType } from '../utils/types';
 import { shuffleArray, groupByCovariates } from '../utils/utils';
 import { greedyPlaceInRow, analyzePlateSpatialQuality } from './greedySpatialPlacement';
 import { debugLog } from '../utils/configs';
@@ -104,30 +103,30 @@ function sortGroupsBySize(
   return result;
 }
 
-// Helper function to calculate expected minimum samples per block (plates or rows) for each covariate group
-// Throws an error if the total samples exceed available capacity or if any block's expected minimums exceed its capacity
+// Returns, for each (block, group) pair, how many samples of that group should
+// land in that block. Uses largest-remainder (Hamilton) apportionment over the
+// whole (group, block) grid:
 //
-// Exported for testing purposes
+//   quota = groupSize * blockCap / totalCapacity
+//   each (group, block) gets floor(quota), then +1s are awarded by descending
+//   fractional remainder until every sample is placed.
+//
+// When totalSamples == totalCapacity, blocks fill exactly. When
+// totalSamples < totalCapacity (rows can be under-filled), the unfilled wells
+// fall out naturally. Throws when totalSamples > totalCapacity.
+//
+// Exported for testing purposes.
 export function calculateExpectedMinimums(
   blockCapacities: number[],
   covariateGroups: Map<string, SearchData[]>,
-  fullBlockCapacity: number,
   blockType: BlockType
 ): { [blockIdx: number]: { [groupKey: string]: number } } {
 
-  const expectedMinimums: { [blockIdx: number]: { [groupKey: string]: number } } = {};
-  const totalBlocksNeeded = blockCapacities.length;
-
-  // Calculate total samples across all groups
-  let totalSamples = 0;
-  covariateGroups.forEach((samples) => {
-    totalSamples += samples.length;
-  });
-
-  // Calculate total available capacity
   const totalCapacity = blockCapacities.reduce((sum, capacity) => sum + capacity, 0);
 
-  // Validate that total samples don't exceed total capacity
+  let totalSamples = 0;
+  covariateGroups.forEach(samples => { totalSamples += samples.length; });
+
   if (totalSamples > totalCapacity) {
     throw new Error(
       `Cannot distribute ${totalSamples} samples across ${blockType.toLowerCase()}s with total capacity ${totalCapacity}. ` +
@@ -135,34 +134,162 @@ export function calculateExpectedMinimums(
     );
   }
 
-    debugLog(`Calculating expected minimums per ${blockType} based on capacities:`);
-  blockCapacities.forEach((capacity, blockIdx) => {
-    expectedMinimums[blockIdx] = {};
-    let blockTotalExpected = 0;
+  const numBlocks = blockCapacities.length;
+  const result: { [blockIdx: number]: { [groupKey: string]: number } } = {};
+  for (let b = 0; b < numBlocks; b++) result[b] = {};
 
-    covariateGroups.forEach((samples, groupKey) => {
-      // Calculate expected minimum for this covariate group on this specific block
-      // Based on the block's capacity relative to a full block
-      const capacityRatio = totalBlocksNeeded === 1 ? 1 : capacity / fullBlockCapacity;
-      const globalExpected = Math.floor(samples.length / totalBlocksNeeded);
+  // Pass 1: compute the floor and fractional remainder for each (group, block).
+  // `groupSurplus` tracks how many samples from each group still need to be
+  // placed on some block (groupSize minus the sum of floors across all blocks).
+  // `blockDeficit` tracks how many more samples each block needs to reach its capacity.
+  // `eligibleByGroup` records which blocks have non-zero remainder for the group
+  // (frac > 0) and could receive a +1; `awardedByGroup` tracks which ones did,
+  // for the repair pass below.
+  type QuotaRemainder = { groupKey: string; blockIdx: number; frac: number };
+  const FRAC_EPSILON = 1e-9;
+  const quotaRemainders: QuotaRemainder[] = [];
+  const groupSurplus = new Map<string, number>();
+  const eligibleByGroup = new Map<string, Set<number>>();
+  const awardedByGroup = new Map<string, Set<number>>();
+  const blockFloorSum = new Array<number>(numBlocks).fill(0);
 
-      expectedMinimums[blockIdx][groupKey] = Math.round(globalExpected * capacityRatio);
-      blockTotalExpected += expectedMinimums[blockIdx][groupKey];
-
-    debugLog(`  ${blockType} ${blockIdx + 1},  Group ${groupKey}, Samples ${samples.length}, Expected ${globalExpected},
-          Capacity ratio: ${capacityRatio.toFixed(2)}, Expected minimum: ${expectedMinimums[blockIdx][groupKey]}`);
-    });
-
-    // Validate that expected minimums for this block don't exceed its capacity
-    if (blockTotalExpected > capacity) {
-      throw new Error(
-        `${blockType} ${blockIdx + 1} expected minimums (${blockTotalExpected}) exceed its capacity (${capacity}). ` +
-        `This indicates an impossible distribution scenario.`
-      );
+  covariateGroups.forEach((samples, groupKey) => {
+    const groupSize = samples.length;
+    let floorSum = 0;
+    const eligibleBlocks = new Set<number>();
+    for (let b = 0; b < numBlocks; b++) {
+      const quota = (groupSize * blockCapacities[b]) / totalCapacity;
+      const floor = Math.floor(quota);
+      const frac = quota - floor;
+      result[b][groupKey] = floor;
+      floorSum += floor;
+      blockFloorSum[b] += floor;
+      quotaRemainders.push({ groupKey, blockIdx: b, frac });
+      if (frac > FRAC_EPSILON) eligibleBlocks.add(b);
     }
+    groupSurplus.set(groupKey, groupSize - floorSum);
+    eligibleByGroup.set(groupKey, eligibleBlocks);
+    awardedByGroup.set(groupKey, new Set<number>());
   });
 
-  return expectedMinimums;
+  const blockDeficit = blockCapacities.map((cap, b) => cap - blockFloorSum[b]);
+
+  // Pass 2: award +1s by descending fractional remainder (random tiebreak),
+  // skipping cells with zero frac (integer quota; +1 there would over-place
+  // the group on that block).
+  let unplaced = 0;
+  groupSurplus.forEach(n => { unplaced += n; });
+
+  const ordered = shuffleArray(quotaRemainders.filter(c => c.frac > FRAC_EPSILON));
+  ordered.sort((a, b) => b.frac - a.frac);
+
+  for (const c of ordered) {
+    if (unplaced <= 0) break;
+    if ((groupSurplus.get(c.groupKey) ?? 0) <= 0) continue;
+    if (blockDeficit[c.blockIdx] <= 0) continue;
+    result[c.blockIdx][c.groupKey] += 1;
+    awardedByGroup.get(c.groupKey)!.add(c.blockIdx);
+    groupSurplus.set(c.groupKey, groupSurplus.get(c.groupKey)! - 1);
+    blockDeficit[c.blockIdx] -= 1;
+    unplaced -= 1;
+  }
+
+  // Pass 3: repair. The greedy pass can leave a group with samples still unplaced
+  // while every block that could accept one of its samples is already full from
+  // other groups' +1s. Fix this by finding a swap chain (BFS along alternating
+  // not-yet-awarded / awarded edges) from a group with unplaced samples to a
+  // block that still has room, then flipping each edge along the chain. One
+  // group places a sample, one block fills a slot, and every intermediate
+  // group/block nets zero change.
+  // See docs/hamilton-2d-augmenting-path.svg for a worked example.
+  while (unplaced > 0) {
+    let startGroup: string | null = null;
+    groupSurplus.forEach((n, g) => {
+      if (startGroup === null && n > 0) { startGroup = g; }
+    });
+    if (startGroup === null) break;
+
+    const visitedGroups = new Set<string>([startGroup]);
+    const visitedBlocks = new Set<number>();
+    const blockFrom = new Map<number, string>();
+    const groupFrom = new Map<string, number>();
+
+    let frontierGroups: string[] = [startGroup];
+    let endBlock = -1;
+
+    bfs:
+    while (frontierGroups.length > 0) {
+      const frontierBlocks: number[] = [];
+      for (let fi = 0; fi < frontierGroups.length; fi++) {
+        const g = frontierGroups[fi];
+        const elig = eligibleByGroup.get(g);
+        if (!elig) continue;
+        const awarded = awardedByGroup.get(g)!;
+        const eligArr = Array.from(elig);
+        for (let ei = 0; ei < eligArr.length; ei++) {
+          const b = eligArr[ei];
+          if (visitedBlocks.has(b)) continue;
+          if (awarded.has(b)) continue;
+          visitedBlocks.add(b);
+          blockFrom.set(b, g);
+          if (blockDeficit[b] > 0) {
+            endBlock = b;
+            break bfs;
+          }
+          frontierBlocks.push(b);
+        }
+      }
+      if (frontierBlocks.length === 0) break;
+
+      const nextGroups: string[] = [];
+      for (let bi = 0; bi < frontierBlocks.length; bi++) {
+        const b = frontierBlocks[bi];
+        awardedByGroup.forEach((awarded, g) => {
+          if (!awarded.has(b)) return;
+          if (visitedGroups.has(g)) return;
+          visitedGroups.add(g);
+          groupFrom.set(g, b);
+          nextGroups.push(g);
+        });
+      }
+      frontierGroups = nextGroups;
+    }
+
+    if (endBlock < 0) {
+      // Unreachable for quotas of the form groupSize * blockCap / totalCapacity:
+      // every still-needy group has at least one eligible block, every block
+      // with room has at least one eligible group, and the row/column totals
+      // are consistent, so a swap chain always exists. Treated as an assertion.
+      throw new Error(
+        `Hamilton apportionment invariant violated: no swap chain from group ` +
+        `${startGroup} to a ${blockType.toLowerCase()} with remaining room.`
+      );
+    }
+
+    // Walk the chain backwards from the room-having block, flipping each edge.
+    let curBlock = endBlock;
+    while (true) {
+      const g = blockFrom.get(curBlock)!;
+      result[curBlock][g] += 1;
+      awardedByGroup.get(g)!.add(curBlock);
+      if (g === startGroup) break;
+      const prevBlock = groupFrom.get(g)!;
+      result[prevBlock][g] -= 1;
+      awardedByGroup.get(g)!.delete(prevBlock);
+      curBlock = prevBlock;
+    }
+
+    groupSurplus.set(startGroup, groupSurplus.get(startGroup)! - 1);
+    blockDeficit[endBlock] -= 1;
+    unplaced -= 1;
+  }
+
+  debugLog(`Calculating expected minimums per ${blockType} using Hamilton apportionment:`);
+  for (let b = 0; b < numBlocks; b++) {
+    debugLog(`  ${blockType} ${b + 1} (cap ${blockCapacities[b]}): ${JSON.stringify(result[b])}`);
+  }
+
+  return result;
 }
 
 // Helper function to assign block capacities based on distribution strategy
@@ -591,7 +718,6 @@ function doBalancedRandomization(
   const expectedMinimumsPerPlate = calculateExpectedMinimums(
     plateCapacities,
     covariateGroups,
-    plateSize,
     BlockType.PLATE
   );
 
@@ -630,7 +756,6 @@ function doBalancedRandomization(
     const expectedRowMinimums = calculateExpectedMinimums(
       rowCapacities,
       plateGroups,
-      numColumns,
       BlockType.ROW
     );
 

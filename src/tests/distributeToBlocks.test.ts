@@ -7,7 +7,7 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
   const createSample = (name: string, gender: string, plate: string, treatment: string): SearchData => ({
     name,
     metadata: { Gender: gender, Plate: plate, Treatment: treatment },
-    covariateKey: `${gender}|${plate}|${treatment}` // Add treatmentKey for tests
+    covariateKey: `${gender}|${plate}|${treatment}`
   });
 
   // Helper function to count samples per covariate group in result
@@ -77,7 +77,7 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
 
     const maxCapacity = 20;
     const blockType = BlockType.PLATE;
-    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, maxCapacity, blockType);
+    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, blockType);
 
     const result = distributeToBlocks(
       covariateGroups,
@@ -159,7 +159,7 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
 
     const maxCapacity = 30;
     const blockType = BlockType.PLATE;
-    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, maxCapacity, blockType);
+    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, blockType);
 
     const result = distributeToBlocks(
       covariateGroups,
@@ -245,12 +245,19 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
 
     const maxCapacity = 40;
     const blockType = BlockType.PLATE;
-    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, maxCapacity, blockType);
+    const expectedMinimums = calculateExpectedMinimums(blockCapacities, covariateGroups, blockType);
     expect(expectedMinimums).toBeDefined();
     expect(Object.keys(expectedMinimums).length).toBe(3);
-    expect(expectedMinimums[0]).toEqual({'Female|P_1|Control': 23, 'Male|P_2|Blinded': 10});
-    expect(expectedMinimums[1]).toEqual({'Female|P_1|Control': 23, 'Male|P_2|Blinded': 10});
-    expect(expectedMinimums[2]).toEqual({'Female|P_1|Control': 12, 'Male|P_2|Blinded': 5}); // Capacity ratio is 20/40 = 0.5
+
+    // Hamilton: quota = groupSize * plateCap / totalCap. All quotas are integers here.
+    // G1 (70): P1=28, P2=28, P3=14. G2 (30): P1=12, P2=12, P3=6.
+    // Per-plate sums: P1=40, P2=40, P3=20. Per-group sums: G1=70, G2=30.
+    expect(expectedMinimums[0]['Female|P_1|Control'] + expectedMinimums[1]['Female|P_1|Control'] + expectedMinimums[2]['Female|P_1|Control']).toBe(70);
+    expect(expectedMinimums[0]['Male|P_2|Blinded'] + expectedMinimums[1]['Male|P_2|Blinded'] + expectedMinimums[2]['Male|P_2|Blinded']).toBe(30);
+    for (let p = 0; p < 3; p++) {
+      const plateSum = (expectedMinimums[p]['Female|P_1|Control'] ?? 0) + (expectedMinimums[p]['Male|P_2|Blinded'] ?? 0);
+      expect(plateSum).toBe(blockCapacities[p]);
+    }
 
     const result = distributeToBlocks(
       covariateGroups,
@@ -279,78 +286,48 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
     // Verify proportional distribution
     const groupCounts = countSamplesPerGroup(result, selectedCovariates);
 
-    // Group 1 (70 samples): minimum expected 23, 23, 12
+    // Both groups in this test have size >= numPlates, so Phase 1 follows
+    // Hamilton's per-plate expected counts directly (no Phase 2 spillover).
+    // (Smaller groups, where groupSize < numPlates, bypass Phase 1's baseline
+    // loop and end up in Phase 2A; that path uses a different heuristic.)
+    // G1 (70): quota per plate = 70*cap/100. P1: 28, P2: 28, P3: 14.
+    // G2 (30): quota per plate = 30*cap/100. P1: 12, P2: 12, P3: 6.
     const group1Counts = groupCounts.get('Female|P_1|Control');
     expect(group1Counts).toBeDefined();
-    expect(group1Counts!.get(0)).toBeGreaterThanOrEqual(23);
-    expect(group1Counts!.get(1)).toBeGreaterThanOrEqual(23);
-    expect(group1Counts!.get(2)).toBeGreaterThanOrEqual(12);
-
-    // Group 2 (30 samples): minimum expected 10, 10, 5
     const group2Counts = groupCounts.get('Male|P_2|Blinded');
     expect(group2Counts).toBeDefined();
-    expect(group2Counts!.get(0)).toBeGreaterThanOrEqual(10);
-    expect(group2Counts!.get(1)).toBeGreaterThanOrEqual(10);
-    expect(group2Counts!.get(2)).toBeGreaterThanOrEqual(5);
 
-    // OVERFLOW DISTRIBUTION ANALYSIS:
-    // Expected minimums: Plate 0 (33 total), Plate 1 (33 total), Plate 2 (17 total) = 83 expected minimum
-    // Total samples: 100, so 17 overflow samples need to be distributed
-    //
-    // Group 1 (70 samples): Expected minimums 23 + 23 + 12 = 58, so 12 overflow samples
-    // Group 2 (30 samples): Expected minimums 10 + 10 + 5 = 25, so 5 overflow samples
-    //
-    // Overflow distribution algorithm places samples iteratively, one at a time:
-    // 1. Larger covariate groups first (Group 1 gets overflow before Group 2)
-    // 2. Samples placed round-robin across all available plates, with higher capacity plates prioritized
-    //
-    // Group 1 overflow placement (12 samples):
-    // - Iterations 1: Place 1 sample each in Plate 0, 1, 2 (3 samples total)
-    // - After iteration 3: Plate 2 reaches capacity (20 total: 12 + 5 + 3 = 20)
-    // - Iterations 4: Remaining 3 samples placed alternately in Plate 0 and 1
-    // - Final Group 1 distribution: Plate 0 gets 27-28, Plate 1 gets 27-28, Plate 2 gets 15
-    //
-    // Group 2 overflow placement (5 samples):
-    // - All 5 overflow samples go to Plate 0 and 1 (since Plate 2 is at capacity)
-    // - Final distribution should have all plates at full capacity (40, 40, 20)
-
-    // Verify that all samples are distributed beyond expected minimums
+    // Verify all samples are distributed
     const group1Total = (group1Counts!.get(0) || 0) + (group1Counts!.get(1) || 0) + (group1Counts!.get(2) || 0);
     const group2Total = (group2Counts!.get(0) || 0) + (group2Counts!.get(1) || 0) + (group2Counts!.get(2) || 0);
+    expect(group1Total).toBe(70);
+    expect(group2Total).toBe(30);
 
-    expect(group1Total).toBe(70); // All Group 1 samples distributed
-    expect(group2Total).toBe(30); // All Group 2 samples distributed
+    // Verify proportional allocation: each cell within +/-1 of ideal
+    // G1 on P1/P2: ideal = 70*40/100 = 28. G1 on P3: ideal = 70*20/100 = 14.
+    // G2 on P1/P2: ideal = 30*40/100 = 12. G2 on P3: ideal = 30*20/100 = 6.
+    expect(group1Counts!.get(0)).toBeGreaterThanOrEqual(27);
+    expect(group1Counts!.get(0)).toBeLessThanOrEqual(29);
+    expect(group1Counts!.get(1)).toBeGreaterThanOrEqual(27);
+    expect(group1Counts!.get(1)).toBeLessThanOrEqual(29);
+    expect(group1Counts!.get(2)).toBeGreaterThanOrEqual(13);
+    expect(group1Counts!.get(2)).toBeLessThanOrEqual(15);
 
-    // Verify overflow distribution behavior for Group 1
-    // Plate 2 should get exactly 3 overflow samples (reaching capacity at 15 total)
-    expect(group1Counts!.get(2)).toBe(15); // 12 minimum + 3 overflow = 15
-
-    // Plates 0 and 1 should split the remaining 9 overflow samples
-    // One will get 4, the other will get 5 (so 27 and 28 total)
-    const plate0Group1 = group1Counts!.get(0) || 0;
-    const plate1Group1 = group1Counts!.get(1) || 0;
-    expect([27, 28]).toContain(plate0Group1);
-    expect([27, 28]).toContain(plate1Group1);
-    expect(plate0Group1 + plate1Group1).toBe(55); // 23 + 23 + 9 overflow = 55
-
-    // Verify overflow distribution behavior for Group 2
-    // Plates 0 and 1 should split all 5 overflow samples
-    const plate0Group2 = group2Counts!.get(0) || 0;
-    const plate1Group2 = group2Counts!.get(1) || 0;
-    const plate2Group2 = group2Counts!.get(2) || 0;
-    expect(plate2Group2).toBe(5); // Only minimum, no overflow
-    expect([12, 13]).toContain(plate0Group2);
-    expect([12, 13]).toContain(plate1Group2);
-    expect(plate0Group2 + plate1Group2 + plate2Group2).toBe(30); // 10 + 10 + 5 overflow = 30
+    expect(group2Counts!.get(0)).toBeGreaterThanOrEqual(11);
+    expect(group2Counts!.get(0)).toBeLessThanOrEqual(13);
+    expect(group2Counts!.get(1)).toBeGreaterThanOrEqual(11);
+    expect(group2Counts!.get(1)).toBeLessThanOrEqual(13);
+    expect(group2Counts!.get(2)).toBeGreaterThanOrEqual(5);
+    expect(group2Counts!.get(2)).toBeLessThanOrEqual(7);
 
     // Verify final plate capacities are reached
     const plate0Total = (group1Counts!.get(0) || 0) + (group2Counts!.get(0) || 0);
     const plate1Total = (group1Counts!.get(1) || 0) + (group2Counts!.get(1) || 0);
     const plate2Total = (group1Counts!.get(2) || 0) + (group2Counts!.get(2) || 0);
 
-    expect(plate0Total).toBe(40); // Plate 0 at full capacity
-    expect(plate1Total).toBe(40); // Plate 1 at full capacity
-    expect(plate2Total).toBe(20); // Plate 2 at full capacity
+    expect(plate0Total).toBe(40);
+    expect(plate1Total).toBe(40);
+    expect(plate2Total).toBe(20);
   });
 
 
@@ -459,7 +436,7 @@ describe('calculateExpectedMinimums', () => {
     const group1Samples = Array.from({ length: 20 }, (_, i) => ({
       name: `sample_1_${i + 1}`,
       metadata: { Gender: 'Male', Plate: 'P_1', Treatment: 'Control' },
-      treatmentKey: 'Male|P_1|Control'
+      covariateKey: 'Male|P_1|Control'
     }));
     groups.set('Male|P_1|Control', group1Samples);
 
@@ -467,7 +444,7 @@ describe('calculateExpectedMinimums', () => {
     const group2Samples = Array.from({ length: 10 }, (_, i) => ({
       name: `sample_2_${i + 1}`,
       metadata: { Gender: 'Female', Plate: 'P_2', Treatment: 'Blinded' },
-      treatmentKey: 'Female|P_2|Blinded'
+      covariateKey: 'Female|P_2|Blinded'
     }));
     groups.set('Female|P_2|Blinded', group2Samples);
 
@@ -475,7 +452,7 @@ describe('calculateExpectedMinimums', () => {
     const group3Samples = Array.from({ length: 6 }, (_, i) => ({
       name: `sample_3_${i + 1}`,
       metadata: { Gender: 'Male', Plate: 'P_3', Treatment: 'X-Ray' },
-      treatmentKey: 'Male|P_3|X-Ray'
+      covariateKey: 'Male|P_3|X-Ray'
     }));
     groups.set('Male|P_3|X-Ray', group3Samples);
 
@@ -485,13 +462,11 @@ describe('calculateExpectedMinimums', () => {
   test('Should calculate expected minimums for plates with equal capacities', () => {
     const covariateGroups = createTestGroups();
     const blockCapacities = [12, 12, 12]; // 3 plates with 12 capacity each
-    const fullBlockCapacity = 12;
     const blockType = BlockType.PLATE;
 
     const result = calculateExpectedMinimums(
       blockCapacities,
       covariateGroups,
-      fullBlockCapacity,
       blockType
     );
 
@@ -501,17 +476,29 @@ describe('calculateExpectedMinimums', () => {
     expect(result[1]).toBeDefined();
     expect(result[2]).toBeDefined();
 
-    // Group 1: 20 samples across 3 plates = floor(20/3) = 6 per plate
-    expect(result[0]['Male|P_1|Control']).toBe(6);
-    expect(result[1]['Male|P_1|Control']).toBe(6);
-    expect(result[2]['Male|P_1|Control']).toBe(6);
+    // Hamilton invariants: per-plate sum = capacity, per-group sum = group size
+    for (let p = 0; p < 3; p++) {
+      const plateSum = Object.values(result[p]).reduce((a: number, b: number) => a + b, 0);
+      expect(plateSum).toBe(12);
+    }
 
-    // Group 2: 10 samples across 3 plates = floor(10/3) = 3 per plate
-    expect(result[0]['Female|P_2|Blinded']).toBe(3);
-    expect(result[1]['Female|P_2|Blinded']).toBe(3);
-    expect(result[2]['Female|P_2|Blinded']).toBe(3);
+    // Group 1: 20 samples across 3 plates -- each plate gets 6 or 7
+    const g1Total = result[0]['Male|P_1|Control'] + result[1]['Male|P_1|Control'] + result[2]['Male|P_1|Control'];
+    expect(g1Total).toBe(20);
+    for (let p = 0; p < 3; p++) {
+      expect(result[p]['Male|P_1|Control']).toBeGreaterThanOrEqual(6);
+      expect(result[p]['Male|P_1|Control']).toBeLessThanOrEqual(7);
+    }
 
-    // Group 3: 6 samples across 3 plates = floor(6/3) = 2 per plate
+    // Group 2: 10 samples across 3 plates -- each plate gets 3 or 4
+    const g2Total = result[0]['Female|P_2|Blinded'] + result[1]['Female|P_2|Blinded'] + result[2]['Female|P_2|Blinded'];
+    expect(g2Total).toBe(10);
+    for (let p = 0; p < 3; p++) {
+      expect(result[p]['Female|P_2|Blinded']).toBeGreaterThanOrEqual(3);
+      expect(result[p]['Female|P_2|Blinded']).toBeLessThanOrEqual(4);
+    }
+
+    // Group 3: 6 samples across 3 plates = exactly 2 per plate
     expect(result[0]['Male|P_3|X-Ray']).toBe(2);
     expect(result[1]['Male|P_3|X-Ray']).toBe(2);
     expect(result[2]['Male|P_3|X-Ray']).toBe(2);
@@ -520,45 +507,43 @@ describe('calculateExpectedMinimums', () => {
   test('Should calculate expected minimums for plates with unequal capacities', () => {
     const covariateGroups = createTestGroups();
     const blockCapacities = [20, 10, 6]; // Different capacities
-    const fullBlockCapacity = 20; // Full capacity
     const blockType = BlockType.PLATE;
 
     const result = calculateExpectedMinimums(
       blockCapacities,
       covariateGroups,
-      fullBlockCapacity,
       blockType
     );
 
-    // Group 1: 20 samples, global expected = floor(20/3) = 6
-    // Plate 0: capacity 20, ratio 1.0, expected = round(6 * 1.0) = 6
-    // Plate 1: capacity 10, ratio 0.5, expected = round(6 * 0.5) = 3
-    // Plate 2: capacity 6, ratio 0.3, expected = round(6 * 0.3) = 2
-    expect(result[0]['Male|P_1|Control']).toBe(6);
-    expect(result[1]['Male|P_1|Control']).toBe(3);
-    expect(result[2]['Male|P_1|Control']).toBe(2);
+    // Hamilton invariants: per-plate sum = capacity, per-group sum = group size
+    const plateSums = [0, 0, 0];
+    for (let p = 0; p < 3; p++) {
+      plateSums[p] = Object.values(result[p]).reduce((a: number, b: number) => a + b, 0);
+      expect(plateSums[p]).toBe(blockCapacities[p]);
+    }
 
-    // Group 2: 10 samples, global expected = floor(10/3) = 3
-    // Plate 0: capacity 20, ratio 1.0, expected = round(3 * 1.0) = 3
-    // Plate 1: capacity 10, ratio 0.5, expected = round(3 * 0.5) = 2
-    // Plate 2: capacity 6, ratio 0.3, expected = round(3 * 0.3) = 1
-    expect(result[0]['Female|P_2|Blinded']).toBe(3);
-    expect(result[1]['Female|P_2|Blinded']).toBe(2);
-    expect(result[2]['Female|P_2|Blinded']).toBe(1);
+    // Group totals must equal group sizes
+    const g1Total = result[0]['Male|P_1|Control'] + result[1]['Male|P_1|Control'] + result[2]['Male|P_1|Control'];
+    expect(g1Total).toBe(20);
+    const g2Total = result[0]['Female|P_2|Blinded'] + result[1]['Female|P_2|Blinded'] + result[2]['Female|P_2|Blinded'];
+    expect(g2Total).toBe(10);
+    const g3Total = result[0]['Male|P_3|X-Ray'] + result[1]['Male|P_3|X-Ray'] + result[2]['Male|P_3|X-Ray'];
+    expect(g3Total).toBe(6);
 
-    // Group 3: 6 samples, global expected = floor(6/3) = 2
-    // Plate 0: capacity 20, ratio 1.0, expected = round(2 * 1.0) = 2
-    // Plate 1: capacity 10, ratio 0.5, expected = round(2 * 0.5) = 1
-    // Plate 2: capacity 6, ratio 0.3, expected = round(2 * 0.3) = 1
-    expect(result[0]['Male|P_3|X-Ray']).toBe(2);
-    expect(result[1]['Male|P_3|X-Ray']).toBe(1);
-    expect(result[2]['Male|P_3|X-Ray']).toBe(1);
+    // Each cell within +/-1 of ideal (groupSize * plateCap / totalCap)
+    const totalCap = blockCapacities.reduce((a, b) => a + b, 0);
+    for (let p = 0; p < 3; p++) {
+      for (const [key, size] of [['Male|P_1|Control', 20], ['Female|P_2|Blinded', 10], ['Male|P_3|X-Ray', 6]] as [string, number][]) {
+        const ideal = (size * blockCapacities[p]) / totalCap;
+        expect(result[p][key]).toBeGreaterThanOrEqual(Math.floor(ideal));
+        expect(result[p][key]).toBeLessThanOrEqual(Math.ceil(ideal));
+      }
+    }
   });
 
   test('Should calculate expected minimums for rows with equal capacities', () => {
     const covariateGroups = createTestGroups();
     const blockCapacities = [6, 6, 6, 6]; // 4 rows with 6 columns each
-    const fullBlockCapacity = 6; // Full row capacity
     const blockType = BlockType.ROW;
 
     // This test case has 36 total samples but only 24 total capacity (4 * 6)
@@ -567,26 +552,23 @@ describe('calculateExpectedMinimums', () => {
       calculateExpectedMinimums(
         blockCapacities,
         covariateGroups,
-        fullBlockCapacity,
         blockType
       );
     }).toThrow('Cannot distribute 36 samples across rows with total capacity 24');
   });
 
-  test('Should handle single block case (capacity ratio = 1)', () => {
+  test('Should place all samples on the single block when there is only one', () => {
     const covariateGroups = createTestGroups();
-    const blockCapacities = [36]; // Single plate with capacity = total samples. This is less than full block capacity.
-    const fullBlockCapacity = 50;
+    const blockCapacities = [36]; // Single plate with capacity = total samples
     const blockType = BlockType.PLATE;
 
     const result = calculateExpectedMinimums(
       blockCapacities,
       covariateGroups,
-      fullBlockCapacity,
       blockType
     );
 
-    // With single block, capacity ratio should be 1 for all groups
+    // With a single block, every group's quota equals its full size.
     expect(result[0]['Male|P_1|Control']).toBe(20); // All 20 samples
     expect(result[0]['Female|P_2|Blinded']).toBe(10); // All 10 samples
     expect(result[0]['Male|P_3|X-Ray']).toBe(6); // All 6 samples
