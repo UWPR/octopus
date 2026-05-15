@@ -12,16 +12,16 @@
  *   1. Per-group sum equals group size (every sample placed).
  *   2. Per-plate sum equals plate capacity (only when totalSamples ===
  *      totalCapacity; under-capacity inputs leave empty wells).
- *   3. Every cell within ±1 of the continuous ideal
- *      (groupSize × plateCap / totalCapacity).
- *   4. No throws on valid inputs (totalSamples ≤ totalCapacity).
+ *   3. Every cell within +/-1 of the continuous ideal
+ *      (groupSize * plateCap / totalCapacity).
+ *   4. No throws on valid inputs (totalSamples <= totalCapacity).
  */
 
 import * as fc from 'fast-check';
 import { calculateExpectedMinimums } from '../algorithms/balancedRandomization';
 import { SearchData, BlockType } from '../utils/types';
 
-// ─── Generator helpers ──────────────────────────────────────────────────────
+// --- Generator helpers ------------------------------------------------------
 
 function makeSample(name: string, covariateKey: string): SearchData {
   return { name, metadata: {}, covariateKey };
@@ -40,7 +40,7 @@ function makeGroups(spec: Record<string, number>): Map<string, SearchData[]> {
 }
 
 /**
- * Partition `total` into `numParts` integer parts, each ≥ 1, using
+ * Partition `total` into `numParts` integer parts, each >= 1, using
  * stars-and-bars: choose `numParts - 1` distinct cut points in `[1, total - 1]`
  * and take the gaps. This generates compositions uniformly at random, which
  * naturally produces a mix of balanced and skewed partitions (including
@@ -49,7 +49,7 @@ function makeGroups(spec: Record<string, number>): Map<string, SearchData[]> {
  */
 function partitionIntoParts(total: number, numParts: number, gen: fc.GeneratorValue): number[] {
   if (numParts < 1 || total < numParts) {
-    throw new Error(`Cannot partition ${total} into ${numParts} parts ≥ 1`);
+    throw new Error(`Cannot partition ${total} into ${numParts} parts >= 1`);
   }
   if (numParts === 1) return [total];
 
@@ -61,7 +61,7 @@ function partitionIntoParts(total: number, numParts: number, gen: fc.GeneratorVa
     cuts.add(gen(fc.integer, { min: 1, max: total - 1 }));
     attempts++;
   }
-  // Fallback if collisions exhaust attempts (rare; only when total - 1 ≈ numParts - 1).
+  // Fallback if collisions exhaust attempts (rare; only when total - 1 is close to numParts - 1).
   for (let i = 1; cuts.size < numParts - 1; i++) {
     cuts.add(i);
   }
@@ -77,7 +77,7 @@ function partitionIntoParts(total: number, numParts: number, gen: fc.GeneratorVa
   return parts;
 }
 
-// ─── Invariant assertions ───────────────────────────────────────────────────
+// --- Invariant assertions ---------------------------------------------------
 
 interface InvariantResult {
   ok: boolean;
@@ -119,7 +119,7 @@ function checkHamiltonInvariants(
     }
   }
 
-  // Invariant 3: Every cell within ±1 of continuous ideal
+  // Invariant 3: Every cell within +/-1 of continuous ideal
   for (let p = 0; p < blockCapacities.length; p++) {
     for (const [key, size] of Object.entries(groupSizes)) {
       const ideal = (size * blockCapacities[p]) / totalCapacity;
@@ -138,7 +138,7 @@ function checkHamiltonInvariants(
   return { ok: true };
 }
 
-// ─── Property tests ─────────────────────────────────────────────────────────
+// --- Property tests ---------------------------------------------------------
 
 describe('Hamilton Apportionment - Property: exact-capacity invariants', () => {
   it('every Hamilton output on exact-capacity inputs satisfies all four invariants', () => {
@@ -148,18 +148,18 @@ describe('Hamilton Apportionment - Property: exact-capacity invariants', () => {
         fc.integer({ min: 2, max: 10 }),   // numGroups
         fc.gen().map(gen => gen),
         (numPlates, numGroups, gen) => {
-          // Generate plate capacities (each 5–100, independent).
+          // Generate plate capacities (each 5-100, independent).
           const blockCapacities: number[] = [];
           for (let p = 0; p < numPlates; p++) {
             blockCapacities.push(gen(fc.integer, { min: 5, max: 100 }));
           }
           const totalCapacity = blockCapacities.reduce((a, b) => a + b, 0);
 
-          // Skip inputs where exact-capacity partition into numGroups parts ≥1 is infeasible.
+          // Skip inputs where exact-capacity partition into numGroups parts >=1 is infeasible.
           if (totalCapacity < numGroups) return;
 
           // Partition totalCapacity into numGroups group sizes such that
-          // Σ sizes = totalCapacity (exact-capacity).
+          // sum of sizes == totalCapacity (exact-capacity).
           const sizes = partitionIntoParts(totalCapacity, numGroups, gen);
           const groupSizes: Record<string, number> = {};
           for (let g = 0; g < numGroups; g++) {
@@ -213,7 +213,7 @@ describe('Hamilton Apportionment - Property: under-capacity invariants', () => {
           const totalCapacity = blockCapacities.reduce((a, b) => a + b, 0);
 
           const totalSamples = totalCapacity - slack;
-          // Skip inputs where partition into numGroups parts ≥1 is infeasible.
+          // Skip inputs where partition into numGroups parts >=1 is infeasible.
           if (totalSamples < numGroups) return;
 
           const sizes = partitionIntoParts(totalSamples, numGroups, gen);
@@ -255,7 +255,7 @@ describe('Hamilton Apportionment - Property: under-capacity invariants', () => {
 });
 
 describe('Hamilton Apportionment - Property: no throws on valid inputs', () => {
-  it('calculateExpectedMinimums never throws when totalSamples ≤ totalCapacity', () => {
+  it('calculateExpectedMinimums never throws when totalSamples <= totalCapacity', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 5 }),

@@ -1,5 +1,4 @@
-import { SearchData } from '../utils/types';
-import { BlockType } from '../utils/types';
+import { SearchData, BlockType } from '../utils/types';
 import { shuffleArray, groupByCovariates } from '../utils/utils';
 import { greedyPlaceInRow, analyzePlateSpatialQuality } from './greedySpatialPlacement';
 import { debugLog } from '../utils/configs';

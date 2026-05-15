@@ -7,7 +7,7 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
   const createSample = (name: string, gender: string, plate: string, treatment: string): SearchData => ({
     name,
     metadata: { Gender: gender, Plate: plate, Treatment: treatment },
-    covariateKey: `${gender}|${plate}|${treatment}` // Add treatmentKey for tests
+    covariateKey: `${gender}|${plate}|${treatment}`
   });
 
   // Helper function to count samples per covariate group in result
@@ -249,7 +249,7 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
     expect(expectedMinimums).toBeDefined();
     expect(Object.keys(expectedMinimums).length).toBe(3);
 
-    // Hamilton: quota = groupSize × plateCap / totalCap. All quotas are integers here.
+    // Hamilton: quota = groupSize * plateCap / totalCap. All quotas are integers here.
     // G1 (70): P1=28, P2=28, P3=14. G2 (30): P1=12, P2=12, P3=6.
     // Per-plate sums: P1=40, P2=40, P3=20. Per-group sums: G1=70, G2=30.
     expect(expectedMinimums[0]['Female|P_1|Control'] + expectedMinimums[1]['Female|P_1|Control'] + expectedMinimums[2]['Female|P_1|Control']).toBe(70);
@@ -287,8 +287,8 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
     const groupCounts = countSamplesPerGroup(result, selectedCovariates);
 
     // With Hamilton apportionment, all samples are placed in Phase 1.
-    // G1 (70): quota per plate = 70×cap/100. P1: 28, P2: 28, P3: 14.
-    // G2 (30): quota per plate = 30×cap/100. P1: 12, P2: 12, P3: 6.
+    // G1 (70): quota per plate = 70*cap/100. P1: 28, P2: 28, P3: 14.
+    // G2 (30): quota per plate = 30*cap/100. P1: 12, P2: 12, P3: 6.
     const group1Counts = groupCounts.get('Female|P_1|Control');
     expect(group1Counts).toBeDefined();
     const group2Counts = groupCounts.get('Male|P_2|Blinded');
@@ -300,9 +300,9 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
     expect(group1Total).toBe(70);
     expect(group2Total).toBe(30);
 
-    // Verify proportional allocation: each cell within ±1 of ideal
-    // G1 on P1/P2: ideal = 70×40/100 = 28. G1 on P3: ideal = 70×20/100 = 14.
-    // G2 on P1/P2: ideal = 30×40/100 = 12. G2 on P3: ideal = 30×20/100 = 6.
+    // Verify proportional allocation: each cell within +/-1 of ideal
+    // G1 on P1/P2: ideal = 70*40/100 = 28. G1 on P3: ideal = 70*20/100 = 14.
+    // G2 on P1/P2: ideal = 30*40/100 = 12. G2 on P3: ideal = 30*20/100 = 6.
     expect(group1Counts!.get(0)).toBeGreaterThanOrEqual(27);
     expect(group1Counts!.get(0)).toBeLessThanOrEqual(29);
     expect(group1Counts!.get(1)).toBeGreaterThanOrEqual(27);
@@ -433,7 +433,7 @@ describe('calculateExpectedMinimums', () => {
     const group1Samples = Array.from({ length: 20 }, (_, i) => ({
       name: `sample_1_${i + 1}`,
       metadata: { Gender: 'Male', Plate: 'P_1', Treatment: 'Control' },
-      treatmentKey: 'Male|P_1|Control'
+      covariateKey: 'Male|P_1|Control'
     }));
     groups.set('Male|P_1|Control', group1Samples);
 
@@ -441,7 +441,7 @@ describe('calculateExpectedMinimums', () => {
     const group2Samples = Array.from({ length: 10 }, (_, i) => ({
       name: `sample_2_${i + 1}`,
       metadata: { Gender: 'Female', Plate: 'P_2', Treatment: 'Blinded' },
-      treatmentKey: 'Female|P_2|Blinded'
+      covariateKey: 'Female|P_2|Blinded'
     }));
     groups.set('Female|P_2|Blinded', group2Samples);
 
@@ -449,7 +449,7 @@ describe('calculateExpectedMinimums', () => {
     const group3Samples = Array.from({ length: 6 }, (_, i) => ({
       name: `sample_3_${i + 1}`,
       metadata: { Gender: 'Male', Plate: 'P_3', Treatment: 'X-Ray' },
-      treatmentKey: 'Male|P_3|X-Ray'
+      covariateKey: 'Male|P_3|X-Ray'
     }));
     groups.set('Male|P_3|X-Ray', group3Samples);
 
@@ -479,7 +479,7 @@ describe('calculateExpectedMinimums', () => {
       expect(plateSum).toBe(12);
     }
 
-    // Group 1: 20 samples across 3 plates — each plate gets 6 or 7
+    // Group 1: 20 samples across 3 plates -- each plate gets 6 or 7
     const g1Total = result[0]['Male|P_1|Control'] + result[1]['Male|P_1|Control'] + result[2]['Male|P_1|Control'];
     expect(g1Total).toBe(20);
     for (let p = 0; p < 3; p++) {
@@ -487,7 +487,7 @@ describe('calculateExpectedMinimums', () => {
       expect(result[p]['Male|P_1|Control']).toBeLessThanOrEqual(7);
     }
 
-    // Group 2: 10 samples across 3 plates — each plate gets 3 or 4
+    // Group 2: 10 samples across 3 plates -- each plate gets 3 or 4
     const g2Total = result[0]['Female|P_2|Blinded'] + result[1]['Female|P_2|Blinded'] + result[2]['Female|P_2|Blinded'];
     expect(g2Total).toBe(10);
     for (let p = 0; p < 3; p++) {
@@ -527,7 +527,7 @@ describe('calculateExpectedMinimums', () => {
     const g3Total = result[0]['Male|P_3|X-Ray'] + result[1]['Male|P_3|X-Ray'] + result[2]['Male|P_3|X-Ray'];
     expect(g3Total).toBe(6);
 
-    // Each cell within ±1 of ideal (groupSize × plateCap / totalCap)
+    // Each cell within +/-1 of ideal (groupSize * plateCap / totalCap)
     const totalCap = blockCapacities.reduce((a, b) => a + b, 0);
     for (let p = 0; p < 3; p++) {
       for (const [key, size] of [['Male|P_1|Control', 20], ['Female|P_2|Blinded', 10], ['Male|P_3|X-Ray', 6]] as [string, number][]) {

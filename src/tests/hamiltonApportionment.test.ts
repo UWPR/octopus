@@ -10,7 +10,7 @@
 import { calculateExpectedMinimums } from '../algorithms/balancedRandomization';
 import { SearchData, BlockType } from '../utils/types';
 
-// ─── Test Helpers ────────────────────────────────────────────────────────────
+// --- Test Helpers ------------------------------------------------------------
 
 /** Create a minimal SearchData sample with a given covariate key */
 function makeSample(name: string, covariateKey: string): SearchData {
@@ -35,7 +35,7 @@ function makeGroups(spec: Record<string, number>): Map<string, SearchData[]> {
  *
  * Universal invariants (always checked):
  *   - Per-group sum equals group size (all samples placed)
- *   - Every cell within ±1 of the continuous ideal
+ *   - Every cell within +/-1 of the continuous ideal
  *
  * Plate-fill invariant (checked only when `expectFilled` is true, the default):
  *   - Per-plate sum equals plate capacity
@@ -70,7 +70,7 @@ function assertHamiltonInvariants(
     expect(groupTotal).toBe(size);
   }
 
-  // Invariant 3: Every cell within ±1 of continuous ideal
+  // Invariant 3: Every cell within +/-1 of continuous ideal
   for (let p = 0; p < plateCapacities.length; p++) {
     for (const [key, size] of Object.entries(groupSizes)) {
       const ideal = (size * plateCapacities[p]) / totalCapacity;
@@ -88,21 +88,25 @@ function assertHamiltonInvariants(
   expect(totalPlaced).toBe(totalSamples);
 }
 
-// ─── Example 1: 127-sample asymmetric case (keepEmpty=true) ─────────────────
+// --- Example 1: 127-sample asymmetric case (keepEmpty=true) -----------------
 
 describe('Hamilton Apportionment - Example 1: 127-sample asymmetric', () => {
   const plateCapacities = [96, 31];
   const groupSizes = { Red: 44, Blue: 27, Green: 20, Orange: 14, BatchQC: 11, BatchRef: 11 };
   const groups = makeGroups(groupSizes);
 
-  test('invariants hold (per-plate sum, per-group sum, ±1 of ideal)', () => {
+  test('invariants hold (per-plate sum, per-group sum, +/-1 of ideal)', () => {
     const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
   test('exact values: Plate 2 allocation matches Hamilton trace', () => {
     const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
-    // From bugfix.md Example 1 Hamilton trace:
+    // From the Hamilton trace in specs/hamilton-plate-apportionment/bugfix.md
+    // Example 1. BatchQC and BatchRef share a fractional remainder (both
+    // 11 samples), but the tie is uncontested (both groups have surplus 1
+    // and both can take +1 on P2 within the same deficit budget), so the
+    // result is deterministic regardless of random tiebreak.
     expect(result[1]['Red']).toBe(11);
     expect(result[1]['Blue']).toBe(6);
     expect(result[1]['Green']).toBe(5);
@@ -122,7 +126,7 @@ describe('Hamilton Apportionment - Example 1: 127-sample asymmetric', () => {
   });
 });
 
-// ─── Example 2: Three plates with tiny last plate ───────────────────────────
+// --- Example 2: Three plates with tiny last plate ---------------------------
 
 describe('Hamilton Apportionment - Example 2: Three plates, tiny last', () => {
   const plateCapacities = [96, 96, 8];
@@ -136,8 +140,10 @@ describe('Hamilton Apportionment - Example 2: Three plates, tiny last', () => {
 
   test('Plate 3 (smallest) allocation is deterministic', () => {
     const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
-    // P3 processed first (smallest). Quotas: A=3.2, B=2.4, C=1.6, D=0.8
-    // Floors: A=3, B=2, C=1, D=0. Deficit=2. Top remainders: D(0.8), C(0.6)
+    // P3 quotas: A=3.2, B=2.4, C=1.6, D=0.8.
+    // Floors: A=3, B=2, C=1, D=0. Deficit=2. Top remainders: D(0.8), C(0.6).
+    // No tied fractional remainders on P3, so the +1 awards there are
+    // deterministic regardless of random tiebreak order.
     expect(result[2]['GroupA']).toBe(3);
     expect(result[2]['GroupB']).toBe(2);
     expect(result[2]['GroupC']).toBe(2);
@@ -145,7 +151,7 @@ describe('Hamilton Apportionment - Example 2: Three plates, tiny last', () => {
   });
 });
 
-// ─── Example 3: Many small QC groups ────────────────────────────────────────
+// --- Example 3: Many small QC groups ----------------------------------------
 
 describe('Hamilton Apportionment - Example 3: Many small QC groups', () => {
   const plateCapacities = [72, 28];
@@ -159,7 +165,7 @@ describe('Hamilton Apportionment - Example 3: Many small QC groups', () => {
 
   test('all 4 QC types get exactly 3 on Plate 2', () => {
     const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
-    // QC quotas on P2: 10×28/100 = 2.8 → floor 2, remainder 0.8 (top remainders)
+    // QC quotas on P2: 10*28/100 = 2.8 -> floor 2, remainder 0.8 (top remainders)
     expect(result[1]['QCA']).toBe(3);
     expect(result[1]['QCB']).toBe(3);
     expect(result[1]['QCC']).toBe(3);
@@ -174,7 +180,7 @@ describe('Hamilton Apportionment - Example 3: Many small QC groups', () => {
   });
 });
 
-// ─── Example 4: keepEmpty=false with uneven distribution ────────────────────
+// --- Example 4: keepEmpty=false with uneven distribution --------------------
 
 describe('Hamilton Apportionment - Example 4: keepEmpty=false equal plates', () => {
   const plateCapacities = [75, 75];
@@ -186,11 +192,15 @@ describe('Hamilton Apportionment - Example 4: keepEmpty=false equal plates', () 
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
-  test('exact values: tiebreak picks D over B (smallest running allocation)', () => {
+  test('exact values: tied remainder splits B and D across the two plates', () => {
     const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
-    // Quotas: A=30.0, B=22.5, C=15.0, D=7.5. Deficit=1.
-    // Tied remainders: B(0.5), D(0.5). Tiebreak: D has smaller running (7 vs 22).
-    // First plate processed: D gets +1 → D=8. Second plate: D gets 7, B gets 23.
+    // Per-plate quotas: A=30.0, B=22.5, C=15.0, D=7.5. Per-plate deficit=1.
+    // Tied remainders within each plate: B(0.5) and D(0.5). The global random
+    // tiebreak picks one of them on each plate, so the +1s are distributed
+    // 1+1 across (group, plate) pairs without ever placing 2 +1s on the same
+    // group or the same plate (that would violate the surplus / room limits).
+    // The result: D and B each gain exactly one +1 in total, on different
+    // plates -- which plate is the random part.
     const dTotal = result[0]['D'] + result[1]['D'];
     const bTotal = result[0]['B'] + result[1]['B'];
     expect(dTotal).toBe(15);
@@ -201,7 +211,7 @@ describe('Hamilton Apportionment - Example 4: keepEmpty=false equal plates', () 
   });
 });
 
-// ─── Example 5: Group smaller than number of plates ─────────────────────────
+// --- Example 5: Group smaller than number of plates -------------------------
 
 describe('Hamilton Apportionment - Example 5: Group smaller than numPlates', () => {
   const plateCapacities = [16, 16, 16, 2];
@@ -214,9 +224,13 @@ describe('Hamilton Apportionment - Example 5: Group smaller than numPlates', () 
   });
 
   test('Plate 4 (smallest) gets Large=1, Medium=1, Tiny=0', () => {
-    // One of several valid Hamilton outputs (tiebreak among equal-frac cells is random).
-    // Global remainder sort awards Large's +1s to P1/P2/P3 (frac 0.8) before P4 (frac 0.6).
-    // P4's deficit of 1 goes to Medium (frac 0.28 > Tiny's 0.12).
+    // Large's three +1s go to P1/P2/P3 (frac 0.8) ahead of P4 (frac 0.6), so
+    // Large on P4 stays at floor=1. P4 still has one slot of deficit, and the
+    // top remaining remainder for P4 is Medium (0.28 > Tiny's 0.12), so
+    // Medium gets the +1. Tied remainders exist within Large's three 0.8
+    // entries and within Tiny's three 0.96 entries, but each tie is
+    // uncontested (every cell in the tie ends up getting its +1), so the
+    // result is deterministic on this input even though tiebreak is random.
     const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     expect(result[3]['Large']).toBe(1);
     expect(result[3]['Tiny']).toBe(0);
@@ -233,13 +247,15 @@ describe('Hamilton Apportionment - Example 5: Group smaller than numPlates', () 
   });
 });
 
-// ─── Gap A: Surplus limit vs placed < size ──────────────────────────────────
+// --- Gap A: Surplus limit vs placed < size ----------------------------------
 
 describe('Hamilton Apportionment - Gap A: Surplus limit eligibility', () => {
   // 4 plates of capacity 4, G=6, H=10. Total=16=capacity.
-  // Quotas: G=1.5/plate (floor 1, frac 0.5), H=2.5/plate (floor 2, frac 0.5)
-  // Surplus samples: G = 6-4 = 2, H = 10-8 = 2
-  // Bug: placed<size check lets G accumulate 3 surplus → G=7 (overshoot)
+  // Quotas: G=1.5/plate (floor 1, frac 0.5), H=2.5/plate (floor 2, frac 0.5).
+  // Group surplus: G = 6-4 = 2, H = 10-8 = 2.
+  // Regression guard: a naive `placed<size` eligibility check would let G
+  // accumulate 3 surplus and reach 7 (overshoot). The current algorithm
+  // tracks groupSurplus directly, capped at groupSize - sum(floors).
   const plateCapacities = [4, 4, 4, 4];
   const groupSizes = { G: 6, H: 10 };
   const groups = makeGroups(groupSizes);
@@ -249,7 +265,7 @@ describe('Hamilton Apportionment - Gap A: Surplus limit eligibility', () => {
     assertHamiltonInvariants(result, plateCapacities, groupSizes);
   });
 
-  test('group totals are exact (G=6, H=10) — catches placed<size eligibility bug', () => {
+  test('group totals are exact (G=6, H=10) -- catches placed<size eligibility bug', () => {
     const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
     let gTotal = 0, hTotal = 0;
     for (let p = 0; p < 4; p++) {
@@ -261,7 +277,7 @@ describe('Hamilton Apportionment - Gap A: Surplus limit eligibility', () => {
   });
 });
 
-// ─── Gap B: Swap-repair stuck state ─────────────────────────────────────────
+// --- Gap B: Swap-repair stuck state -----------------------------------------
 
 describe('Hamilton Apportionment - Gap B: Swap-repair stuck state', () => {
   // 3 plates of capacity 2, 3 groups of size 2. Total=6=capacity.
@@ -290,7 +306,7 @@ describe('Hamilton Apportionment - Gap B: Swap-repair stuck state', () => {
   });
 });
 
-// ─── Gap C: Row-level usage ─────────────────────────────────────────────────
+// --- Gap C: Row-level usage -------------------------------------------------
 
 describe('Hamilton Apportionment - Gap C: Row-level usage', () => {
   // Use row capacities [12, 12, 7] (like Plate 2 in Example 1 with 3 rows)
@@ -305,11 +321,11 @@ describe('Hamilton Apportionment - Gap C: Row-level usage', () => {
   });
 });
 
-// ─── Gap D: Under-capacity must not over-allocate ───────────────────────────
+// --- Gap D: Under-capacity must not over-allocate ---------------------------
 
 describe('Hamilton Apportionment - Gap D: Under-capacity over-allocation', () => {
   // 4 blocks cap=10 each (totalCap=40), one group size 35 (totalSamples=35).
-  // Per-block quota = 8.75 → floor=8, ceil=9. Hamilton requires every cell to
+  // Per-block quota = 8.75 -> floor=8, ceil=9. Hamilton requires every cell to
   // be 8 or 9; ideal distribution is 9, 9, 9, 8 with empty wells trailing.
   // Bug: round-reset path could place G=10 on the first processed block (floor+2).
   const blockCapacities = [10, 10, 10, 10];
@@ -335,14 +351,14 @@ describe('Hamilton Apportionment - Gap D: Under-capacity over-allocation', () =>
   });
 });
 
-// ─── Gap E: Integer quota under-capacity must not round up ──────────────────
+// --- Gap E: Integer quota under-capacity must not round up ------------------
 
 describe('Hamilton Apportionment - Gap E: Integer-quota cells under capacity', () => {
   // Block capacities [6, 11, 13] (totalCapacity = 30) with one group size 10
   // (totalSamples = 10). Quotas: 2.0 on the cap-6 block (integer; floor == ceil),
   // 3.667 on cap-11, 4.333 on cap-13. surplusSamples = 10 - (2+3+4) = 1.
   // Bug: eligibility filter only checked surplus remaining, so the cap-6 block
-  // could receive the +1 even though its quota was already an integer —
+  // could receive the +1 even though its quota was already an integer --
   // alloc 3 violates ceil(2.0) = 2.
   const blockCapacities = [6, 11, 13];
   const groupSizes = { G: 10 };
@@ -350,7 +366,7 @@ describe('Hamilton Apportionment - Gap E: Integer-quota cells under capacity', (
 
   test('integer-quota block does not exceed its quota', () => {
     const result = calculateExpectedMinimums(blockCapacities, groups, BlockType.PLATE);
-    // Find the block with cap 6 — it's the only one with an integer quota.
+    // Find the block with cap 6 -- it's the only one with an integer quota.
     let cap6BlockIdx = -1;
     for (let p = 0; p < blockCapacities.length; p++) {
       if (blockCapacities[p] === 6) {
@@ -361,7 +377,7 @@ describe('Hamilton Apportionment - Gap E: Integer-quota cells under capacity', (
     expect(result[cap6BlockIdx]['G']).toBe(2);
   });
 
-  test('every cell respects floor ≤ alloc ≤ ceil of (size × cap / totalCap)', () => {
+  test('every cell respects floor <= alloc <= ceil of (size * cap / totalCap)', () => {
     const result = calculateExpectedMinimums(blockCapacities, groups, BlockType.PLATE);
     assertHamiltonInvariants(result, blockCapacities, groupSizes, { expectFilled: false });
   });
@@ -374,22 +390,22 @@ describe('Hamilton Apportionment - Gap E: Integer-quota cells under capacity', (
 });
 
 
-// ─── Regression Tests: Unchanged Behavior (3.1–3.4) ─────────────────────────
+// --- Regression Tests: Unchanged Behavior (3.1-3.4) -------------------------
 
 describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
 
-  // 3.1: Equal capacity plates → standard equal distribution
+  // 3.1: Equal capacity plates -> standard equal distribution
   describe('3.1: Equal capacity plates', () => {
     const plateCapacities = [48, 48];
     const groupSizes = { A: 40, B: 30, C: 15, D: 8, E: 3 };
     const groups = makeGroups(groupSizes);
 
-    test('each group is split evenly (±1) across equal plates', () => {
+    test('each group is split evenly (+/-1) across equal plates', () => {
       const result = calculateExpectedMinimums(plateCapacities, groups, BlockType.PLATE);
       for (const [key, size] of Object.entries(groupSizes)) {
         const p1 = result[0][key];
         const p2 = result[1][key];
-        // Both plates should get the same or ±1 for each group
+        // Both plates should get the same or +/-1 for each group
         expect(Math.abs(p1 - p2)).toBeLessThanOrEqual(1);
       }
     });
@@ -403,7 +419,7 @@ describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
     });
   });
 
-  // 3.2: Single plate → allocation equals group sizes exactly
+  // 3.2: Single plate -> allocation equals group sizes exactly
   describe('3.2: Single plate', () => {
     const plateCapacities = [50];
     const groupSizes = { X: 20, Y: 15, Z: 15 };
@@ -432,7 +448,7 @@ describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
   describe('3.4: Plate capacity never exceeded', () => {
     test('adversarial: many groups with large remainders on small plate', () => {
       // 10 groups of 7 each = 70 samples across plates [60, 10]
-      // Each group's quota on P2: 7×10/70 = 1.0 → floor 1, remainder 0.0
+      // Each group's quota on P2: 7*10/70 = 1.0 -> floor 1, remainder 0.0
       // All floors sum to 10 = capacity. No deficit. Should be exact.
       const plateCapacities = [60, 10];
       const groupSizes: Record<string, number> = {};
@@ -451,7 +467,7 @@ describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
 
     test('adversarial: remainders that could round up past capacity', () => {
       // 3 groups of 9 each = 27 samples across plates [20, 7]
-      // P2 quotas: 9×7/27 = 2.333 each → floor 2, remainder 0.333
+      // P2 quotas: 9*7/27 = 2.333 each -> floor 2, remainder 0.333
       // Floors sum to 6, deficit = 1. Only 1 group gets +1. Sum = 7 = capacity.
       const plateCapacities = [20, 7];
       const groupSizes = { A: 9, B: 9, C: 9 };
