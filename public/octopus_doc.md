@@ -459,15 +459,28 @@ This system supports up to 72 unique covariate groups while maintaining visual d
 - Uses greedy spatial placement to minimize adjacency clustering
 
 Detailed Steps:
-1. **Grouping**: Samples are grouped by concatenated covariate values (e.g. `Treatment|Time|Dose`).
-2. **Plate Capacity Assignment**: Plate capacities are computed based on total sample count, plate size and whether empty wells are concentrated in the final plate or spread across plates.
-3. **Expected Minimums (Plate Level)**: For every (plate, group) an expected minimum count is computed from `floor(groupSize / numPlates)` scaled by plate capacity ratio (for partial plates). Prevents early overfilling.
-4. **Phase 1 Proportional Placement**: Baseline expected minimum samples for each group are placed into plates. Remaining samples are tagged as either unplaced (group too small for baseline) or overflow (extras beyond baseline).
-5. **Phase 2A (Unplaced Groups)**: Small groups are added to plates prioritizing those with the most remaining capacity—spreads rare groups.
-6. **Phase 2B (Overflow Samples)**: Remaining samples of larger groups are added with a prioritization strategy: plate level prefers higher-capacity plates; row level prefers rows currently containing fewer of that group.
-7. **Row Distribution**: For each plate, rows are treated as mini-blocks; the same proportional + overflow logic is applied using row capacities.
-8. **Greedy Spatial Placement**: Within each populated row, samples are placed into columns minimizing a cluster score (penalties for same-group left/right/above and cross-row adjacency). Random tie-breaking preserves diversity.
-9. **Final Spatial Metrics**: Horizontal, vertical and cross-row cluster counts logged for diagnostic quality analysis.
+1. **Grouping**: Samples are grouped by their combined covariate values (e.g. `Treatment|Time|Dose`).
+2. **Plate Capacity Assignment**: The app determines how many wells each plate will hold, based on total sample count, plate size, and whether empty wells are concentrated in the final plate or spread evenly.
+3. **Proportional Allocation Across Plates**: The algorithm decides how many samples from each group belong on each plate. It calculates an ideal (fractional) count for every group-plate pair — `groupSize × plateCapacity / totalCapacity` — then rounds down to get a guaranteed minimum. The leftover slots are filled one at a time, prioritizing the pairs with the largest fractional remainders. Ties are broken randomly. If this greedy process gets stuck — a group still has samples to place but every plate that could take one is full from other groups — a swap-chain repair rearranges earlier assignments to free a slot.
+
+   **Example:** 127 samples across 2 plates (capacities 96 and 31):
+
+   | Group | Samples | Ideal on Plate 1 | Ideal on Plate 2 | Rounded down (P1) | Rounded down (P2) | Leftover |
+   |-------|---------|-------------------|-------------------|--------------------|--------------------|----------|
+   | Red | 44 | 33.26 | 10.74 | 33 | 10 | 1 |
+   | Blue | 27 | 20.41 | 6.59 | 20 | 6 | 1 |
+   | Green | 20 | 15.12 | 4.88 | 15 | 4 | 1 |
+   | Orange | 14 | 10.58 | 3.42 | 10 | 3 | 1 |
+   | BatchQC | 11 | 8.31 | 2.69 | 8 | 2 | 1 |
+   | BatchRef | 11 | 8.31 | 2.69 | 8 | 2 | 1 |
+   | **Totals** | **127** | | | **94** | **27** | **6** |
+
+   After rounding down, Plate 1 has 2 empty slots (96 − 94) and Plate 2 has 4 empty slots (31 − 27). The 6 leftover samples are awarded to the pairs with the highest fractional remainders: Green (.88), Red (.74), BatchQC (.69), BatchRef (.69) go to Plate 2; Blue (.41) and Orange (.58) go to Plate 1. Final result: every plate is exactly full, every group places all its samples, and no pair deviates by more than 1 from its ideal.
+4. **Placing Samples on Plates**: Each group's samples are shuffled and placed into plates following the counts from step 3. Because step 3 accounts for all samples, this phase fills every plate completely.
+5. **Safety-Net Passes (Phase 2A/2B)**: Backup logic for rare edge cases where a group is too small to receive even one sample per plate in step 3. In normal usage these passes do nothing.
+6. **Row Distribution**: Within each plate, the same proportional allocation logic from step 3 is applied again — this time distributing each group's samples across rows. Rows with fewer available wells (e.g., the last row on a partially-filled plate) receive proportionally fewer samples.
+7. **Greedy Spatial Placement**: Within each row, samples are placed into columns one at a time, choosing the position that minimizes clustering (same-group neighbors horizontally, vertically, and across row boundaries). Random tie-breaking preserves diversity.
+8. **Quality Metrics**: Adjacency counts are computed for the final layout to produce the balance and clustering scores shown in the UI.
 
 
 #### **Group-Aware Randomization** (when a Subject ID Column and grouping constraint are configured)
