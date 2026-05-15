@@ -476,11 +476,10 @@ Detailed Steps:
    | **Totals** | **127** | | | **94** | **27** | **6** |
 
    After rounding down, Plate 1 has 2 empty slots (96 − 94) and Plate 2 has 4 empty slots (31 − 27). The 6 leftover samples are awarded to the pairs with the highest fractional remainders: Green (.88), Red (.74), BatchQC (.69), BatchRef (.69) go to Plate 2; Blue (.41) and Orange (.58) go to Plate 1. Final result: every plate is exactly full, every group places all its samples, and no pair deviates by more than 1 from its ideal.
-4. **Placing Samples on Plates**: Each group's samples are shuffled and placed into plates following the counts from step 3. Because step 3 accounts for all samples, this phase fills every plate completely.
-5. **Safety-Net Passes (Phase 2A/2B)**: Backup logic for rare edge cases where a group is too small to receive even one sample per plate in step 3. In normal usage these passes do nothing.
-6. **Row Distribution**: Within each plate, the same proportional allocation logic from step 3 is applied again — this time distributing each group's samples across rows. Rows with fewer available wells (e.g., the last row on a partially-filled plate) receive proportionally fewer samples.
-7. **Greedy Spatial Placement**: Within each row, samples are placed into columns one at a time, choosing the position that minimizes clustering (same-group neighbors horizontally, vertically, and across row boundaries). Random tie-breaking preserves diversity.
-8. **Quality Metrics**: Adjacency counts are computed for the final layout to produce the balance and clustering scores shown in the UI.
+4. **Placing Samples on Plates**: Each group's samples are shuffled and placed into plates following the counts from step 3.
+5. **Row Distribution**: Within each plate, the same proportional allocation logic from step 3 is applied again — this time distributing each group's samples across rows. Rows with fewer available wells (e.g., the last row on a partially-filled plate) receive proportionally fewer samples.
+6. **Greedy Spatial Placement**: Within each row, samples are placed into columns one at a time, choosing the position that minimizes clustering (same-group neighbors horizontally, vertically, and across row boundaries). Random tie-breaking preserves diversity.
+7. **Quality Metrics**: Adjacency counts are computed for the final layout to produce the balance and clustering scores shown in the UI.
 
 
 #### **Group-Aware Randomization** (when a Subject ID Column and grouping constraint are configured)
