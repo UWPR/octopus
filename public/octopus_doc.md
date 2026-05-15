@@ -266,7 +266,9 @@ Once satisfied with the distribution, click **"Download CSV"** or **"Download Ex
 
 Once you are happy with your plate layouts, click **"Export Sequence"** to launch the Injection Sequence Export wizard. The wizard generates a CSV acquisition sequence in the Thermo Fisher Scientific format (`Bracket Type=4` header with columns *File Name, Path, Instrument Method, Position, Inj Vol*) that can be loaded directly into the instrument software.
 
-The wizard reads your finalized plate assignments — it does not modify them — and walks you through six steps. Each step validates before you can proceed; you can move back and forward freely without losing data. Closing the wizard with **Cancel** preserves all settings; only the step position resets. Uploading a new input file resets the wizard completely.
+The wizard reads your finalized plate assignments and walks you through six steps.
+
+![Sequence Export Wizard - Step Indicator](images/octopus_sequence-wizard-step-indicator.png)
 
 #### Wizard Step 1: System Suitability
 
@@ -276,9 +278,11 @@ When System Suitability is enabled, you can configure:
 - **Runs at start** (0–10): Injections before the first experimental sample
 - **Runs at end** (0–10): Injections after the last experimental sample
 - **Runs during**: Injections interspersed through the experiment, with a configurable interval (e.g., 1 System Suitability run every 12 experimental samples)
-- **System Suitability vial well**: The specific well on the System Suitability slot (default A1) where the standard vial is loaded
+- **System Suitability vial well**: The specific well on the System Suitability slot (default A1) where the standards vial is loaded
 
 The folder path, instrument method, and injection volume for System Suitability runs are configured in Step 5 alongside the other categories.
+
+![Wizard Step 1 - System Suitability](images/octopus_sequence-step1-ss-enabled.png)
 
 #### Wizard Step 2: Autosampler Slot Assignment
 
@@ -286,12 +290,16 @@ Assign each plate (and the System Suitability vial, if configured) to one of the
 
 - If System Suitability is enabled, you choose the System Suitability slot first; the remaining slots become available for plates.
 - Plates are auto-assigned to slots in order, and you can override any assignment from the dropdowns.
-- If you have more plates than available slots, you will be warned that multiple plates must share a slot — meaning you will need to physically swap plates partway through the run.
+- If you have more plates than available slots, you will be warned that multiple plates must share a slot — meaning you will need to physically swap plates.
 - A warning appears if your plate dimensions exceed standard 8×12 (96-well) autosampler capacity. This is informational only; export is not blocked.
+
+![Wizard Step 2 - Slot Assignment](images/octopus_sequence-step2-slots.png)
 
 Each sample's position in the exported CSV uses the format `{SlotColor}:{RowLetter}{ColumnNumber}` (e.g., `B:A1`, `Y:F12`), derived automatically from the plate's slot and the sample's well.
 
 #### Wizard Step 3: File Naming
+
+![Wizard Step 3 - File Naming Template Builder](images/octopus_sequence-step3-template-builder.png)
 
 Build a file naming template by selecting which fields appear in each row's file name and in what order. Available fields include:
 
@@ -308,9 +316,11 @@ Build a file naming template by selecting which fields appear in each row's file
 - **Original**: Uses the sample ID from your input data's selected ID column
 - **Serial**: Generates sequential IDs with a prefix and zero-padded number you specify (e.g., prefix `LTC` starting at 1 produces `LTC001, LTC002, LTC003, ...`). When using serial IDs, you can also choose to download a separate **mapping CSV** that links each serial ID to the original sample ID, plate, and well.
 
+![Wizard Step 3 - Serial Sample ID Mode](images/octopus_sequence-step3-serial-id.png)
+
 A **live preview** of the resulting file name updates as you change the template.
 
-**Run number**: The Global Run Counter is always appended as the final field. It starts at 1 and increments for every row in the sequence regardless of category, zero-padded to at least three digits (e.g., `001, 002, ..., 099, 100`). Padding expands automatically for sequences with more than 999 rows.
+**Run number**: The Global Run Counter is always appended as the final field. It starts at 1 and increments for every row in the sequence regardless of category, zero-padded to at least three digits (e.g., `001, 002, ..., 099, 100`).
 
 #### Wizard Step 4: Sample Categories
 
@@ -324,16 +334,20 @@ You can:
 - **Bulk reassign** by selecting multiple samples and choosing a target category
 - **Create custom categories** (e.g., `Pool`, `Library`) — these appear in Step 5 for path/method/volume configuration
 
+![Wizard Step 4 - Sample Categories](images/octopus_sequence-step4-categories.png)
+
 At least one sample must remain in the **Experimental** category to proceed. A handful of category names (such as `System Suitability`) are reserved and cannot be reused.
 
 #### Wizard Step 5: Paths & Instrument Methods
 
 For each category (including System Suitability, when enabled), specify:
 - **Folder path**: Windows-style path where the instrument should write data files (pasted as text — no filesystem validation is performed)
-- **Instrument method path**: Path to the `.meth` file the instrument should use
+- **Instrument method path**: Path to the method file the instrument should use
 - **Injection volume**: Integer microliters from 1–20 (default 3)
 
 Use **"Apply to all categories"** to copy a path or method to every category at once; you can still override individual rows after a bulk apply.
+
+![Wizard Step 5 - Paths and Instrument Methods](images/octopus_sequence-step5-paths.png)
 
 #### Wizard Step 6: Preview & Export
 
@@ -345,7 +359,11 @@ Sequence ordering:
 3. System Suitability runs are interleaved at the configured interval through the experimental rows
 4. System Suitability runs scheduled at the end
 
-If you change any setting by navigating back, the preview updates automatically. When everything looks right, click **Export Sequence CSV** to download the file. If you configured serial sample IDs with mapping enabled, an **Export Mapping CSV** button is also available, producing a file with columns *Serial ID, Original Sample ID, Plate Number, Well Position*.
+If you change any setting by navigating back, the preview updates automatically. When everything looks right, click **Export Sequence CSV** to download the file, which is named `<input_file_name>_injection-sequence.csv` (using the base name of your uploaded CSV).
+
+If you configured serial sample IDs with mapping enabled, an **Export Mapping CSV** button is also available, producing a file named `<input_file_name>_id-mapping.csv` with columns *Serial ID, Original Sample ID, Plate Number, Well Position*.
+
+![Wizard Step 6 - Preview and Export](images/octopus_sequence-step6-preview.png)
 
 ---
 
