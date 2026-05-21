@@ -369,11 +369,14 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
                 });
                 const uniqueValues = Array.from(values).sort();
 
-                // Format display: show values if 5 or less, otherwise show count
+                // Format display: show values inline only if they fit reasonably.
+                // Consider both the number of values and total string length.
                 let displayText = covariate;
                 if (uniqueValues.length > 0) {
-                  if (uniqueValues.length <= 8) {
-                    displayText += ` (${uniqueValues.join(', ')})`;
+                  const valuesStr = uniqueValues.join(', ');
+                  const maxDisplayLength = 80; // max chars for the values portion
+                  if (uniqueValues.length <= 8 && valuesStr.length <= maxDisplayLength) {
+                    displayText += ` (${valuesStr})`;
                   } else {
                     displayText += ` (${uniqueValues.length} values)`;
                   }
