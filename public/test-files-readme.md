@@ -36,12 +36,12 @@ The dataset was published as a biomarker prediction challenge: some sample label
 
 ### 2. octopus_test_dataset.csv
 
-**Full dataset — 936 samples, 10 columns**
+**Full dataset — 936 samples, 8 columns**
 
 - **Total Samples**: 936
 - **Covariate Groups**: 37 (34 experimental + 3 reference)
 - **Includes**: All experimental Sets (Training, Add Train, Baseline, 1Gy ref dose, Partial, Blind) plus all three reference types (IBR, IC, IER)
-- **Pool-aware columns**: `Dose_Rate` and `Dose_cGy` write `pool` for Conditions that intentionally span multiple values. The truthful source values are preserved in `Dose_Rate_Orig` and `Dose_cGy_Orig`.
+- **Columns**: 8 (same as the small file plus `Unblinded`)
 
 **Use Case**: Full-scale testing with many covariate groups and real-world complexity. Demonstrates how Octopus constructs covariate groups from multiple columns.
 
@@ -59,15 +59,13 @@ The dataset was published as a biomarker prediction challenge: some sample label
 | **Dose_Rate** | Radiation dose rate (pool-aware) | HDR (28 cGy/min), LDR (3 cGy/min), blind, na, pool |
 | **Dose_cGy** | Radiation dose in centiGray (pool-aware) | 0, 10, 25, 75, 100, blind, na, pool |
 
-### Full file (10 columns)
+### Full file (8 columns)
 
 All columns from the small file plus:
 
 | Column | Description | Example Values |
 |--------|-------------|----------------|
 | **Unblinded** | What labels are visible to the analyst | All, Time, Dose_and_Rate, None, na |
-| **Dose_Rate_Orig** | Truthful dose rate from source metadata | HDR, LDR, blind, na, pool |
-| **Dose_cGy_Orig** | Truthful dose in cGy from source metadata | 0, 5, 10, 15, 25, 35, 45, 55, 65, 75, 100, blind, pool |
 
 ## Understanding the Set Values
 
@@ -108,7 +106,7 @@ This produces **37 covariate groups** across 10 plates.
 **Alternative covariate selection** (demonstrates multi-column group construction):
 - **Covariates**: `Focus_Area` + `Set` + `Dose_Rate` + `Dose_cGy`
 
-This also produces **37 covariate groups** because the pool-aware `Dose_Rate` and `Dose_cGy` columns write `pool` for Conditions that span multiple values.
+This also produces **37 covariate groups** because `Dose_Rate` and `Dose_cGy` use `pool` for Conditions that span multiple values (e.g., reference samples).
 
 ## Data Processing
 
@@ -118,10 +116,9 @@ These test files were derived from the Experiment 2 metadata of the source paper
 2. Removed 13 sample-handling/provenance columns not relevant to randomization
 3. Renamed the `Group` column (opaque values like "Group 14") to `Condition` (descriptive values like `Add_Training_Xray_LDR`)
 4. Added `Unblinded` column derived from the source `Unblind` column
-5. Created pool-aware `Dose_Rate` and `Dose_cGy` columns that write `pool` for Conditions that intentionally pool across that dimension; preserved truthful values in `_Orig` columns
+5. `Dose_Rate` and `Dose_cGy` use `pool` for Conditions that intentionally pool across that dimension (e.g., reference samples)
 6. For the small file: subsampled to 288 rows (3 plates), keeping only Training, Baseline, and Blind sets plus IBR and IER references, with time-point-balanced selection
 
-The reproducible generation script is available in the repository at `GennData/build_test_datasets.py`.
 
 ## File Format
 

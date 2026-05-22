@@ -2,66 +2,66 @@ UW_Sample_ID,Condition,Focus_Area,Set,Unblinded,Time_point,Dose_Rate,Dose_cGy
 TRX-TE-MSP-2000,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2001,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2002,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
-REF-XP2P-001,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-001,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2003,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-REF-ET475,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET475,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2004,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
 TRX-TE-MSP-2005,Training_Xray_LDR_75cGy,FA1,Training,All,21,LDR,75
-REF-DIRP2-001,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2006,100cGy_Ref_Xray,FA2,1Gy ref dose,All,150,HDR,100
+REF-DIRP2-001,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2006,100cGy_Ref_Xray,FA2,1Gy ref dose,All,150,pool,100
 TRX-TE-MSP-2007,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2008,Training_Xray_LDR_75cGy,FA2,Training,All,90,LDR,75
 TRX-TE-MSP-2009,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-REF-ET407,Internal Control (IC),na,UW IC Reference,na,na,na,na
-REF-DIRP2-002,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-ET407,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+REF-DIRP2-002,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2010,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
 TRX-TE-MSP-2011,Training_Xray_HDR_10cGy,FA2,Training,All,150,HDR,10
 TRX-TE-MSP-2012,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2013,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
 TRX-TE-MSP-2014,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2015,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,10
+TRX-TE-MSP-2015,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,pool
 TRX-TE-MSP-2016,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-TRX-TE-MSP-2017,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,75
-REF-XP2P-002,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+TRX-TE-MSP-2017,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,pool
+REF-XP2P-002,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2018,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2019,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
 TRX-TE-MSP-2020,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2021,Training_Xray_LDR_75cGy,FA2,Training,All,150,LDR,75
 TRX-TE-MSP-2022,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-DIRP2-003,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-REF-XP2P-003,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-DIRP2-003,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+REF-XP2P-003,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2023,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2024,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
-REF-ET464,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET464,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2025,Training_Xray_HDR_75cGy,FA2,Training,All,90,HDR,75
 TRX-TE-MSP-2026,Add_Training_Xray_NADR,FA2,Add Train,All,90,na,0
-REF-XP2P-004,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-004,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2027,Training_Xray_LDR_10cGy,FA2,Training,All,150,LDR,10
 TRX-TE-MSP-2028,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-ET470,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET470,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2029,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
-TRX-TE-MSP-2030,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,75
+TRX-TE-MSP-2030,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,pool
 TRX-TE-MSP-2031,Training_Xray_HDR_75cGy,FA1,Training,All,7,HDR,75
 TRX-TE-MSP-2032,Add_Training_Xray_NADR,FA1,Add Train,All,21,na,0
 TRX-TE-MSP-2033,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2034,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
-REF-DIRP2-004,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-004,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2035,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2036,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2037,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2038,Training_Xray_HDR_75cGy,FA2,Training,All,90,HDR,75
-TRX-TE-MSP-2039,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,10
+TRX-TE-MSP-2039,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,pool
 TRX-TE-MSP-2040,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-XP2P-005,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-REF-ET419,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-XP2P-005,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+REF-ET419,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2041,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2042,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
-REF-DIRP2-005,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-005,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2043,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2044,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
-TRX-TE-MSP-2045,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,75
-REF-DIRP2-006,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-REF-XP2P-006,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+TRX-TE-MSP-2045,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,pool
+REF-DIRP2-006,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+REF-XP2P-006,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2046,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2047,Training_Xray_LDR_10cGy,FA1,Training,All,21,LDR,10
 TRX-TE-MSP-2048,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
@@ -70,442 +70,442 @@ TRX-TE-MSP-2050,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2051,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2052,Training_Xray_LDR_75cGy,FA1,Training,All,7,LDR,75
 TRX-TE-MSP-2053,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-ET479,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET479,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2054,Training_Xray_HDR_10cGy,FA1,Training,All,7,HDR,10
 TRX-TE-MSP-2055,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2056,Add_Training_Xray_NADR,FA2,Add Train,All,150,na,0
 TRX-TE-MSP-2057,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
-REF-XP2P-007,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-007,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2058,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2059,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2060,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,10
-REF-ET414,Internal Control (IC),na,UW IC Reference,na,na,na,na
+TRX-TE-MSP-2060,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,pool
+REF-ET414,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2061,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2062,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-REF-DIRP2-007,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-REF-ET478,Internal Control (IC),na,UW IC Reference,na,na,na,na
-TRX-TE-MSP-2063,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,10
+REF-DIRP2-007,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+REF-ET478,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+TRX-TE-MSP-2063,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,pool
 TRX-TE-MSP-2064,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2065,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2066,Add_Training_Xray_NADR,FA1,Add Train,All,21,na,0
 TRX-TE-MSP-2067,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2068,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
-REF-DIRP2-008,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-008,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2069,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2070,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
-REF-XP2P-008,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-008,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2071,Training_Xray_HDR_75cGy,FA1,Training,All,21,HDR,75
-REF-DIRP2-009,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-009,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2072,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-TRX-TE-MSP-2073,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,75
+TRX-TE-MSP-2073,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,pool
 TRX-TE-MSP-2074,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2075,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2076,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2077,Training_Xray_LDR_75cGy,FA1,Training,All,21,LDR,75
-REF-XP2P-009,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-TRX-TE-MSP-2078,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,10
+REF-XP2P-009,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+TRX-TE-MSP-2078,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,pool
 TRX-TE-MSP-2079,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
-REF-ET445,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET445,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2080,Add_Training_Xray_NADR,FA1,Add Train,All,21,na,0
 TRX-TE-MSP-2081,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
-REF-ET447,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET447,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2082,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2083,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-REF-XP2P-010,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-010,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2084,Training_Xray_HDR_10cGy,FA2,Training,All,90,HDR,10
 TRX-TE-MSP-2085,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2086,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2087,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-DIRP2-010,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-010,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2088,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2089,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
 TRX-TE-MSP-2090,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2091,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2092,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
-REF-DIRP2-011,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2093,100cGy_Ref_Xray,FA1,1Gy ref dose,All,21,LDR,100
-REF-ET460,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-DIRP2-011,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2093,100cGy_Ref_Xray,FA1,1Gy ref dose,All,21,pool,100
+REF-ET460,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2094,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
-TRX-TE-MSP-2095,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,10
+TRX-TE-MSP-2095,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,pool
 TRX-TE-MSP-2096,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2097,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2098,Add_Training_Xray_NADR,FA2,Add Train,All,150,na,0
-REF-XP2P-011,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-011,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2099,Add_Training_Xray_NADR,FA1,Add Train,All,7,na,0
-REF-XP2P-012,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-012,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2100,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2101,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2102,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
-REF-DIRP2-012,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-012,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2103,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
-REF-ET427,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET427,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2104,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2105,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2106,Training_Xray_HDR_75cGy,FA1,Training,All,7,HDR,75
 TRX-TE-MSP-2107,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-REF-ET446,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET446,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2108,Training_Xray_HDR_10cGy,FA1,Training,All,21,HDR,10
 TRX-TE-MSP-2109,Partial_Xray_HDR_75,FA1,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2110,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2111,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
-TRX-TE-MSP-2112,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,75
+TRX-TE-MSP-2112,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,pool
 TRX-TE-MSP-2113,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2114,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-REF-XP2P-013,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-013,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2115,Training_Xray_HDR_75cGy,FA2,Training,All,150,HDR,75
-REF-DIRP2-013,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-013,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2116,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2117,Training_Xray_HDR_10cGy,FA2,Training,All,150,HDR,10
 TRX-TE-MSP-2118,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-DIRP2-014,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-014,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2119,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2120,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2121,Training_Xray_LDR_75cGy,FA2,Training,All,150,LDR,75
-REF-XP2P-014,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-014,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2122,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
-TRX-TE-MSP-2123,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,10
-REF-ET441,Internal Control (IC),na,UW IC Reference,na,na,na,na
+TRX-TE-MSP-2123,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,pool
+REF-ET441,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2124,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
-TRX-TE-MSP-2125,100cGy_Ref_Xray,FA2,1Gy ref dose,All,90,HDR,100
-REF-XP2P-015,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+TRX-TE-MSP-2125,100cGy_Ref_Xray,FA2,1Gy ref dose,All,90,pool,100
+REF-XP2P-015,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2126,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
 TRX-TE-MSP-2127,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
-REF-ET457,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET457,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2128,Add_Training_Xray_NADR,FA2,Add Train,All,90,na,0
 TRX-TE-MSP-2129,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2130,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
-REF-DIRP2-015,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-015,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2131,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2132,Training_Xray_LDR_10cGy,FA1,Training,All,21,LDR,10
 TRX-TE-MSP-2133,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2134,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,10
+TRX-TE-MSP-2134,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,pool
 TRX-TE-MSP-2135,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2136,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2137,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
-TRX-TE-MSP-2138,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,10
-REF-DIRP2-016,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+TRX-TE-MSP-2138,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,pool
+REF-DIRP2-016,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2139,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
-REF-ET421,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET421,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2140,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2141,Training_Xray_LDR_10cGy,FA2,Training,All,150,LDR,10
 TRX-TE-MSP-2142,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-XP2P-016,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-016,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2143,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
-REF-ET412,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET412,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2144,Training_Xray_LDR_10cGy,FA1,Training,All,21,LDR,10
 TRX-TE-MSP-2145,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2146,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
 TRX-TE-MSP-2147,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2148,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
-REF-XP2P-017,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-017,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2149,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2150,Training_Xray_HDR_10cGy,FA2,Training,All,90,HDR,10
-REF-DIRP2-017,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2151,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,75
+REF-DIRP2-017,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2151,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,pool
 TRX-TE-MSP-2152,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2153,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2154,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-TRX-TE-MSP-2155,100cGy_Ref_Xray,FA1,1Gy ref dose,All,7,HDR,100
-TRX-TE-MSP-2156,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,75
+TRX-TE-MSP-2155,100cGy_Ref_Xray,FA1,1Gy ref dose,All,7,pool,100
+TRX-TE-MSP-2156,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,pool
 TRX-TE-MSP-2157,Training_Xray_HDR_10cGy,FA1,Training,All,7,HDR,10
-REF-DIRP2-018,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-018,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2158,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2159,Training_Xray_HDR_75cGy,FA1,Training,All,21,HDR,75
-REF-ET423,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET423,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2160,Add_Training_Xray_NADR,FA1,Add Train,All,7,na,0
 TRX-TE-MSP-2161,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
-REF-XP2P-018,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-TRX-TE-MSP-2162,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,75
+REF-XP2P-018,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+TRX-TE-MSP-2162,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,pool
 TRX-TE-MSP-2163,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2164,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-ET424,Internal Control (IC),na,UW IC Reference,na,na,na,na
-REF-XP2P-019,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-ET424,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+REF-XP2P-019,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2165,Training_Xray_LDR_75cGy,FA2,Training,All,150,LDR,75
 TRX-TE-MSP-2166,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-TRX-TE-MSP-2167,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,10
-REF-DIRP2-019,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+TRX-TE-MSP-2167,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,pool
+REF-DIRP2-019,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2168,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2169,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2170,Training_Xray_LDR_10cGy,FA2,Training,All,150,LDR,10
 TRX-TE-MSP-2171,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
 TRX-TE-MSP-2172,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-REF-DIRP2-020,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-020,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2173,Partial_Xray_HDR_75,FA1,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2174,Add_Training_Xray_NADR,FA1,Add Train,All,21,na,0
 TRX-TE-MSP-2175,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-XP2P-020,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-020,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2176,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2177,Training_Xray_LDR_75cGy,FA1,Training,All,21,LDR,75
 TRX-TE-MSP-2178,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-ET476,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET476,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2179,Add_Training_Xray_NADR,FA2,Add Train,All,150,na,0
 TRX-TE-MSP-2180,Training_Xray_LDR_75cGy,FA2,Training,All,150,LDR,75
-REF-XP2P-021,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-021,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2181,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2182,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-ET473,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET473,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2183,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2184,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
-REF-DIRP2-021,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2185,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,10
+REF-DIRP2-021,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2185,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,pool
 TRX-TE-MSP-2186,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2187,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2188,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-DIRP2-022,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2189,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,75
+REF-DIRP2-022,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2189,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,pool
 TRX-TE-MSP-2190,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2191,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2192,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2193,Add_Training_Xray_NADR,FA2,Add Train,All,90,na,0
-REF-ET451,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET451,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2194,Training_Xray_HDR_75cGy,FA2,Training,All,150,HDR,75
 TRX-TE-MSP-2195,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2196,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
-REF-XP2P-022,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-022,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2197,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2198,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2199,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2200,Training_Xray_LDR_75cGy,FA1,Training,All,7,LDR,75
 TRX-TE-MSP-2201,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
-REF-DIRP2-023,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-023,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2202,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-TRX-TE-MSP-2203,100cGy_Ref_Xray,FA2,1Gy ref dose,All,150,LDR,100
+TRX-TE-MSP-2203,100cGy_Ref_Xray,FA2,1Gy ref dose,All,150,pool,100
 TRX-TE-MSP-2204,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
-REF-XP2P-023,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-023,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2205,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
 TRX-TE-MSP-2206,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
-REF-ET458,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET458,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2207,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2208,Training_Xray_HDR_75cGy,FA2,Training,All,90,HDR,75
-REF-ET416,Internal Control (IC),na,UW IC Reference,na,na,na,na
-REF-XP2P-024,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-ET416,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+REF-XP2P-024,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2209,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2210,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2211,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2212,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2213,Training_Xray_HDR_75cGy,FA1,Training,All,21,HDR,75
-TRX-TE-MSP-2214,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,10
-REF-DIRP2-024,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+TRX-TE-MSP-2214,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,pool
+REF-DIRP2-024,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2215,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
 TRX-TE-MSP-2216,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2217,Training_Xray_HDR_75cGy,FA1,Training,All,21,HDR,75
 TRX-TE-MSP-2218,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-REF-DIRP2-025,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-025,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2219,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2220,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
-TRX-TE-MSP-2221,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,10
+TRX-TE-MSP-2221,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,pool
 TRX-TE-MSP-2222,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-ET418,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET418,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2223,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2224,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
-REF-XP2P-025,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-REF-DIRP2-026,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-XP2P-025,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+REF-DIRP2-026,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2225,Partial_Xray_HDR_75,FA1,Partial,Dose_and_Rate,blind,HDR,75
-REF-XP2P-026,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-TRX-TE-MSP-2226,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,10
-REF-ET436,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-XP2P-026,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+TRX-TE-MSP-2226,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,pool
+REF-ET436,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2227,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2228,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2229,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
-TRX-TE-MSP-2230,100cGy_Ref_Xray,FA1,1Gy ref dose,All,7,HDR,100
+TRX-TE-MSP-2230,100cGy_Ref_Xray,FA1,1Gy ref dose,All,7,pool,100
 TRX-TE-MSP-2231,Training_Xray_HDR_10cGy,FA1,Training,All,21,HDR,10
 TRX-TE-MSP-2232,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
 TRX-TE-MSP-2233,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2234,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
-REF-ET452,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET452,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2235,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2236,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
-REF-XP2P-027,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-027,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2237,Add_Training_Xray_NADR,FA1,Add Train,All,21,na,0
-REF-DIRP2-027,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-027,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2238,Training_Xray_HDR_10cGy,FA2,Training,All,150,HDR,10
 TRX-TE-MSP-2239,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2240,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2241,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2242,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2243,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,10
+TRX-TE-MSP-2243,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,pool
 TRX-TE-MSP-2244,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2245,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2246,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2247,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2248,Training_Xray_LDR_75cGy,FA1,Training,All,21,LDR,75
 TRX-TE-MSP-2249,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
-REF-XP2P-028,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-028,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2250,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
-TRX-TE-MSP-2251,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,75
-REF-DIRP2-028,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-REF-ET471,Internal Control (IC),na,UW IC Reference,na,na,na,na
-REF-ET430,Internal Control (IC),na,UW IC Reference,na,na,na,na
+TRX-TE-MSP-2251,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,pool
+REF-DIRP2-028,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+REF-ET471,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+REF-ET430,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2252,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2253,Training_Xray_HDR_75cGy,FA2,Training,All,90,HDR,75
-REF-XP2P-029,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-TRX-TE-MSP-2254,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,75
+REF-XP2P-029,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+TRX-TE-MSP-2254,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,pool
 TRX-TE-MSP-2255,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2256,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2257,Add_Training_Xray_NADR,FA2,Add Train,All,150,na,0
-REF-DIRP2-029,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-029,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2258,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
 TRX-TE-MSP-2259,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2260,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2261,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2262,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
-REF-DIRP2-030,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-030,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2263,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-TRX-TE-MSP-2264,100cGy_Ref_Xray,FA2,1Gy ref dose,All,90,HDR,100
+TRX-TE-MSP-2264,100cGy_Ref_Xray,FA2,1Gy ref dose,All,90,pool,100
 TRX-TE-MSP-2265,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-TRX-TE-MSP-2266,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,75
+TRX-TE-MSP-2266,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,pool
 TRX-TE-MSP-2267,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2268,Training_Xray_LDR_10cGy,FA1,Training,All,7,LDR,10
-REF-XP2P-030,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-REF-ET422,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-XP2P-030,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+REF-ET422,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2269,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2270,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-XP2P-031,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-031,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2271,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2272,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
 TRX-TE-MSP-2273,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-ET403,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET403,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2274,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
-REF-DIRP2-031,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-031,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2275,Partial_Xray_HDR_75,FA1,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2276,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
-TRX-TE-MSP-2277,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,10
+TRX-TE-MSP-2277,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,pool
 TRX-TE-MSP-2278,Training_Xray_LDR_10cGy,FA2,Training,All,150,LDR,10
 TRX-TE-MSP-2279,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-TRX-TE-MSP-2280,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,10
+TRX-TE-MSP-2280,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,pool
 TRX-TE-MSP-2281,Training_Xray_LDR_75cGy,FA2,Training,All,90,LDR,75
 TRX-TE-MSP-2282,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-DIRP2-032,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-032,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2283,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
-REF-XP2P-032,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-032,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2284,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2285,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-REF-ET417,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET417,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2286,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2287,Add_Training_Xray_NADR,FA2,Add Train,All,150,na,0
-REF-XP2P-033,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-033,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2288,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2289,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
-REF-ET432,Internal Control (IC),na,UW IC Reference,na,na,na,na
-TRX-TE-MSP-2290,100cGy_Ref_Xray,FA2,1Gy ref dose,All,90,LDR,100
-REF-DIRP2-033,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2291,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,75
+REF-ET432,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+TRX-TE-MSP-2290,100cGy_Ref_Xray,FA2,1Gy ref dose,All,90,pool,100
+REF-DIRP2-033,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2291,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,pool
 TRX-TE-MSP-2292,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2293,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
 TRX-TE-MSP-2294,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2295,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,10
+TRX-TE-MSP-2295,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,pool
 TRX-TE-MSP-2296,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2297,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-DIRP2-034,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-034,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2298,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
-TRX-TE-MSP-2299,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,10
+TRX-TE-MSP-2299,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,pool
 TRX-TE-MSP-2300,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2301,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2302,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2303,Training_Xray_LDR_75cGy,FA2,Training,All,150,LDR,75
-REF-XP2P-034,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-034,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2304,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
-REF-ET438,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET438,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2305,Add_Training_Xray_NADR,FA2,Add Train,All,90,na,0
 TRX-TE-MSP-2306,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2307,Training_Xray_HDR_10cGy,FA2,Training,All,150,HDR,10
-REF-XP2P-035,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-035,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2308,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2309,Training_Xray_LDR_10cGy,FA1,Training,All,21,LDR,10
 TRX-TE-MSP-2310,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
-REF-ET466,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET466,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2311,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2312,Add_Training_Xray_NADR,FA1,Add Train,All,7,na,0
-TRX-TE-MSP-2313,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,10
+TRX-TE-MSP-2313,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,pool
 TRX-TE-MSP-2314,Training_Xray_HDR_75cGy,FA1,Training,All,7,HDR,75
-REF-DIRP2-035,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-REF-ET455,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-DIRP2-035,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+REF-ET455,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2315,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2316,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2317,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2318,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
 TRX-TE-MSP-2319,Add_Training_Xray_NADR,FA2,Add Train,All,150,na,0
 TRX-TE-MSP-2320,Training_Xray_HDR_75cGy,FA2,Training,All,150,HDR,75
-REF-DIRP2-036,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-036,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2321,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2322,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-REF-XP2P-036,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-036,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2323,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2324,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2325,Training_Xray_LDR_10cGy,FA2,Training,All,150,LDR,10
 TRX-TE-MSP-2326,Add_Training_Xray_NADR,FA1,Add Train,All,21,na,0
-REF-DIRP2-037,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-REF-XP2P-037,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-DIRP2-037,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+REF-XP2P-037,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2327,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2328,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2329,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
-REF-ET409,Internal Control (IC),na,UW IC Reference,na,na,na,na
-TRX-TE-MSP-2330,100cGy_Ref_Xray,FA1,1Gy ref dose,All,21,LDR,100
+REF-ET409,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+TRX-TE-MSP-2330,100cGy_Ref_Xray,FA1,1Gy ref dose,All,21,pool,100
 TRX-TE-MSP-2331,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2332,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
 TRX-TE-MSP-2333,Training_Xray_LDR_75cGy,FA1,Training,All,7,LDR,75
-REF-XP2P-038,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-038,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2334,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2335,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
-REF-ET454,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET454,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2336,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2337,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2338,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2339,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
-REF-DIRP2-038,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-038,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2340,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2341,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-DIRP2-039,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-039,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2342,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
 TRX-TE-MSP-2343,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2344,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
-TRX-TE-MSP-2345,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,75
-REF-XP2P-039,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+TRX-TE-MSP-2345,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,pool
+REF-XP2P-039,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2346,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-ET477,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET477,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2347,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
 TRX-TE-MSP-2348,Partial_Xray_HDR_75,FA1,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2349,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2350,Training_Xray_HDR_10cGy,FA1,Training,All,7,HDR,10
-TRX-TE-MSP-2351,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,75
+TRX-TE-MSP-2351,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,pool
 TRX-TE-MSP-2352,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
-REF-ET402,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET402,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2353,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2354,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2355,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
-REF-DIRP2-040,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-040,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2356,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2357,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
-REF-XP2P-040,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-040,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2358,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2359,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,10
-TRX-TE-MSP-2360,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,10
-REF-DIRP2-041,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+TRX-TE-MSP-2359,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,pool
+TRX-TE-MSP-2360,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,pool
+REF-DIRP2-041,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2361,Training_Xray_LDR_10cGy,FA2,Training,All,90,LDR,10
 TRX-TE-MSP-2362,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-TRX-TE-MSP-2363,100cGy_Ref_Xray,FA2,1Gy ref dose,All,90,LDR,100
-TRX-TE-MSP-2364,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,75
+TRX-TE-MSP-2363,100cGy_Ref_Xray,FA2,1Gy ref dose,All,90,pool,100
+TRX-TE-MSP-2364,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,pool
 TRX-TE-MSP-2365,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
-REF-XP2P-041,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-041,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2366,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
-REF-ET463,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET463,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2367,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2368,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2369,Training_Xray_LDR_75cGy,FA1,Training,All,7,LDR,75
 TRX-TE-MSP-2370,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2371,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-ET410,Internal Control (IC),na,UW IC Reference,na,na,na,na
-REF-XP2P-042,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-ET410,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+REF-XP2P-042,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2372,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-REF-DIRP2-042,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-042,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2373,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2374,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2375,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
-TRX-TE-MSP-2376,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,10
+TRX-TE-MSP-2376,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,pool
 TRX-TE-MSP-2377,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
-REF-XP2P-043,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-043,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2378,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
-REF-DIRP2-043,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-043,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2379,Partial_Xray_HDR_75,FA1,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2380,Training_Xray_HDR_75cGy,FA1,Training,All,21,HDR,75
 TRX-TE-MSP-2381,Blinded_Xray,FA1,Blind,None,blind,blind,blind
@@ -514,130 +514,130 @@ TRX-TE-MSP-2383,Training_Xray_HDR_10cGy,FA2,Training,All,90,HDR,10
 TRX-TE-MSP-2384,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2385,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2386,Training_Xray_LDR_10cGy,FA1,Training,All,7,LDR,10
-REF-ET401,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET401,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2387,Training_Xray_HDR_75cGy,FA2,Training,All,150,HDR,75
-REF-ET425,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET425,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2388,Training_Xray_LDR_75cGy,FA2,Training,All,90,LDR,75
 TRX-TE-MSP-2389,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2390,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-DIRP2-044,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-044,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2391,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2392,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2393,Training_Xray_HDR_10cGy,FA1,Training,All,7,HDR,10
-REF-XP2P-044,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-044,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2394,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2395,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2396,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-XP2P-045,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-045,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2397,Add_Training_Xray_NADR,FA2,Add Train,All,90,na,0
 TRX-TE-MSP-2398,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
 TRX-TE-MSP-2399,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2400,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2401,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2402,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
-REF-ET448,Internal Control (IC),na,UW IC Reference,na,na,na,na
-TRX-TE-MSP-2403,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,75
+REF-ET448,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+TRX-TE-MSP-2403,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,pool
 TRX-TE-MSP-2404,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
-REF-DIRP2-045,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2405,100cGy_Ref_Xray,FA1,1Gy ref dose,All,21,HDR,100
+REF-DIRP2-045,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2405,100cGy_Ref_Xray,FA1,1Gy ref dose,All,21,pool,100
 TRX-TE-MSP-2406,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
 TRX-TE-MSP-2407,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
-TRX-TE-MSP-2408,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,10
-REF-DIRP2-046,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+TRX-TE-MSP-2408,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,pool
+REF-DIRP2-046,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2409,Training_Xray_LDR_10cGy,FA1,Training,All,7,LDR,10
-REF-XP2P-046,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-046,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2410,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2411,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2412,Training_Xray_HDR_10cGy,FA2,Training,All,90,HDR,10
-REF-ET404,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET404,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2413,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2414,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-TRX-TE-MSP-2415,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,10
+TRX-TE-MSP-2415,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,pool
 TRX-TE-MSP-2416,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
-REF-XP2P-047,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-047,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2417,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
 TRX-TE-MSP-2418,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2419,Training_Xray_LDR_10cGy,FA2,Training,All,90,LDR,10
-REF-ET433,Internal Control (IC),na,UW IC Reference,na,na,na,na
-REF-DIRP2-047,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-ET433,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+REF-DIRP2-047,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2420,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2421,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2422,Add_Training_Xray_NADR,FA1,Add Train,All,7,na,0
-REF-DIRP2-048,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-048,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2423,Training_Xray_HDR_10cGy,FA1,Training,All,21,HDR,10
-REF-ET431,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET431,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2424,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2425,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
 TRX-TE-MSP-2426,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2427,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-TRX-TE-MSP-2428,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,75
+TRX-TE-MSP-2428,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,pool
 TRX-TE-MSP-2429,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2430,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2431,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
-REF-XP2P-048,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-048,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2432,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2433,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2434,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
-REF-XP2P-049,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-049,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2435,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
-REF-ET411,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET411,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2436,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
 TRX-TE-MSP-2437,Training_Xray_LDR_75cGy,FA1,Training,All,21,LDR,75
-REF-DIRP2-049,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2438,100cGy_Ref_Xray,FA2,1Gy ref dose,All,150,LDR,100
+REF-DIRP2-049,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2438,100cGy_Ref_Xray,FA2,1Gy ref dose,All,150,pool,100
 TRX-TE-MSP-2439,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2440,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
 TRX-TE-MSP-2441,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-REF-ET439,Internal Control (IC),na,UW IC Reference,na,na,na,na
-REF-DIRP2-050,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-ET439,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+REF-DIRP2-050,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2442,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
 TRX-TE-MSP-2443,Training_Xray_HDR_10cGy,FA2,Training,All,150,HDR,10
 TRX-TE-MSP-2444,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2445,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
 TRX-TE-MSP-2446,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2447,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,75
+TRX-TE-MSP-2447,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,pool
 TRX-TE-MSP-2448,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-TRX-TE-MSP-2449,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,10
-REF-XP2P-050,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+TRX-TE-MSP-2449,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,pool
+REF-XP2P-050,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2450,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2451,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
 TRX-TE-MSP-2452,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2453,Training_Xray_LDR_75cGy,FA2,Training,All,150,LDR,75
 TRX-TE-MSP-2454,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-DIRP2-051,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-REF-XP2P-051,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-DIRP2-051,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+REF-XP2P-051,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2455,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2456,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-REF-ET435,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET435,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2457,Training_Xray_HDR_75cGy,FA2,Training,All,150,HDR,75
 TRX-TE-MSP-2458,Add_Training_Xray_NADR,FA2,Add Train,All,90,na,0
-REF-XP2P-052,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-052,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2459,Training_Xray_LDR_10cGy,FA2,Training,All,150,LDR,10
 TRX-TE-MSP-2460,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-ET459,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET459,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2461,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
-TRX-TE-MSP-2462,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,75
+TRX-TE-MSP-2462,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,pool
 TRX-TE-MSP-2463,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2464,Add_Training_Xray_NADR,FA1,Add Train,All,7,na,0
 TRX-TE-MSP-2465,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2466,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
-REF-DIRP2-052,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-052,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2467,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2468,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2469,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2470,100cGy_Ref_Xray,FA1,1Gy ref dose,All,7,LDR,100
-TRX-TE-MSP-2471,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,10
+TRX-TE-MSP-2470,100cGy_Ref_Xray,FA1,1Gy ref dose,All,7,pool,100
+TRX-TE-MSP-2471,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,pool
 TRX-TE-MSP-2472,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-XP2P-053,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-REF-ET428,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-XP2P-053,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+REF-ET428,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2473,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2474,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
-REF-DIRP2-053,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-053,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2475,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2476,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
-TRX-TE-MSP-2477,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,10
-REF-DIRP2-054,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-REF-XP2P-054,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+TRX-TE-MSP-2477,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,pool
+REF-DIRP2-054,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+REF-XP2P-054,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2478,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2479,Training_Xray_LDR_10cGy,FA1,Training,All,7,LDR,10
 TRX-TE-MSP-2480,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
@@ -646,240 +646,240 @@ TRX-TE-MSP-2482,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2483,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2484,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2485,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-ET450,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET450,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2486,Training_Xray_HDR_10cGy,FA1,Training,All,7,HDR,10
 TRX-TE-MSP-2487,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2488,Add_Training_Xray_NADR,FA2,Add Train,All,90,na,0
 TRX-TE-MSP-2489,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
-REF-XP2P-055,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-055,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2490,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2491,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2492,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,75
-REF-ET443,Internal Control (IC),na,UW IC Reference,na,na,na,na
+TRX-TE-MSP-2492,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,pool
+REF-ET443,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2493,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2494,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
-REF-DIRP2-055,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-REF-ET480,Internal Control (IC),na,UW IC Reference,na,na,na,na
-TRX-TE-MSP-2495,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,75
+REF-DIRP2-055,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+REF-ET480,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+TRX-TE-MSP-2495,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,pool
 TRX-TE-MSP-2496,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2497,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2498,Add_Training_Xray_NADR,FA1,Add Train,All,21,na,0
 TRX-TE-MSP-2499,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2500,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
-REF-DIRP2-056,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-056,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2501,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2502,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
-REF-XP2P-056,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-056,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2503,Training_Xray_HDR_75cGy,FA1,Training,All,7,HDR,75
-REF-DIRP2-057,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-057,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2504,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
-TRX-TE-MSP-2505,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,75
+TRX-TE-MSP-2505,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,pool
 TRX-TE-MSP-2506,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2507,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2508,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2509,Training_Xray_LDR_75cGy,FA1,Training,All,21,LDR,75
-REF-XP2P-057,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-TRX-TE-MSP-2510,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,10
+REF-XP2P-057,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+TRX-TE-MSP-2510,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,pool
 TRX-TE-MSP-2511,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
-REF-ET468,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET468,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2512,Add_Training_Xray_NADR,FA1,Add Train,All,7,na,0
 TRX-TE-MSP-2513,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
-REF-ET408,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET408,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2514,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2515,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
-REF-XP2P-058,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-058,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2516,Training_Xray_HDR_10cGy,FA2,Training,All,90,HDR,10
 TRX-TE-MSP-2517,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2518,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2519,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-DIRP2-058,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2520,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,75
+REF-DIRP2-058,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2520,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,pool
 TRX-TE-MSP-2521,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
 TRX-TE-MSP-2522,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2523,Training_Xray_LDR_10cGy,FA1,Training,All,21,LDR,10
 TRX-TE-MSP-2524,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
-REF-DIRP2-059,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2525,100cGy_Ref_Xray,FA1,1Gy ref dose,All,21,HDR,100
-REF-ET449,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-DIRP2-059,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2525,100cGy_Ref_Xray,FA1,1Gy ref dose,All,21,pool,100
+REF-ET449,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2526,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
-TRX-TE-MSP-2527,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,75
+TRX-TE-MSP-2527,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,pool
 TRX-TE-MSP-2528,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2529,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2530,Add_Training_Xray_NADR,FA2,Add Train,All,150,na,0
-REF-XP2P-059,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-059,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2531,Add_Training_Xray_NADR,FA1,Add Train,All,7,na,0
-REF-XP2P-060,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-060,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2532,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2533,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2534,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
-REF-DIRP2-060,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-060,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2535,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
-REF-ET406,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET406,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2536,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2537,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2538,Training_Xray_HDR_75cGy,FA1,Training,All,7,HDR,75
 TRX-TE-MSP-2539,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
-REF-ET434,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET434,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2540,Training_Xray_HDR_10cGy,FA1,Training,All,7,HDR,10
 TRX-TE-MSP-2541,Partial_Xray_HDR_75,FA1,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2542,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2543,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
-TRX-TE-MSP-2544,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,10
+TRX-TE-MSP-2544,Add_Training_Xray_LDR,FA2,Add Train,All,90,LDR,pool
 TRX-TE-MSP-2545,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2546,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
-REF-XP2P-061,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-061,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2547,Training_Xray_HDR_75cGy,FA2,Training,All,150,HDR,75
-REF-DIRP2-061,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-061,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2548,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2549,Training_Xray_LDR_10cGy,FA2,Training,All,90,LDR,10
 TRX-TE-MSP-2550,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-DIRP2-062,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-062,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2551,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2552,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2553,Training_Xray_LDR_75cGy,FA2,Training,All,90,LDR,75
-REF-XP2P-062,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-062,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2554,Training_Xray_HDR_10cGy,FA1,Training,All,21,HDR,10
-TRX-TE-MSP-2555,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,75
-REF-ET472,Internal Control (IC),na,UW IC Reference,na,na,na,na
+TRX-TE-MSP-2555,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,pool
+REF-ET472,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2556,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2557,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
-REF-XP2P-063,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-063,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2558,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
 TRX-TE-MSP-2559,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
-REF-ET415,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET415,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2560,Add_Training_Xray_NADR,FA2,Add Train,All,150,na,0
 TRX-TE-MSP-2561,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2562,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
-REF-DIRP2-063,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-063,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2563,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2564,Training_Xray_LDR_10cGy,FA1,Training,All,21,LDR,10
 TRX-TE-MSP-2565,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2566,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,75
+TRX-TE-MSP-2566,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,pool
 TRX-TE-MSP-2567,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2568,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2569,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
-TRX-TE-MSP-2570,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,75
-REF-DIRP2-064,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+TRX-TE-MSP-2570,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,pool
+REF-DIRP2-064,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2571,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
-REF-ET453,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET453,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2572,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2573,Training_Xray_LDR_10cGy,FA2,Training,All,90,LDR,10
 TRX-TE-MSP-2574,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-XP2P-064,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-064,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2575,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
-REF-ET413,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET413,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2576,Training_Xray_LDR_10cGy,FA1,Training,All,7,LDR,10
 TRX-TE-MSP-2577,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2578,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
 TRX-TE-MSP-2579,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2580,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
-REF-XP2P-065,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-065,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2581,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2582,Training_Xray_HDR_10cGy,FA2,Training,All,150,HDR,10
-REF-DIRP2-065,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2583,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,10
+REF-DIRP2-065,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2583,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,pool
 TRX-TE-MSP-2584,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2585,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2586,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-TRX-TE-MSP-2587,100cGy_Ref_Xray,FA1,1Gy ref dose,All,7,LDR,100
-TRX-TE-MSP-2588,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,10
+TRX-TE-MSP-2587,100cGy_Ref_Xray,FA1,1Gy ref dose,All,7,pool,100
+TRX-TE-MSP-2588,Add_Training_Xray_LDR,FA1,Add Train,All,7,LDR,pool
 TRX-TE-MSP-2589,Training_Xray_HDR_10cGy,FA1,Training,All,21,HDR,10
-REF-DIRP2-066,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-066,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2590,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2591,Training_Xray_HDR_75cGy,FA1,Training,All,7,HDR,75
-REF-ET461,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET461,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2592,Add_Training_Xray_NADR,FA1,Add Train,All,21,na,0
 TRX-TE-MSP-2593,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
-REF-XP2P-066,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-TRX-TE-MSP-2594,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,10
+REF-XP2P-066,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+TRX-TE-MSP-2594,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,pool
 TRX-TE-MSP-2595,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2596,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-ET444,Internal Control (IC),na,UW IC Reference,na,na,na,na
-REF-XP2P-067,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-ET444,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+REF-XP2P-067,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2597,Training_Xray_LDR_75cGy,FA2,Training,All,90,LDR,75
 TRX-TE-MSP-2598,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-TRX-TE-MSP-2599,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,10
-REF-DIRP2-067,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+TRX-TE-MSP-2599,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,pool
+REF-DIRP2-067,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2600,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2601,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2602,Training_Xray_LDR_10cGy,FA2,Training,All,90,LDR,10
 TRX-TE-MSP-2603,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
 TRX-TE-MSP-2604,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
-REF-DIRP2-068,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-068,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2605,Partial_Xray_HDR_75,FA1,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2606,Add_Training_Xray_NADR,FA1,Add Train,All,21,na,0
 TRX-TE-MSP-2607,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-XP2P-068,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-068,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2608,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2609,Training_Xray_LDR_75cGy,FA1,Training,All,7,LDR,75
 TRX-TE-MSP-2610,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-ET440,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET440,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2611,Add_Training_Xray_NADR,FA2,Add Train,All,90,na,0
 TRX-TE-MSP-2612,Partial_Xray_HDR_75,FA1,Partial,Dose_and_Rate,blind,HDR,75
-REF-XP2P-069,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-069,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2613,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2614,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-ET462,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET462,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2615,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2616,Baseline_0cGy_Xray,FA2,Baseline,All,150,na,0
-REF-DIRP2-069,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2617,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,75
+REF-DIRP2-069,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2617,Add_Training_Xray_HDR,FA2,Add Train,All,150,HDR,pool
 TRX-TE-MSP-2618,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2619,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
 TRX-TE-MSP-2620,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-REF-DIRP2-070,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-TRX-TE-MSP-2621,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,75
+REF-DIRP2-070,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+TRX-TE-MSP-2621,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,pool
 TRX-TE-MSP-2622,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2623,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2624,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2625,Add_Training_Xray_NADR,FA2,Add Train,All,90,na,0
-REF-ET456,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET456,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2626,Training_Xray_HDR_75cGy,FA2,Training,All,90,HDR,75
 TRX-TE-MSP-2627,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2628,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
-REF-XP2P-070,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-070,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2629,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2630,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2631,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2632,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,75
+TRX-TE-MSP-2632,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,pool
 TRX-TE-MSP-2633,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
-REF-DIRP2-071,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-071,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2634,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
-TRX-TE-MSP-2635,100cGy_Ref_Xray,FA2,1Gy ref dose,All,150,HDR,100
+TRX-TE-MSP-2635,100cGy_Ref_Xray,FA2,1Gy ref dose,All,150,pool,100
 TRX-TE-MSP-2636,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-REF-XP2P-071,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-071,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2637,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
 TRX-TE-MSP-2638,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
-REF-ET429,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET429,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2639,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2640,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
-REF-ET469,Internal Control (IC),na,UW IC Reference,na,na,na,na
-REF-XP2P-072,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-ET469,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+REF-XP2P-072,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2641,Partial_Xray_Time,FA2,Partial,Time,150,blind,blind
 TRX-TE-MSP-2642,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2643,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2644,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2645,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
-TRX-TE-MSP-2646,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,10
-REF-DIRP2-072,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+TRX-TE-MSP-2646,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,pool
+REF-DIRP2-072,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2647,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
 TRX-TE-MSP-2648,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2649,Training_Xray_HDR_75cGy,FA1,Training,All,21,HDR,75
 TRX-TE-MSP-2650,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
-REF-DIRP2-073,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-073,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2651,Partial_Xray_LDR_10,FA2,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2652,Baseline_0cGy_Xray,FA1,Baseline,All,7,na,0
-TRX-TE-MSP-2653,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,75
+TRX-TE-MSP-2653,Add_Training_Xray_HDR,FA1,Add Train,All,21,HDR,pool
 TRX-TE-MSP-2654,Blinded_Xray,FA1,Blind,None,blind,blind,blind
-REF-ET420,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET420,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2655,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
 TRX-TE-MSP-2656,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
-REF-XP2P-073,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-REF-DIRP2-074,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-XP2P-073,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+REF-DIRP2-074,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2657,Partial_Xray_HDR_75,FA1,Partial,Dose_and_Rate,blind,HDR,75
-REF-XP2P-074,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-TRX-TE-MSP-2658,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,75
-REF-ET405,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-XP2P-074,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+TRX-TE-MSP-2658,Add_Training_Xray_LDR,FA1,Add Train,All,21,LDR,pool
+REF-ET405,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2659,Partial_Xray_HDR_25,FA1,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2660,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2661,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
@@ -888,50 +888,50 @@ TRX-TE-MSP-2663,Training_Xray_HDR_10cGy,FA1,Training,All,21,HDR,10
 TRX-TE-MSP-2664,Baseline_0cGy_Xray,FA2,Baseline,All,90,na,0
 TRX-TE-MSP-2665,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
 TRX-TE-MSP-2666,Partial_Xray_Time,FA2,Partial,Time,120,blind,blind
-REF-ET442,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET442,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2667,Partial_Xray_LDR_75,FA2,Partial,Dose_and_Rate,blind,LDR,75
 TRX-TE-MSP-2668,Partial_Xray_HDR_75,FA2,Partial,Dose_and_Rate,blind,HDR,75
-REF-XP2P-075,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-075,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2669,Add_Training_Xray_NADR,FA1,Add Train,All,7,na,0
-REF-DIRP2-075,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-075,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2670,Training_Xray_HDR_10cGy,FA2,Training,All,90,HDR,10
 TRX-TE-MSP-2671,Partial_Xray_Time,FA1,Partial,Time,7,blind,blind
 TRX-TE-MSP-2672,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2673,Partial_Xray_HDR_10,FA2,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2674,Blinded_Xray,FA2,Blind,None,blind,blind,blind
-TRX-TE-MSP-2675,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,75
+TRX-TE-MSP-2675,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,pool
 TRX-TE-MSP-2676,Partial_Xray_LDR_10,FA1,Partial,Dose_and_Rate,blind,LDR,10
 TRX-TE-MSP-2677,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2678,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2679,Partial_Xray_Time,FA1,Partial,Time,21,blind,blind
-REF-ET467,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET467,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2680,Partial_Xray_LDR_75,FA1,Partial,Dose_and_Rate,blind,LDR,75
-REF-XP2P-076,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-076,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2681,Baseline_0cGy_Xray,FA1,Baseline,All,21,na,0
-TRX-TE-MSP-2682,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,10
-REF-DIRP2-076,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
-REF-ET465,Internal Control (IC),na,UW IC Reference,na,na,na,na
-REF-ET437,Internal Control (IC),na,UW IC Reference,na,na,na,na
+TRX-TE-MSP-2682,Add_Training_Xray_LDR,FA2,Add Train,All,150,LDR,pool
+REF-DIRP2-076,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
+REF-ET465,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+REF-ET437,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2683,Blinded_Xray,FA2,Blind,None,blind,blind,blind
 TRX-TE-MSP-2684,Training_Xray_HDR_75cGy,FA2,Training,All,90,HDR,75
-REF-XP2P-077,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
+REF-XP2P-077,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
 TRX-TE-MSP-2685,Training_Xray_LDR_75cGy,FA1,Training,All,7,LDR,75
 TRX-TE-MSP-2686,Blinded_Xray,FA1,Blind,None,blind,blind,blind
 TRX-TE-MSP-2687,Partial_Xray_Time,FA1,Partial,Time,14,blind,blind
 TRX-TE-MSP-2688,Add_Training_Xray_NADR,FA2,Add Train,All,150,na,0
-REF-DIRP2-077,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-077,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2689,Partial_Xray_LDR_25,FA2,Partial,Dose_and_Rate,blind,LDR,25
 TRX-TE-MSP-2690,Partial_Xray_Time,FA2,Partial,Time,90,blind,blind
 TRX-TE-MSP-2691,Partial_Xray_LDR_25,FA1,Partial,Dose_and_Rate,blind,LDR,25
 TRX-TE-MSP-2692,Partial_Xray_HDR_25,FA2,Partial,Dose_and_Rate,blind,HDR,25
 TRX-TE-MSP-2693,Training_Xray_LDR_10cGy,FA2,Training,All,90,LDR,10
-REF-DIRP2-078,Inter-Experiment Reference (IER),na,UW IE Reference,na,na,na,na
+REF-DIRP2-078,Inter-Experiment Reference (IER),na,UW IE Reference,na,pool,pool,pool
 TRX-TE-MSP-2694,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
-TRX-TE-MSP-2695,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,75
+TRX-TE-MSP-2695,Add_Training_Xray_HDR,FA2,Add Train,All,90,HDR,pool
 TRX-TE-MSP-2696,Training_Xray_LDR_75cGy,FA2,Training,All,90,LDR,75
-REF-ET426,Internal Control (IC),na,UW IC Reference,na,na,na,na
+REF-ET426,Internal Control (IC),na,UW IC Reference,na,na,na,pool
 TRX-TE-MSP-2697,Partial_Xray_HDR_10,FA1,Partial,Dose_and_Rate,blind,HDR,10
 TRX-TE-MSP-2698,Training_Xray_LDR_10cGy,FA1,Training,All,7,LDR,10
-REF-XP2P-078,Inter-Batch Reference (IBR),na,UW IB Reference,na,na,na,na
-REF-ET474,Internal Control (IC),na,UW IC Reference,na,na,na,na
-TRX-TE-MSP-2699,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,75
+REF-XP2P-078,Inter-Batch Reference (IBR),na,UW IB Reference,na,pool,pool,pool
+REF-ET474,Internal Control (IC),na,UW IC Reference,na,na,na,pool
+TRX-TE-MSP-2699,Add_Training_Xray_HDR,FA1,Add Train,All,7,HDR,pool

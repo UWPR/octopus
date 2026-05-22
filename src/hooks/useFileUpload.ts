@@ -44,18 +44,25 @@ export function useFileUpload() {
           setAvailableColumns(headers);
           setParsedData(results.data);
 
-          // Auto-select reference column
-          let defaultColumn = headers[0];
-          if (headers.includes('search name')) {
-            defaultColumn = 'search name';
-          } else if (headers.includes('UW_Sample_ID')) {
-            defaultColumn = 'UW_Sample_ID';
-          }
-          setSelectedIdColumn(defaultColumn);
+          if (headers.length > 0) {
+            // Auto-select reference column (prefer known ID column names)
+            let defaultColumn = headers[0];
+            const sampleIdMatch = headers.find(
+              h => h.replace(/[_\s-]/g, '').toLowerCase() === 'sampleid'
+            );
+            if (headers.includes('search name')) {
+              defaultColumn = 'search name';
+            } else if (headers.includes('UW_Sample_ID')) {
+              defaultColumn = 'UW_Sample_ID';
+            } else if (sampleIdMatch) {
+              defaultColumn = sampleIdMatch;
+            }
+            setSelectedIdColumn(defaultColumn);
 
-          // Process data with selected ID column
-          const processedSearches = processSearchData(results.data, defaultColumn);
-          setSearches(processedSearches);
+            // Process data with selected ID column
+            const processedSearches = processSearchData(results.data, defaultColumn);
+            setSearches(processedSearches);
+          }
         },
       });
       // Clear input value so re-selecting the same file triggers change event
