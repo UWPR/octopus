@@ -62,6 +62,9 @@ export function useFileUpload() {
             // Process data with selected ID column
             const processedSearches = processSearchData(results.data, defaultColumn);
             setSearches(processedSearches);
+          } else {
+            setSelectedIdColumn('');
+            setSearches([]);
           }
         },
       });
