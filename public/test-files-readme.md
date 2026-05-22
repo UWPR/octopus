@@ -1,131 +1,124 @@
 # OCTOPUS Test Data Files
 
-This directory contains example CSV files for testing the OCTOPUS Plate Designer application.
+This directory contains example CSV files for testing the OCTOPUS Plate Designer application. The data is derived from a published mouse radiation proteomics study.
+
+## Source Paper
+
+Zelter A, Riffle M, Merrihew GE, et al. *A quantitative proteomics dataset for assessment and prediction of low dose X-ray radiation exposure in mice.* bioRxiv preprint, posted 19 May 2026. [https://doi.org/10.64898/2026.05.18.725951](https://doi.org/10.64898/2026.05.18.725951)
+
+The study generated large-scale DIA-MS proteomics datasets from mouse dorsal skin punch samples collected after controlled X-ray exposures. Experiment 2 (the source for these test files) comprised 936 LC-MS/MS injections — 700 experimental mice exposed to 0–100 cGy at low (3 cGy/min) or high (28 cGy/min) dose rates, harvested between 7 and 150 days post-exposure, plus 236 pooled QC reference samples — processed across 10 plates of 96 wells each.
+
+The dataset was published as a biomarker prediction challenge: some sample labels were deliberately withheld so downstream users can build models that predict radiation dose, dose rate, and time post-exposure from the proteomics measurements.
 
 ## Available Test Files
 
-### 1. trx-phase1b-full.csv
-**Full dataset with 672 samples from TRX T&E Phase 1b mouse study**
+### 1. octopus_test_dataset_small.csv
 
-- **Total Samples**: 672
-- **Plates**: Exactly 7 plates (96-well format, 8×12)
-- **Sample Distribution**:
-  - Blinded: 400 samples
-  - Control: 94 samples
-  - Training: 72 samples
-  - BatchRef: 53 samples (QC/Reference)
-  - BatchQC: 53 samples (QC/Reference)
-
-**Use Case**: Testing with large datasets, multiple plates, real-world complexity
-
-### 2. trx-phase1b-small.csv
-**Small dataset with 288 samples (3 full plates)**
+**Small dataset — 288 samples, 3 plates (96-well format)**
 
 - **Total Samples**: 288
-- **Plates**: Exactly 3 plates (96-well format, 8×12)
-- **Sample Distribution**:
-  - Blinded: 144 samples (72 per Focus Area)
-  - Training: 72 samples (12 per dose/focus area combination)
-  - BatchQC: 24 samples (1 per row, 8 per plate)
-  - BatchRef: 24 samples (1 per row, 8 per plate)
-  - Control: 24 samples (6 per dose, 2 per dose per plate)
+- **Plates**: Exactly 3 plates (8×12 = 96 wells each)
+- **Covariate Groups**: 14 (12 experimental + 2 reference)
+- **Columns**: 7
 
-**Design Features**:
-- Each row has exactly 1 BatchQC and 1 BatchRef sample
-- Each plate has 2 samples of each Control+radiation dose combination
-- All covariate combinations (Condition|Dose|Focus Area) are evenly divisible by 3 for uniform distribution
+| Condition | Focus Areas | Count |
+|---|---|---:|
+| Training_Xray_LDR_10cGy | FA1, FA2 | 24 (12 per FA) |
+| Training_Xray_LDR_75cGy | FA1, FA2 | 24 (12 per FA) |
+| Training_Xray_HDR_10cGy | FA1, FA2 | 24 (12 per FA) |
+| Training_Xray_HDR_75cGy | FA1, FA2 | 24 (12 per FA) |
+| Baseline_0cGy_Xray | FA1, FA2 | 48 (24 per FA) |
+| Blinded_Xray | FA1, FA2 | 72 (36 per FA) |
+| Inter-Batch Reference (IBR) | na | 36 |
+| Inter-Experiment Reference (IER) | na | 36 |
 
-**Use Case**: Quick demonstrations, tutorials, testing balanced distribution across 3 plates
+**Use Case**: Quick demonstrations, tutorials, testing balanced distribution across 3 plates.
 
-## How to Use These Files
+### 2. octopus_test_dataset.csv
 
-See [how-to-use-octopus.md](how-to-use-octopus.md) for detailed instructions on using these test files with OCTOPUS.
+**Full dataset — 936 samples, 8 columns**
+
+- **Total Samples**: 936
+- **Covariate Groups**: 37 (34 experimental + 3 reference)
+- **Includes**: All experimental Sets (Training, Add Train, Baseline, 1Gy ref dose, Partial, Blind) plus all three reference types (IBR, IC, IER)
+- **Columns**: 8 (same as the small file plus `Unblinded`)
+
+**Use Case**: Full-scale testing with many covariate groups and real-world complexity. Demonstrates how Octopus constructs covariate groups from multiple columns.
 
 ## Column Descriptions
 
-All test files contain the following columns:
+### Small file (7 columns)
 
 | Column | Description | Example Values |
 |--------|-------------|----------------|
-| **Sample ID** | Unique sample identifier | TRX-TE-MSP-0623 |
-| **Strain** | Mouse strain | Balb_cJ, C57BL6 |
-| **IR Type** | Irradiation type | Xray, Control, pool |
-| **IR Location** | Irradiation location | TBI, pool |
-| **Timepoint** | Days post-irradiation | 1, 6, 14, 90, 130, 150, pool |
-| **Radiaion Dose_cGy** | Radiation dose in centiGray | 0, 100, 108, 200, 400, 433 |
-| **Focus Area** | Study focus area | FA1, FA2 |
-| **Condition** | Simplified condition label | Training, Blinded, Control, BatchQC, BatchRef |
-| **Description** | Researcher-created detailed description combining multiple factors | TnE_Training_4Gy_FA1, Xray_Balb_Control |
-| **Gender** | Sample gender | Male, Female, Mix |
+| **UW_Sample_ID** | Unique sample identifier | TRX-TE-MSP-2047, REF-XP2P-001 |
+| **Condition** | Treatment condition or QC role | Training_Xray_LDR_10cGy, Blinded_Xray, Inter-Batch Reference (IBR) |
+| **Focus_Area** | Experimental phase | FA1 (early, 7–21 days), FA2 (late, 90–150 days), na (references) |
+| **Set** | Role in the prediction challenge | Training, Baseline, Blind, UW IB Reference, UW IE Reference |
+| **Time_point** | Days post-irradiation | 7, 14, 21, 90, 120, 150, blind, na, pool |
+| **Dose_Rate** | Radiation dose rate (pool-aware) | HDR (28 cGy/min), LDR (3 cGy/min), blind, na, pool |
+| **Dose_cGy** | Radiation dose in centiGray (pool-aware) | 0, 10, 25, 75, 100, blind, na, pool |
 
-### About the Description Column
+### Full file (8 columns)
 
-The `Description` column is a researcher-created field that combines multiple experimental factors into a single label. For example:
-- `TnE_Training_4Gy_FA1` = Training sample, 4Gy radiation, Focus Area 1
-- `TnE_Baseline_0Gy_FA2` = Training sample (baseline), 0Gy radiation, Focus Area 2
-- `Xray_Balb_Control` = Control sample (all radiation doses lumped together)
+All columns from the small file plus:
 
-**Using Description vs. Individual Covariates:**
+| Column | Description | Example Values |
+|--------|-------------|----------------|
+| **Unblinded** | What labels are visible to the analyst | All, Time, Dose_and_Rate, None, na |
 
-You can use `Description` as a single covariate, but this has limitations:
-- **Advantage**: Simpler - one covariate instead of three
-- **Disadvantage**: Less granular - all Control samples are grouped as `Xray_Balb_Control` regardless of radiation dose
+## Understanding the Set Values
 
-**Recommended approach**: Use `Condition` + `Radiaion Dose_cGy` + `Focus Area` as separate covariates. This splits Control samples into 4 groups by dose (0, 100, 200, 400 cGy), providing better balance and more precise control over radiation dose distribution.
+The `Set` column encodes each sample's role in the biomarker prediction challenge published with the paper:
 
-## Data Source and Processing
-
-### Original Source
-`TRX T&E Phase 1b Metadata copy-MJM v2 - v2-1b_mouse_pelt_meta.csv`
-
-### Processing Steps
-
-1. **Column Selection**: Extracted relevant experimental covariates
-2. **Column Renaming**:
-   - `search name` → `Sample ID`
-   - `Timepoint_days` → `Timepoint`
-3. **Condition Simplification**: Simplified condition labels for clarity
-   - `Training_4Gy_FA1` → `Training`
-   - `Baseline-Training_0Gy_FA2` → `Training`
-   - `Xray_Balb_Control` → `Control`
-   - `BatchQC` and `BatchRef` unchanged
-4. **Column Removal**: Removed administrative columns (plate assignments, dates, filenames)
-
-### Small Dataset Creation
-
-The small dataset (288 samples) was specifically designed for optimal demonstration:
-
-1. **QC Samples**: Selected 24 BatchQC + 24 BatchRef (1 of each per row)
-2. **Control Samples**: Selected 6 per radiation dose (4 doses × 6 = 24 total)
-3. **Training Samples**: Included all 72 training samples (6 dose/focus combinations)
-4. **Blinded Samples**: Randomly selected 72 from each focus area (144 total)
-
-**Result**: All 14 covariate combinations are evenly divisible by 3, ensuring perfect uniform distribution across 3 plates.
+- **Training** — Fully labelled training examples (doses 10 or 75 cGy, rates HDR or LDR, time points 7/21/90/150 days)
+- **Add Train** — Supplementary training data that adds sham controls (0 cGy) and pools doses within each dose-rate × Focus Area cell
+- **Baseline** — 0 cGy sham-irradiated controls
+- **1Gy ref dose** — 100 cGy reference samples (anchor for the high end of the dose curve)
+- **Partial** — Held-out test set with selective unblinding (see `Unblinded` column: `Time` = only time visible; `Dose_and_Rate` = only dose and rate visible)
+- **Blind** — Full holdout (all labels withheld)
+- **UW IB Reference** — Inter-Batch Reference (pooled lysate from plates 1 and 2)
+- **UW IC Reference** — Internal Control (80 Experiment 1 lysates re-injected in Experiment 2)
+- **UW IE Reference** — Inter-Experiment Reference (pooled lysate from a separate prior experiment)
 
 ## Recommended OCTOPUS Configuration
 
-For both test files, use these settings:
+### Small file (octopus_test_dataset_small.csv)
 
-- **ID Column**: `Sample ID`
-- **QC/Reference Column**: `Condition`
-- **QC/Reference Values**: `BatchQC`, `BatchRef`
-- **Covariates**: `Condition`, `Radiaion Dose_cGy`, `Focus Area`
-- **Algorithm**: `Balanced Block Randomization`
+- **ID Column**: `UW_Sample_ID`
+- **QC/Reference Column**: `Set`
+- **QC/Reference Values**: ☑ `UW IB Reference`, ☑ `UW IE Reference`
+- **Covariates**: `Condition` + `Focus_Area`
 - **Plate Dimensions**: 8 rows × 12 columns (96-well plate)
 
-This configuration creates 14 unique covariate groups with optimal balance and distribution.
+This produces **14 covariate groups** with good balance across 3 plates.
 
-## Study Background
+### Full file (octopus_test_dataset.csv)
 
-These samples are from a mouse radiation study investigating:
-- Effects of different radiation doses on mouse skin tissue
-- Time-course analysis post-irradiation
+- **ID Column**: `UW_Sample_ID`
+- **QC/Reference Column**: `Set`
+- **QC/Reference Values**: ☑ `UW IB Reference`, ☑ `UW IC Reference`, ☑ `UW IE Reference`
+- **Covariates**: `Condition` + `Focus_Area`
+- **Plate Dimensions**: 8 rows × 12 columns (96-well plate)
 
-The study includes:
-- **Training samples**: Known conditions for model training
-- **Blinded samples**: Unknown conditions for testing
-- **Control samples**: Various radiation doses for comparison
-- **QC/Reference samples**: Quality control and reference pools for batch monitoring
+This produces **37 covariate groups** across 10 plates.
+
+**Alternative covariate selection** (demonstrates multi-column group construction):
+- **Covariates**: `Focus_Area` + `Set` + `Dose_Rate` + `Dose_cGy`
+
+This also produces **37 covariate groups** because `Dose_Rate` and `Dose_cGy` use `pool` for Conditions that span multiple values (e.g., reference samples).
+
+## Data Processing
+
+These test files were derived from the Experiment 2 metadata of the source paper. Processing steps:
+
+1. Dropped 63 trailing blank rows from the source CSV (keeping 936 sample rows)
+2. Removed 13 sample-handling/provenance columns not relevant to randomization
+3. Renamed the `Group` column (opaque values like "Group 14") to `Condition` (descriptive values like `Add_Training_Xray_LDR`)
+4. Added `Unblinded` column derived from the source `Unblind` column
+5. `Dose_Rate` and `Dose_cGy` use `pool` for Conditions that intentionally pool across that dimension (e.g., reference samples)
+6. For the small file: subsampled to 288 rows (3 plates), keeping only Training, Baseline, and Blind sets plus IBR and IER references, with time-point-balanced selection
+
 
 ## File Format
 
@@ -133,10 +126,10 @@ All files are CSV (Comma-Separated Values) format with:
 - UTF-8 encoding
 - Header row with column names
 - One sample per row
-- No missing Sample ID values
+- No missing UW_Sample_ID values
 
 ## Notes
 
-- The typo "Radiaion" (instead of "Radiation") in the dose column name is preserved from the original data
-- Some samples have "na" values for certain covariates (e.g., Blinded samples have no dose information)
-- QC/Reference samples (BatchQC, BatchRef) have "na" for most experimental covariates as they are pooled samples
+- The literal string `blind` appears in `Time_point`, `Dose_Rate`, and `Dose_cGy` for samples whose labels were withheld in the published challenge. This is by design.
+- Reference samples (IBR, IER) use `pool` for Time_point, Dose_Rate, and Dose_cGy because they are pooled lysates with no single experimental condition.
+- The `na` value indicates "not applicable" (e.g., Focus_Area for reference samples, Dose_Rate for sham controls).

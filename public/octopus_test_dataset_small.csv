@@ -1,0 +1,289 @@
+UW_Sample_ID,Condition,Focus_Area,Set,Time_point,Dose_Rate,Dose_cGy
+TRX-TE-MSP-2047,Training_Xray_LDR_10cGy,FA1,Training,21,LDR,10
+TRX-TE-MSP-2132,Training_Xray_LDR_10cGy,FA1,Training,21,LDR,10
+TRX-TE-MSP-2144,Training_Xray_LDR_10cGy,FA1,Training,21,LDR,10
+TRX-TE-MSP-2268,Training_Xray_LDR_10cGy,FA1,Training,7,LDR,10
+TRX-TE-MSP-2309,Training_Xray_LDR_10cGy,FA1,Training,21,LDR,10
+TRX-TE-MSP-2386,Training_Xray_LDR_10cGy,FA1,Training,7,LDR,10
+TRX-TE-MSP-2409,Training_Xray_LDR_10cGy,FA1,Training,7,LDR,10
+TRX-TE-MSP-2479,Training_Xray_LDR_10cGy,FA1,Training,7,LDR,10
+TRX-TE-MSP-2523,Training_Xray_LDR_10cGy,FA1,Training,21,LDR,10
+TRX-TE-MSP-2564,Training_Xray_LDR_10cGy,FA1,Training,21,LDR,10
+TRX-TE-MSP-2576,Training_Xray_LDR_10cGy,FA1,Training,7,LDR,10
+TRX-TE-MSP-2698,Training_Xray_LDR_10cGy,FA1,Training,7,LDR,10
+TRX-TE-MSP-2027,Training_Xray_LDR_10cGy,FA2,Training,150,LDR,10
+TRX-TE-MSP-2141,Training_Xray_LDR_10cGy,FA2,Training,150,LDR,10
+TRX-TE-MSP-2170,Training_Xray_LDR_10cGy,FA2,Training,150,LDR,10
+TRX-TE-MSP-2278,Training_Xray_LDR_10cGy,FA2,Training,150,LDR,10
+TRX-TE-MSP-2325,Training_Xray_LDR_10cGy,FA2,Training,150,LDR,10
+TRX-TE-MSP-2361,Training_Xray_LDR_10cGy,FA2,Training,90,LDR,10
+TRX-TE-MSP-2419,Training_Xray_LDR_10cGy,FA2,Training,90,LDR,10
+TRX-TE-MSP-2459,Training_Xray_LDR_10cGy,FA2,Training,150,LDR,10
+TRX-TE-MSP-2549,Training_Xray_LDR_10cGy,FA2,Training,90,LDR,10
+TRX-TE-MSP-2573,Training_Xray_LDR_10cGy,FA2,Training,90,LDR,10
+TRX-TE-MSP-2602,Training_Xray_LDR_10cGy,FA2,Training,90,LDR,10
+TRX-TE-MSP-2693,Training_Xray_LDR_10cGy,FA2,Training,90,LDR,10
+TRX-TE-MSP-2005,Training_Xray_LDR_75cGy,FA1,Training,21,LDR,75
+TRX-TE-MSP-2052,Training_Xray_LDR_75cGy,FA1,Training,7,LDR,75
+TRX-TE-MSP-2077,Training_Xray_LDR_75cGy,FA1,Training,21,LDR,75
+TRX-TE-MSP-2177,Training_Xray_LDR_75cGy,FA1,Training,21,LDR,75
+TRX-TE-MSP-2200,Training_Xray_LDR_75cGy,FA1,Training,7,LDR,75
+TRX-TE-MSP-2248,Training_Xray_LDR_75cGy,FA1,Training,21,LDR,75
+TRX-TE-MSP-2333,Training_Xray_LDR_75cGy,FA1,Training,7,LDR,75
+TRX-TE-MSP-2369,Training_Xray_LDR_75cGy,FA1,Training,7,LDR,75
+TRX-TE-MSP-2437,Training_Xray_LDR_75cGy,FA1,Training,21,LDR,75
+TRX-TE-MSP-2509,Training_Xray_LDR_75cGy,FA1,Training,21,LDR,75
+TRX-TE-MSP-2609,Training_Xray_LDR_75cGy,FA1,Training,7,LDR,75
+TRX-TE-MSP-2685,Training_Xray_LDR_75cGy,FA1,Training,7,LDR,75
+TRX-TE-MSP-2008,Training_Xray_LDR_75cGy,FA2,Training,90,LDR,75
+TRX-TE-MSP-2021,Training_Xray_LDR_75cGy,FA2,Training,150,LDR,75
+TRX-TE-MSP-2121,Training_Xray_LDR_75cGy,FA2,Training,150,LDR,75
+TRX-TE-MSP-2165,Training_Xray_LDR_75cGy,FA2,Training,150,LDR,75
+TRX-TE-MSP-2180,Training_Xray_LDR_75cGy,FA2,Training,150,LDR,75
+TRX-TE-MSP-2281,Training_Xray_LDR_75cGy,FA2,Training,90,LDR,75
+TRX-TE-MSP-2303,Training_Xray_LDR_75cGy,FA2,Training,150,LDR,75
+TRX-TE-MSP-2388,Training_Xray_LDR_75cGy,FA2,Training,90,LDR,75
+TRX-TE-MSP-2453,Training_Xray_LDR_75cGy,FA2,Training,150,LDR,75
+TRX-TE-MSP-2553,Training_Xray_LDR_75cGy,FA2,Training,90,LDR,75
+TRX-TE-MSP-2597,Training_Xray_LDR_75cGy,FA2,Training,90,LDR,75
+TRX-TE-MSP-2696,Training_Xray_LDR_75cGy,FA2,Training,90,LDR,75
+TRX-TE-MSP-2054,Training_Xray_HDR_10cGy,FA1,Training,7,HDR,10
+TRX-TE-MSP-2108,Training_Xray_HDR_10cGy,FA1,Training,21,HDR,10
+TRX-TE-MSP-2157,Training_Xray_HDR_10cGy,FA1,Training,7,HDR,10
+TRX-TE-MSP-2231,Training_Xray_HDR_10cGy,FA1,Training,21,HDR,10
+TRX-TE-MSP-2350,Training_Xray_HDR_10cGy,FA1,Training,7,HDR,10
+TRX-TE-MSP-2393,Training_Xray_HDR_10cGy,FA1,Training,7,HDR,10
+TRX-TE-MSP-2423,Training_Xray_HDR_10cGy,FA1,Training,21,HDR,10
+TRX-TE-MSP-2486,Training_Xray_HDR_10cGy,FA1,Training,7,HDR,10
+TRX-TE-MSP-2540,Training_Xray_HDR_10cGy,FA1,Training,7,HDR,10
+TRX-TE-MSP-2554,Training_Xray_HDR_10cGy,FA1,Training,21,HDR,10
+TRX-TE-MSP-2589,Training_Xray_HDR_10cGy,FA1,Training,21,HDR,10
+TRX-TE-MSP-2663,Training_Xray_HDR_10cGy,FA1,Training,21,HDR,10
+TRX-TE-MSP-2011,Training_Xray_HDR_10cGy,FA2,Training,150,HDR,10
+TRX-TE-MSP-2084,Training_Xray_HDR_10cGy,FA2,Training,90,HDR,10
+TRX-TE-MSP-2117,Training_Xray_HDR_10cGy,FA2,Training,150,HDR,10
+TRX-TE-MSP-2150,Training_Xray_HDR_10cGy,FA2,Training,90,HDR,10
+TRX-TE-MSP-2238,Training_Xray_HDR_10cGy,FA2,Training,150,HDR,10
+TRX-TE-MSP-2307,Training_Xray_HDR_10cGy,FA2,Training,150,HDR,10
+TRX-TE-MSP-2383,Training_Xray_HDR_10cGy,FA2,Training,90,HDR,10
+TRX-TE-MSP-2412,Training_Xray_HDR_10cGy,FA2,Training,90,HDR,10
+TRX-TE-MSP-2443,Training_Xray_HDR_10cGy,FA2,Training,150,HDR,10
+TRX-TE-MSP-2516,Training_Xray_HDR_10cGy,FA2,Training,90,HDR,10
+TRX-TE-MSP-2582,Training_Xray_HDR_10cGy,FA2,Training,150,HDR,10
+TRX-TE-MSP-2670,Training_Xray_HDR_10cGy,FA2,Training,90,HDR,10
+TRX-TE-MSP-2031,Training_Xray_HDR_75cGy,FA1,Training,7,HDR,75
+TRX-TE-MSP-2071,Training_Xray_HDR_75cGy,FA1,Training,21,HDR,75
+TRX-TE-MSP-2106,Training_Xray_HDR_75cGy,FA1,Training,7,HDR,75
+TRX-TE-MSP-2159,Training_Xray_HDR_75cGy,FA1,Training,21,HDR,75
+TRX-TE-MSP-2213,Training_Xray_HDR_75cGy,FA1,Training,21,HDR,75
+TRX-TE-MSP-2217,Training_Xray_HDR_75cGy,FA1,Training,21,HDR,75
+TRX-TE-MSP-2314,Training_Xray_HDR_75cGy,FA1,Training,7,HDR,75
+TRX-TE-MSP-2380,Training_Xray_HDR_75cGy,FA1,Training,21,HDR,75
+TRX-TE-MSP-2503,Training_Xray_HDR_75cGy,FA1,Training,7,HDR,75
+TRX-TE-MSP-2538,Training_Xray_HDR_75cGy,FA1,Training,7,HDR,75
+TRX-TE-MSP-2591,Training_Xray_HDR_75cGy,FA1,Training,7,HDR,75
+TRX-TE-MSP-2649,Training_Xray_HDR_75cGy,FA1,Training,21,HDR,75
+TRX-TE-MSP-2025,Training_Xray_HDR_75cGy,FA2,Training,90,HDR,75
+TRX-TE-MSP-2038,Training_Xray_HDR_75cGy,FA2,Training,90,HDR,75
+TRX-TE-MSP-2115,Training_Xray_HDR_75cGy,FA2,Training,150,HDR,75
+TRX-TE-MSP-2194,Training_Xray_HDR_75cGy,FA2,Training,150,HDR,75
+TRX-TE-MSP-2208,Training_Xray_HDR_75cGy,FA2,Training,90,HDR,75
+TRX-TE-MSP-2253,Training_Xray_HDR_75cGy,FA2,Training,90,HDR,75
+TRX-TE-MSP-2320,Training_Xray_HDR_75cGy,FA2,Training,150,HDR,75
+TRX-TE-MSP-2387,Training_Xray_HDR_75cGy,FA2,Training,150,HDR,75
+TRX-TE-MSP-2457,Training_Xray_HDR_75cGy,FA2,Training,150,HDR,75
+TRX-TE-MSP-2547,Training_Xray_HDR_75cGy,FA2,Training,150,HDR,75
+TRX-TE-MSP-2626,Training_Xray_HDR_75cGy,FA2,Training,90,HDR,75
+TRX-TE-MSP-2684,Training_Xray_HDR_75cGy,FA2,Training,90,HDR,75
+TRX-TE-MSP-2010,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2042,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2089,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2103,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2126,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2171,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2215,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2220,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2250,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2262,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2289,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2347,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2366,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2398,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2431,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2442,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2474,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2521,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2535,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2558,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2603,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2647,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2652,Baseline_0cGy_Xray,FA1,Baseline,7,na,0
+TRX-TE-MSP-2681,Baseline_0cGy_Xray,FA1,Baseline,21,na,0
+TRX-TE-MSP-2004,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2019,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2070,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2111,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2143,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2146,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2184,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2205,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2232,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2274,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2318,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2332,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2352,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2406,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2425,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2436,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2451,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2502,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2543,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2575,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2578,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2616,Baseline_0cGy_Xray,FA2,Baseline,150,na,0
+TRX-TE-MSP-2637,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2664,Baseline_0cGy_Xray,FA2,Baseline,90,na,0
+TRX-TE-MSP-2142,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2028,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2341,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2302,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2270,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2166,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2136,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2116,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2514,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2023,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2016,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2053,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2627,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2686,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2308,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2362,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2586,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2672,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2120,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2432,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2392,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2427,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2327,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2255,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2568,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2642,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2356,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2630,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2000,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2104,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2269,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2198,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2485,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2082,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2574,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2381,Blinded_Xray,FA1,Blind,blind,blind,blind
+TRX-TE-MSP-2133,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2110,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2469,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2118,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2439,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2424,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2317,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2059,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2565,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2334,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2074,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2572,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2242,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2624,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2346,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2188,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2519,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2390,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2385,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2228,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2358,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2660,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2648,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2051,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2022,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2411,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2140,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2542,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2620,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2483,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2064,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2581,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2175,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2286,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2506,Blinded_Xray,FA2,Blind,blind,blind,blind
+TRX-TE-MSP-2105,Blinded_Xray,FA2,Blind,blind,blind,blind
+REF-XP2P-048,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-046,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-027,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-035,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-010,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-022,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-069,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-032,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-021,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-060,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-049,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-075,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-029,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-042,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-008,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-015,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-053,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-003,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-052,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-070,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-026,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-018,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-005,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-014,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-037,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-077,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-059,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-055,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-065,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-071,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-058,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-050,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-030,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-074,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-017,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-XP2P-009,Inter-Batch Reference (IBR),na,UW IB Reference,pool,pool,pool
+REF-DIRP2-032,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-072,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-069,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-034,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-055,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-052,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-047,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-029,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-018,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-066,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-064,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-012,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-007,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-015,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-020,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-041,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-011,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-051,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-044,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-028,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-039,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-005,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-025,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-056,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-058,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-030,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-075,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-017,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-036,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-001,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-060,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-077,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-008,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-048,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-035,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool
+REF-DIRP2-070,Inter-Experiment Reference (IER),na,UW IE Reference,pool,pool,pool

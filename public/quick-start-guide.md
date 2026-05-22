@@ -1,24 +1,23 @@
 # How to Use OCTOPUS with Test Data
 
-This guide shows you how to use OCTOPUS Plate Designer with the provided test files from a mouse radiation study.
+This guide shows you how to use OCTOPUS Plate Designer with the provided test files from a published mouse radiation proteomics study.
 
 ## About the Test Data
 
-The test files contain samples from a mouse study investigating radiation effects on mouse skin tissue. The study includes:
+The test files contain sample metadata from a study investigating low-dose X-ray radiation effects on mouse dorsal skin tissue (Zelter et al. 2026, bioRxiv). The study includes:
 
-- **Mouse strains**: Balb_cJ and C57BL6
-- **Radiation types**: X-ray irradiation and controls
-- **Timepoints**: Multiple days post-irradiation (1, 6, 14, 90, 130, 150 days)
-- **Radiation doses**: Various doses in centiGray (0, 100, 108, 200, 400, 433 cGy)
-- **Focus areas**: Two study areas (FA1, FA2)
-- **Sample types**: Training samples, blinded samples, controls, and QC/reference pools
+- **Radiation types**: X-ray irradiation at low dose rate (LDR, 3 cGy/min) and high dose rate (HDR, 28 cGy/min), plus sham controls
+- **Radiation doses**: 0, 10, 25, 75, and 100 cGy
+- **Timepoints**: 7, 14, 21, 90, 120, and 150 days post-irradiation
+- **Focus areas**: FA1 (early, 7–21 days) and FA2 (late, 90–150 days)
+- **Sample roles**: Training samples, blinded samples, baseline controls, and QC/reference pools
 
 ## Quick Start Tutorial
 
 ### Step 1: Download a Test File
 
-- **trx-phase1b-small.csv** (288 samples, 3 plates) - Quick demo, perfect balance
-- **trx-phase1b-full.csv** (672 samples, 7 plates) - Full dataset, real-world complexity
+- **octopus_test_dataset_small.csv** (288 samples, 3 plates) — Quick demo, clean balance
+- **octopus_test_dataset.csv** (936 samples, 10 plates) — Full dataset, real-world complexity
 
 ### Step 2: Upload to OCTOPUS
 
@@ -30,37 +29,32 @@ The test files contain samples from a mouse study investigating radiation effect
 ### Step 3: Configure Settings
 
 #### ID Column
-Select: **`Sample ID`**
+Select: **`UW_Sample_ID`**
 
 #### QC/Reference Column
-Select: **`Condition`**
+Select: **`Set`**
 
 Check these values:
-- ☑ **`BatchQC`** - Quality control pool samples
-- ☑ **`BatchRef`** - Reference pool samples
+- ☑ **`UW IB Reference`** — Inter-Batch Reference pool
+- ☑ **`UW IE Reference`** — Inter-Experiment Reference pool
+
+(For the full files, also check ☑ **`UW IC Reference`** — Internal Control)
 
 #### Covariates (Recommended)
-Select: **`Condition`**, **`Radiaion Dose_cGy`**, **`Focus Area`**
+Select: **`Condition`** + **`Focus_Area`**
 
-This creates 14 unique covariate combinations that balance:
-- Sample type (Training, Blinded, Control, QC)
-- Radiation dose
-- Study focus area
+This creates 14 covariate groups (small file) or 37 groups (full files) that balance:
+- Treatment condition (Training at various doses/rates, Baseline controls, Blinded holdout)
+- Experimental phase (FA1 = early timepoints, FA2 = late timepoints)
 
-**Alternative: Using the Description Column**
+**Alternative: Using Multiple Design Columns (full file)**
 
-The `Description` column is a researcher-created field that combines multiple experimental factors into a single label (e.g., `TnE_Training_4Gy_FA1` indicates a Training sample with 4Gy radiation in focus area FA1).
+With `octopus_test_dataset.csv`, you can instead select: **`Focus_Area`** + **`Set`** + **`Dose_Rate`** + **`Dose_cGy`**
 
-You can use `Description` as a single covariate instead of the three recommended covariates. However, note:
-- **Advantage**: Simpler selection (1 covariate instead of 3)
-- **Disadvantage**: Less granular control - for example, all Control samples are grouped as `Xray_Balb_Control` regardless of radiation dose
-- **Recommended approach**: Using `Condition` + `Radiaion Dose_cGy` + `Focus Area` splits Control samples into 4 separate dose groups, providing better balance across radiation doses
+This also produces 37 groups, demonstrating how Octopus constructs covariate groups from multiple columns. The pool-aware `Dose_Rate` and `Dose_cGy` columns write `pool` for samples that intentionally span multiple values, preventing unwanted group splitting.
 
 #### Plate Dimensions
 Keep default: **8 rows × 12 columns** (96-well plate)
-
-#### Empty Spots
-Keep checked: **"Keep empty spots in last plate"**
 
 ### Step 4: Generate Plates
 
@@ -77,8 +71,8 @@ Click the **"Quality"** button to see:
 
 #### View Covariate Summary
 Click **"Show Covariate Summary"** to see:
-- All 14 covariate groups with color coding
-- Sample counts per group
+- All covariate groups with color coding
+- Sample counts per group (sorted from most to least)
 - QC/Reference groups (marked with red dashed border and "QC" badge)
 
 #### Inspect Plates
@@ -125,9 +119,9 @@ For this test dataset, a typical configuration is:
 
 1. **System Suitability**: Skip (leave all run counts at 0) for a quick test, or set 3 runs at start and 2 at end to see SS rows in the preview.
 2. **Slot Assignment**: Accept the default — Plate 1 → Yellow, Plate 2 → Blue, Plate 3 → Red.
-3. **File Naming**: Add fields like `experiment name`, `plate well`, and `sample identifier`. Set Experiment Name to something like `trx_phase1b`. The Run Number is appended automatically.
-4. **Sample Categories**: `BatchQC` and `BatchRef` samples are auto-assigned to their respective QC categories; everything else lands in **Experimental**. No changes needed for the default test data.
-5. **Paths & Instrument Methods**: Enter any folder path (e.g., `D:\Data\trx_phase1b`) and instrument method path (e.g., `D:\Methods\`). Use **"Apply to all categories"** to fill every category at once. Keep injection volume at 3 µL.
+3. **File Naming**: Add fields like `experiment name`, `plate well`, and `sample identifier`. Set Experiment Name to something like `trx_phase2`. The Run Number is appended automatically.
+4. **Sample Categories**: IB Reference and IE Reference samples are auto-assigned to their respective QC categories; everything else lands in **Experimental**. No changes needed for the default test data.
+5. **Paths & Instrument Methods**: Enter any folder path (e.g., `D:\Data\trx_phase2`) and instrument method path (e.g., `D:\Methods\DIA_4mz.meth`). Use **"Apply to all categories"** to fill every category at once. Keep injection volume at 3 µL.
 6. **Preview & Export**: Verify the run order and file names, then click **Export Sequence CSV**.
 
 See [octopus_doc.html](octopus_doc.html#step-7-export-injection-sequence-optional) for the full wizard reference.
@@ -136,57 +130,57 @@ See [octopus_doc.html](octopus_doc.html#step-7-export-injection-sequence-optiona
 
 ### Small Dataset (288 samples, 3 plates)
 
-**Distribution per Plate:**
-- 8 BatchQC samples (1 per row)
-- 8 BatchRef samples (1 per row)
-- 8 Control samples (2 per radiation dose)
-- 24 Training samples
-- 48 Blinded samples
+**Distribution per Plate (approximate):**
+- 12 IB Reference samples (evenly across rows)
+- 12 IE Reference samples (evenly across rows)
+- 4 Training samples per dose/rate combination (8 conditions × 4 = 32)
+- 8 Baseline samples per focus area (2 × 8 = 16)
+- 12 Blinded samples per focus area (2 × 12 = 24)
 
 **Quality Scores:**
-- Both balance and clustering scores should be excellent
+- Both balance and clustering scores should be excellent (90+)
 
-### Full Dataset (672 samples, 7 plates)
+### Full Dataset (936 samples, 10 plates)
 
 **Distribution:**
-- QC samples distributed across all plates
-- Control samples balanced by dose
-- Training and Blinded samples evenly distributed
+- QC/Reference samples distributed across all plates
+- Training and Baseline samples balanced by dose, rate, and focus area
+- Blinded and Partial samples evenly distributed
 
 **Quality Scores:**
--  Both balance and clustering scores should be excellent
+- Both balance and clustering scores should be good to excellent
 
 ## Understanding the Covariate Groups
 
-When you select **Condition**, **Radiaion Dose_cGy**, and **Focus Area**, you get 14 groups:
+### Small File (14 groups with `Condition` + `Focus_Area`)
 
-### QC/Reference Groups (2)
-- `BatchQC|na|na` - Quality control pool
-- `BatchRef|na|na` - Reference pool
+#### QC/Reference Groups (2)
+- `Inter-Batch Reference (IBR)|na` — Pooled lysate QC (36 samples)
+- `Inter-Experiment Reference (IER)|na` — Cross-experiment QC (36 samples)
 
-### Blinded Groups (2)
-- `Blinded|na|FA1` - Blinded samples, focus area 1
-- `Blinded|na|FA2` - Blinded samples, focus area 2
+#### Blinded Groups (2)
+- `Blinded_Xray|FA1` — Blinded holdout, early timepoints (36 samples)
+- `Blinded_Xray|FA2` — Blinded holdout, late timepoints (36 samples)
 
-### Training Groups (6)
-- `Training|0|FA1` - No radiation, focus area 1
-- `Training|0|FA2` - No radiation, focus area 2
-- `Training|108|FA1` - 108 cGy, focus area 1
-- `Training|108|FA2` - 108 cGy, focus area 2
-- `Training|433|FA1` - 433 cGy, focus area 1
-- `Training|433|FA2` - 433 cGy, focus area 2
+#### Baseline Groups (2)
+- `Baseline_0cGy_Xray|FA1` — Sham controls, early (24 samples)
+- `Baseline_0cGy_Xray|FA2` — Sham controls, late (24 samples)
 
-### Control Groups (4)
-- `Control|0|na` - No radiation control
-- `Control|100|na` - 100 cGy control
-- `Control|200|na` - 200 cGy control
-- `Control|400|na` - 400 cGy control
+#### Training Groups (8)
+- `Training_Xray_LDR_10cGy|FA1` — 10 cGy, low dose rate, early (12 samples)
+- `Training_Xray_LDR_10cGy|FA2` — 10 cGy, low dose rate, late (12 samples)
+- `Training_Xray_LDR_75cGy|FA1` — 75 cGy, low dose rate, early (12 samples)
+- `Training_Xray_LDR_75cGy|FA2` — 75 cGy, low dose rate, late (12 samples)
+- `Training_Xray_HDR_10cGy|FA1` — 10 cGy, high dose rate, early (12 samples)
+- `Training_Xray_HDR_10cGy|FA2` — 10 cGy, high dose rate, late (12 samples)
+- `Training_Xray_HDR_75cGy|FA1` — 75 cGy, high dose rate, early (12 samples)
+- `Training_Xray_HDR_75cGy|FA2` — 75 cGy, high dose rate, late (12 samples)
 
 ## Tips for Best Results
 
 ### Achieving High Balance Scores
 
-1. **Use recommended covariates**: The combination of Condition, Dose, and Focus Area provides optimal balance
+1. **Use recommended covariates**: `Condition` + `Focus_Area` provides optimal balance
 2. **Check plate details**: Click "i" on plates with lower scores to see which groups are imbalanced
 3. **Re-randomize if needed**: Try global or individual plate re-randomization to improve scores
 
@@ -194,12 +188,12 @@ When you select **Condition**, **Radiaion Dose_cGy**, and **Focus Area**, you ge
 
 1. **Re-randomize individual plates**: Plates with low clustering scores can be re-randomized independently
 2. **Manual adjustment**: Drag and drop samples to reduce clustering of same-group samples
-3. **Accept reasonable scores**: Some clustering is unavoidable with large groups
+3. **Accept reasonable scores**: Some clustering is unavoidable with large groups (e.g., Blinded_Xray has 36 samples per FA)
 
 ### Working with QC Samples
 
-- QC samples (BatchQC and BatchRef) should appear on every plate
-- Each row should have 1-2 QC samples for quality monitoring
+- QC samples (IB Reference and IE Reference) should appear on every plate
+- Each row should have 1–2 QC samples for quality monitoring
 - QC samples are visually distinguished with darker colors and red dashed borders
 
 ### Manual Sample Movement
@@ -217,25 +211,23 @@ You can drag and drop samples to:
 ### Low Balance Scores
 
 **Possible causes:**
-- Too many covariates selected
-- Some covariate groups are very small
-- Uneven sample distribution
+- Too many covariates selected (creates many small groups)
+- Some covariate groups are very small relative to plate capacity
 
 **Solutions:**
-- Try using fewer covariates
+- Try using fewer covariates (e.g., just `Condition` + `Focus_Area`)
 - Use the "Re-randomize" button
 - Check plate details to identify problematic groups
 
 ### Low Clustering Scores
 
 **Possible causes:**
-- Large groups naturally cluster more
+- Large groups naturally cluster more (e.g., Blinded_Xray with 36 samples per FA)
 - Random placement resulted in adjacent same-group samples
 
 **Solutions:**
 - Re-randomize individual plates with low scores
 - Manually move samples to reduce clustering
-
 
 ## Advanced Usage
 
@@ -243,10 +235,9 @@ You can drag and drop samples to:
 
 Try these to see how they affect distribution:
 
-1. **Recommended** (`Condition` + `Radiaion Dose_cGy` + `Focus Area`): 14 groups, optimal balance, splits Control samples by dose, more granular control over radiation dose distribution
-2. **Minimal** (`Condition` only): 5 groups, high balance scores, low clustering score due to large groups, loses dose/focus information
-3. **Description Only**: Uses researcher-created labels, simpler but lumps all Control samples together as `Xray_Balb_Control`
-
+1. **Recommended** (`Condition` + `Focus_Area`): 14 groups (small) or 37 groups (full), optimal balance
+2. **Multi-column** (`Focus_Area` + `Set` + `Dose_Rate` + `Dose_cGy`, full file): 37 groups, demonstrates multi-column group construction
+3. **Minimal** (`Condition` only): Fewer groups (references collapse since Focus_Area is not distinguishing them), higher balance but less granular
 
 ### Exporting for Different Purposes
 
@@ -256,4 +247,4 @@ Try these to see how they affect distribution:
 ## Need More Help?
 
 - **Full Documentation**: See [octopus_doc.html](octopus_doc.html) for complete user guide
-- **Test File Details**: See [test-files-readme.html](test-files-readme.html) for information about test file creation
+- **Test File Details**: See [test-files-readme.html](test-files-readme.html) for column descriptions and data provenance

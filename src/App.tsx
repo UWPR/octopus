@@ -838,15 +838,15 @@ const App: React.FC = () => {
               <i className="fa-solid fa-book" style={{marginRight: '4px'}}></i> Documentation
             </a>
             <a
-              href="/octopus-block-randomizer/trx-phase1b-small.csv"
-              download="trx-phase1b-small.csv"
+              href="/octopus-block-randomizer/octopus_test_dataset_small.csv"
+              download="octopus_test_dataset_small.csv"
               style={styles.helpLink}
             >
               <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i> Example Input File (Small)
             </a>
             <a
-              href="/octopus-block-randomizer/trx-phase1b-full.csv"
-              download="trx-phase1b-full.csv"
+              href="/octopus-block-randomizer/octopus_test_dataset.csv"
+              download="octopus_test_dataset.csv"
               style={styles.helpLink}
             >
               <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i> Example Input File (Full)
