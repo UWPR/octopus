@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/octopus-block-randomizer/static/css/main.e6c13ad2.css",
-    "main.js": "/octopus-block-randomizer/static/js/main.9ba2be96.js",
+    "main.js": "/octopus-block-randomizer/static/js/main.9032ea84.js",
     "static/js/453.d66af43a.chunk.js": "/octopus-block-randomizer/static/js/453.d66af43a.chunk.js",
     "index.html": "/octopus-block-randomizer/index.html",
     "main.e6c13ad2.css.map": "/octopus-block-randomizer/static/css/main.e6c13ad2.css.map",
-    "main.9ba2be96.js.map": "/octopus-block-randomizer/static/js/main.9ba2be96.js.map",
+    "main.9032ea84.js.map": "/octopus-block-randomizer/static/js/main.9032ea84.js.map",
     "453.d66af43a.chunk.js.map": "/octopus-block-randomizer/static/js/453.d66af43a.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.9ba2be96.js"
+    "static/js/main.9032ea84.js"
   ]
 }
