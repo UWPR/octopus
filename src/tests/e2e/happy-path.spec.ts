@@ -16,7 +16,7 @@ import { getAllPlateFingerprints, uploadConfigureAndRandomize, EXPECTED_GROUPS, 
 test.describe('Happy Path Workflow', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('http://localhost:3000');
-    await expect(page.getByRole('heading', { name: 'Octopus Plate Designer' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Octopus' })).toBeVisible();
   });
 
   test('complete workflow from upload to export', async ({ page }) => {

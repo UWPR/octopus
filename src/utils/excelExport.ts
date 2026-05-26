@@ -59,7 +59,7 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
   const { searches, randomizedPlates, covariateColors, treatmentCovariates, exportCovariates, numRows, numColumns, inputFileName, qcColumn } = options;
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Octopus Plate Designer';
+  workbook.creator = 'Octopus';
   workbook.created = new Date();
 
   // Calculate optimal column width once for all plates

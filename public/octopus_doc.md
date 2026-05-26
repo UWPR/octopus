@@ -1,8 +1,8 @@
-# Octopus Plate Designer
+# Octopus
 
-## What is Octopus Plate Designer?
+## What is Octopus?
 
-Octopus Plate Designer is a web application designed to optimize the distribution of experimental samples across multiple plates (e.g., 96-well plates). The tool ensures that samples are distributed in a balanced and randomized manner, helping researchers minimize bias and maintain statistical validity in their experiments.
+Octopus is a web application for distributing experimental samples across multiple plates (e.g., 96-well plates) in a balanced and randomized manner, helping researchers minimize bias and maintain statistical validity in their experiments.
 
 ### Key Purposes
 
@@ -20,7 +20,7 @@ Octopus Plate Designer is a web application designed to optimize the distributio
 
 ---
 
-## How Octopus Plate Designer Works
+## How Octopus Works
 
 ### The Randomization Process
 
@@ -50,7 +50,7 @@ When a Subject ID Column is configured with a grouping constraint, the randomiza
 
 ---
 
-## How to Use Octopus Plate Designer
+## How to Use Octopus
 
 ### Step 1: Upload Your Data
 

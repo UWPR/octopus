@@ -1,6 +1,6 @@
-# OCTOPUS Plate Designer
+# Octopus
 
-A web application designed to optimize the distribution of experimental samples across multiple plates (e.g., 96-well plates). The tool ensures that samples are distributed in a balanced and randomized manner, helping researchers minimize bias and maintain statistical validity in their experiments.
+A web application for distributing experimental samples across multiple plates (e.g., 96-well plates) in a balanced and randomized manner, helping researchers minimize bias and maintain statistical validity in their experiments.
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 

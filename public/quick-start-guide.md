@@ -1,6 +1,6 @@
-# How to Use OCTOPUS with Test Data
+# How to Use Octopus with Test Data
 
-This guide shows you how to use OCTOPUS Plate Designer with the provided test files from a published mouse radiation proteomics study.
+This guide shows you how to use Octopus with the provided test files from a published mouse radiation proteomics study.
 
 ## About the Test Data
 
@@ -19,9 +19,9 @@ The test files contain sample metadata from a study investigating low-dose X-ray
 - **octopus_test_dataset_small.csv** (288 samples, 3 plates) — Quick demo, clean balance
 - **octopus_test_dataset.csv** (936 samples, 10 plates) — Full dataset, real-world complexity
 
-### Step 2: Upload to OCTOPUS
+### Step 2: Open in Octopus
 
-1. Open OCTOPUS Plate Designer
+1. Open Octopus
 2. Click "Choose File"
 3. Select your downloaded CSV file
 4. Wait for the file to load (sample count will appear)

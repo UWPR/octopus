@@ -574,12 +574,18 @@ const App: React.FC = () => {
   return (
     <div style={styles.container}>
       <div style={styles.content}>
+        <img
+          src={`${process.env.PUBLIC_URL}/images/octopus-logo.svg`}
+          alt="Octopus logo"
+          style={styles.logo}
+        />
         <h1 style={styles.heading}>
-          Octopus Plate Designer
+          Octopus
           {isDeveloperMode() && (
             <span style={styles.devIndicator}> Dev</span>
           )}
         </h1>
+        <p style={styles.subtitle}>Plate Designer with Balanced Block Randomization</p>
         {/* File Upload */}
         <FileUploadSection
           selectedFileName={selectedFileName}
@@ -830,7 +836,7 @@ const App: React.FC = () => {
         <div style={styles.helpSection}>
           <div style={styles.helpLinks}>
             <a
-              href="/octopus-block-randomizer/octopus_doc.html"
+              href="/octopus/octopus_doc.html"
               target="_blank"
               rel="noopener noreferrer"
               style={styles.helpLink}
@@ -838,21 +844,21 @@ const App: React.FC = () => {
               <i className="fa-solid fa-book" style={{marginRight: '4px'}}></i> Documentation
             </a>
             <a
-              href="/octopus-block-randomizer/octopus_test_dataset_small.csv"
+              href="/octopus/octopus_test_dataset_small.csv"
               download="octopus_test_dataset_small.csv"
               style={styles.helpLink}
             >
               <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i> Example Input File (Small)
             </a>
             <a
-              href="/octopus-block-randomizer/octopus_test_dataset.csv"
+              href="/octopus/octopus_test_dataset.csv"
               download="octopus_test_dataset.csv"
               style={styles.helpLink}
             >
               <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i> Example Input File (Full)
             </a>
             <a
-              href="/octopus-block-randomizer/quick-start-guide.html"
+              href="/octopus/quick-start-guide.html"
               target="_blank"
               rel="noopener noreferrer"
               style={styles.helpLink}
@@ -890,11 +896,17 @@ const styles = {
     alignItems: 'center',
   },
   heading: {
-    fontSize: '28px',
+    fontSize: '36px',
     fontWeight: 'bold',
-    marginBottom: '10px',
+    marginBottom: '4px',
     color: '#333',
     textAlign: 'center' as const,
+  },
+  logo: {
+    display: 'block',
+    margin: '0 auto 8px',
+    height: '80px',
+    width: 'auto',
   },
   devIndicator: {
     fontSize: '12px',
@@ -906,8 +918,9 @@ const styles = {
     fontSize: '16px',
     color: '#666',
     textAlign: 'center' as const,
-    marginBottom: '30px',
-    lineHeight: '1.5',
+    marginTop: '0',
+    marginBottom: '10px',
+    fontWeight: 'normal' as const,
   },
   processButton: {
     padding: '12px 24px',
