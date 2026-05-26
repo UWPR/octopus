@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 900 960" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;">
+
+    <!-- ===== INPUT NODE ===== -->
+    <g>
+        <rect x="310" y="20" width="200" height="48" rx="8" ry="8" style="fill:rgb(241,239,232);stroke:rgb(95,94,90);stroke-width:0.5px;"/>
+        <text x="410" y="42" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(68,68,65);">CSV metadata input</text>
+        <text x="410" y="58" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(95,94,90);">Sample ID + covariate key</text>
+    </g>
+
+    <!-- Arrow: input -> decision -->
+    <line x1="410" y1="68" x2="410" y2="98" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- ===== DECISION NODE ===== -->
+    <g>
+        <rect x="290" y="98" width="240" height="40" rx="20" ry="20" style="fill:rgb(250,238,218);stroke:rgb(133,79,11);stroke-width:0.5px;"/>
+        <text x="410" y="123" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(99,56,6);">Subject grouping constraint?</text>
+    </g>
+
+    <!-- Branch lines from decision -->
+    <line x1="310" y1="118" x2="170" y2="118" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <line x1="170" y1="118" x2="170" y2="168" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <line x1="510" y1="118" x2="650" y2="118" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <line x1="650" y1="118" x2="650" y2="168" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Branch labels -->
+    <text x="170" y="160" text-anchor="middle" style="font-family:'Arial', sans-serif;font-weight:700;font-size:12px;fill:rgb(61,61,58);">No</text>
+    <text x="650" y="160" text-anchor="middle" style="font-family:'Arial', sans-serif;font-weight:700;font-size:12px;fill:rgb(61,61,58);">Yes</text>
+
+    <!-- Column headers -->
+    <text x="170" y="182" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(20,20,19);">Default algorithm</text>
+    <text x="650" y="182" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(20,20,19);">Repeated-measures</text>
+
+    <!-- ===== LEFT BRANCH: DEFAULT ALGORITHM ===== -->
+    <line x1="170" y1="188" x2="170" y2="206" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Plate distribution -->
+    <g>
+        <rect x="60" y="206" width="220" height="56" rx="8" ry="8" style="fill:rgb(230,241,251);stroke:rgb(24,95,165);stroke-width:0.5px;"/>
+        <text x="170" y="228" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(12,68,124);">Plate distribution*</text>
+        <text x="170" y="244" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(24,95,165);">Proportional to global</text>
+        <text x="170" y="256" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(24,95,165);">covariate group counts</text>
+    </g>
+
+    <line x1="170" y1="262" x2="170" y2="280" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Row distribution -->
+    <g>
+        <rect x="60" y="280" width="220" height="56" rx="8" ry="8" style="fill:rgb(230,241,251);stroke:rgb(24,95,165);stroke-width:0.5px;"/>
+        <text x="170" y="302" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(12,68,124);">Row distribution*</text>
+        <text x="170" y="318" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(24,95,165);">Same proportional distribution</text>
+        <text x="170" y="330" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(24,95,165);">logic as plates</text>
+    </g>
+
+    <line x1="170" y1="336" x2="170" y2="354" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Randomize within rows -->
+    <g>
+        <rect x="60" y="354" width="220" height="48" rx="8" ry="8" style="fill:rgb(230,241,251);stroke:rgb(24,95,165);stroke-width:0.5px;"/>
+        <text x="170" y="374" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(12,68,124);">Randomize within rows</text>
+        <text x="170" y="392" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(24,95,165);">Minimize clustering of covariate keys</text>
+    </g>
+
+    <!-- ===== RIGHT BRANCH: REPEATED-MEASURES ===== -->
+    <line x1="650" y1="188" x2="650" y2="206" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Distribute QC samples -->
+    <g>
+        <rect x="540" y="206" width="220" height="48" rx="8" ry="8" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        <text x="650" y="228" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Distribute QC samples</text>
+        <text x="650" y="244" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">Proportionally across plates and rows</text>
+    </g>
+
+    <line x1="650" y1="254" x2="650" y2="272" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Plate assignment -->
+    <g>
+        <rect x="540" y="272" width="220" height="48" rx="8" ry="8" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        <text x="650" y="292" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Plate assignment&#x2020;</text>
+        <text x="650" y="308" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:11px;fill:rgb(15,110,86);">Subject groups placed largest first</text>
+    </g>
+
+    <line x1="650" y1="320" x2="650" y2="348" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- ===== SUB-DECISION: Same Row vs Same Plate ===== -->
+    <g>
+        <rect x="560" y="348" width="180" height="36" rx="18" ry="18" style="fill:rgb(255,248,230);stroke:rgb(160,120,20);stroke-width:0.5px;"/>
+        <text x="650" y="371" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:13px;fill:rgb(120,80,0);">Grouping level?</text>
+    </g>
+
+    <!-- Sub-branch lines -->
+    <line x1="590" y1="384" x2="520" y2="384" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <line x1="520" y1="384" x2="520" y2="420" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <line x1="710" y1="384" x2="790" y2="384" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <line x1="790" y1="384" x2="790" y2="420" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Sub-branch labels -->
+    <text x="520" y="414" text-anchor="middle" style="font-family:'Arial', sans-serif;font-weight:700;font-size:11px;fill:rgb(61,61,58);">Same Row</text>
+    <text x="790" y="414" text-anchor="middle" style="font-family:'Arial', sans-serif;font-weight:700;font-size:11px;fill:rgb(61,61,58);">Same Plate</text>
+
+    <!-- ===== SAME ROW PATH ===== -->
+    <line x1="520" y1="420" x2="520" y2="434" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Layout plan search -->
+    <g>
+        <rect x="410" y="434" width="220" height="48" rx="8" ry="8" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        <text x="520" y="454" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Layout plan search&#x2021;</text>
+        <text x="520" y="472" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">Find valid row compositions</text>
+    </g>
+
+    <line x1="520" y1="482" x2="520" y2="500" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Group assignment -->
+    <g>
+        <rect x="410" y="500" width="220" height="48" rx="8" ry="8" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        <text x="520" y="520" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Group assignment</text>
+        <text x="520" y="536" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">Minimize covariate deviation</text>
+    </g>
+
+    <line x1="520" y1="548" x2="520" y2="566" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Row reordering + column placement -->
+    <g>
+        <rect x="410" y="566" width="220" height="48" rx="8" ry="8" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        <text x="520" y="586" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Row reorder + placement</text>
+        <text x="520" y="602" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">Vertical contrast, greedy spatial</text>
+    </g>
+
+    <!-- ===== SAME PLATE PATH ===== -->
+    <line x1="790" y1="420" x2="790" y2="434" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Row distribution -->
+    <g>
+        <rect x="680" y="434" width="220" height="48" rx="8" ry="8" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        <text x="790" y="454" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Row distribution*</text>
+        <text x="790" y="472" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">Proportional per covariate group</text>
+    </g>
+
+    <line x1="790" y1="482" x2="790" y2="500" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Column placement -->
+    <g>
+        <rect x="680" y="500" width="220" height="48" rx="8" ry="8" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        <text x="790" y="520" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Column placement</text>
+        <text x="790" y="536" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">Minimize clustering of covariate keys</text>
+    </g>
+
+    <!-- ===== CONVERGE TO QUALITY SCORING ===== -->
+
+    <!-- Left branch down to quality scoring -->
+    <line x1="170" y1="402" x2="170" y2="790" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <line x1="170" y1="790" x2="350" y2="790" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Same-row path down to quality scoring -->
+    <line x1="520" y1="614" x2="520" y2="790" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <line x1="520" y1="790" x2="470" y2="790" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- Same-plate path down to quality scoring -->
+    <line x1="790" y1="548" x2="790" y2="750" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <line x1="790" y1="750" x2="520" y2="750" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <line x1="520" y1="750" x2="520" y2="790" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- ===== QUALITY SCORING ===== -->
+    <g>
+        <rect x="310" y="770" width="200" height="48" rx="8" ry="8" style="fill:rgb(238,237,254);stroke:rgb(83,74,183);stroke-width:0.5px;"/>
+        <text x="410" y="790" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(60,52,137);">Quality scoring</text>
+        <text x="410" y="808" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:12px;fill:rgb(83,74,183);">Balance + clustering</text>
+    </g>
+
+    <line x1="410" y1="818" x2="410" y2="846" style="stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+
+    <!-- ===== FINAL OUTPUT ===== -->
+    <g>
+        <rect x="310" y="846" width="200" height="36" rx="8" ry="8" style="fill:rgb(241,239,232);stroke:rgb(95,94,90);stroke-width:0.5px;"/>
+        <text x="410" y="869" text-anchor="middle" style="font-family:'Arial', sans-serif;font-size:14px;fill:rgb(68,68,65);">Final plate layout</text>
+    </g>
+
+    <!-- ===== LEGEND ===== -->
+    <g>
+        <line x1="60" y1="910" x2="860" y2="910" style="stroke:rgb(200,200,200);stroke-width:0.5px;"/>
+        <text x="60" y="938" style="font-family:'Arial', sans-serif;font-size:11px;fill:rgb(80,80,80);">* Largest-remainder (Hamilton) apportionment: each group gets its fair share rounded down, then +1s are awarded by largest fractional remainder.</text>
+        <text x="60" y="952" style="font-family:'Arial', sans-serif;font-size:11px;fill:rgb(80,80,80);">&#x2020; First-fit decreasing bin packing with covariate-balance tiebreaking.  &#x2021; Backtracking search with capacity and per-size feasibility pruning.</text>
+    </g>
+
+</svg>

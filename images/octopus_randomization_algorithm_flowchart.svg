@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 680 766" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;">
+    <g>
+        <path d="M440,28L440,68C440,72.415 436.415,76 432,76L248,76C243.585,76 240,72.415 240,68L240,28C240,23.585 243.585,20 248,20L432,20C436.415,20 440,23.585 440,28Z" style="fill:rgb(241,239,232);stroke:rgb(95,94,90);stroke-width:0.5px;"/>
+        <g transform="matrix(1,0,0,1,340,40)">
+            <text x="-62.648px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(68,68,65);">CSV metadata input</text>
+        </g>
+        <g transform="matrix(1,0,0,1,340,58)">
+            <text x="-70.198px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(95,94,90);">Sample ID + covariate key</text>
+        </g>
+    </g>
+    <path d="M340,76L340,108" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <g>
+        <g transform="matrix(1.088733,0,0,0.736634,-29.557511,28.443541)">
+            <path d="M430,118.86L430,153.14C430,159.134 426.707,164 422.652,164L257.348,164C253.293,164 250,159.134 250,153.14L250,118.86C250,112.866 253.293,108 257.348,108L422.652,108C426.707,108 430,112.866 430,118.86Z" style="fill:rgb(250,238,218);stroke:rgb(133,79,11);stroke-width:0.5px;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,340.037598,132.248795)">
+            <text x="-88.724px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(99,56,6);">Subject grouping constraint?</text>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,177.192525,184.835938)">
+        <text x="-7.998px" y="0px" style="font-family:'Arial-BoldMT', 'Arial', sans-serif;font-weight:700;font-size:12px;fill:rgb(61,61,58);">No</text>
+    </g>
+    <g transform="matrix(1,0,0,1,508.729242,185.382324)">
+        <text x="-10.345px" y="0px" style="font-family:'Arial-BoldMT', 'Arial', sans-serif;font-weight:700;font-size:12px;fill:rgb(61,61,58);">Y<tspan x="-3.003px 3.671px " y="0px 0px ">es</tspan></text>
+    </g>
+    <g transform="matrix(0.723465,0,0,1,61.759429,0)">
+        <defs>
+            <mask id="Mask">
+            
+                <g transform="matrix(1.382236,-0,-0,1,-85.366133,0)"><image id="_Image1" width="680px" height="766px" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAqgAAAL+CAAAAABEBLlqAAAACXBIWXMAAA7EAAAOxAGVKw4bAAADiElEQVR4nO3csWoUYRiG0VkTg4SINloL0UoiWpvK2kqw80LSWnkHXo5gmU5IbZVKbQxYGSRegZCB7Pw84zn1V7wLD+wuy+w0AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8A9vr27Eh9Gvg7lujR4A1yFUEoRKglBJECoJQiVBqCQIlQShkiBUEoRKglBJECoJQiVBqCQIlQShkiBUEoRKglBJECoJQiVBqCQIlQShkiBUEoRKglBJECoJQiVBqCQIlQShkiBUEoRKglBJECoJQiVBqCQIlQShkrA7esA8Xz9O+8ePR69gebFQf3yeDs5OHoyeweJioZ6fT7ffnb0aPYPF9T6jXn67GD2B5fVCna5GD2CAYKj8j4RKglBJECoJQiVBqCQIlQShkhD7CXVnb5p2Ln9d8/jOZrtrWE4s1MPX0zSdnl7veHP05u5W17CcWKjfP8043v99eLy1JSwrFurPL3Ou91689Oa/Eqv+MnXxZ/QCbsqqQ2U9hEqCUEkQKglCJUGoJAiVBKGSIFQShEqCUEkQKglCJUGoJAiVBKGSIFQSVh3qvZ3RC7gpsWem7j+acbx/9MQjU2sRC/XhnH9F3zx7vrUhLCwW6tP3M479AcWKxELdPRi9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABG+gu8l2Ez1S+fLAAAAABJRU5ErkJggg=="/>
+                </g>
+            </mask>
+        </defs>
+        <g mask="url(#Mask)">
+            <path d="M250,136L160,136L160,210" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+        </g>
+    </g>
+    <g transform="matrix(0.775919,0,0,0.729439,104.952382,36.796242)">
+        <defs>
+            <mask id="Mask1">
+            
+                <g transform="matrix(1.288794,-0,-0,1.370916,-135.261982,-50.444549)"><image id="_Image2" width="680px" height="766px" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAqgAAAL+CAAAAABEBLlqAAAACXBIWXMAAA7EAAAOxAGVKw4bAAADPUlEQVR4nO3cMUrEUABF0WGcTq0FO3vBBbgGV2XlFlyBjZUuQMFGBgurQRAsbESxEWRGUOMWYsjn8/6c0wde4JKQEDKZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIQ77sZzUvtk+prWHgB9CJUIQiWCUIkgVCIIlQhCJYJQiSBUIgiVCEIlglCJIFQiCJUIQiWCUIkgVCIIlQhCJYJQiSBUIgiVCEIlglCJIFQiCJUIQiWCUIkgVCIIda2tlrUX9DWrPYCKPs5va0/oyxV1nd1cX9We0JdQ19nrS8ytX6hrras9oDehEkGoRBAqEYRKBKESwQv/VnTL/z/C/2zMvgtMKUGobegWFw8D3jXtHNyNv6UIobZhOb9c/A44bjX6kkKE2oavz8f32huK8jBFBKESQahEECoRhEoEoRJBqEQQKhGESgShEkGoRBAqEYTahunGVu0JZfl6qg3be0f3Q76Bfn4afUoZQm3D9HD3bchxZ6djLylEqI3Y3B/0N4n56EMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABa8gcBl3KvpJPUkQAAAABJRU5ErkJggg=="/>
+                </g>
+            </mask>
+        </defs>
+        <g mask="url(#Mask1)">
+            <path d="M430,136L520,136L520,210" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,187.192525,199.835938)">
+        <text x="-52.914px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(20,20,19);">Default algorithm</text>
+    </g>
+    <g transform="matrix(1,0,0,1,508.15014,200.382324)">
+        <text x="-63.424px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(20,20,19);">Repeated-measures</text>
+    </g>
+    <g>
+        <g transform="matrix(1,0,0,1,19.256933,0)">
+            <path d="M265,224L265,264C265,268.415 261.415,272 257,272L63,272C58.585,272 55,268.415 55,264L55,224C55,219.585 58.585,216 63,216L257,216C261.415,216 265,219.585 265,224Z" style="fill:rgb(230,241,251);stroke:rgb(24,95,165);stroke-width:0.5px;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,179.256933,236)">
+            <g transform="matrix(14,0,0,14,51.751465,0)">
+            </g>
+            <text x="-51.751px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(12,68,124);">Plate distribution</text>
+        </g>
+        <g transform="matrix(1,0,0,1,179.256933,254)">
+            <text x="-39.023px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(24,95,165);">Proportional to</text>
+            <g transform="matrix(12,0,0,12,72.375,12)">
+            </g>
+            <text x="-72.375px" y="12px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(24,95,165);">global covariate key counts</text>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,19.256933,0)">
+        <path d="M160,272L160,300" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    </g>
+    <g>
+        <g transform="matrix(1,0,0,1,19.256933,0)">
+            <path d="M265,308L265,348C265,352.415 261.415,356 257,356L63,356C58.585,356 55,352.415 55,348L55,308C55,303.585 58.585,300 63,300L257,300C261.415,300 265,303.585 265,308Z" style="fill:rgb(230,241,251);stroke:rgb(24,95,165);stroke-width:0.5px;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,179.256933,320)">
+            <g transform="matrix(14,0,0,14,49.799805,0)">
+            </g>
+            <text x="-49.8px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(12,68,124);">Row distribution</text>
+        </g>
+        <g transform="matrix(0.980481,0,0,0.980481,176.734972,337.829475)">
+            <text x="-79.711px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(24,95,165);">Same proportional distribution</text>
+            <g transform="matrix(12,0,0,12,38.021484,12)">
+            </g>
+            <text x="-38.021px" y="12px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(24,95,165);">logic as plates</text>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,19.256933,0)">
+        <path d="M160,356L160,384" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    </g>
+    <g>
+        <g transform="matrix(1,0,0,1,19.256933,0)">
+            <path d="M265,392L265,432C265,436.415 261.415,440 257,440L63,440C58.585,440 55,436.415 55,432L55,392C55,387.585 58.585,384 63,384L257,384C261.415,384 265,387.585 265,392Z" style="fill:rgb(230,241,251);stroke:rgb(24,95,165);stroke-width:0.5px;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,179.256933,404)">
+            <text x="-71.972px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(12,68,124);">Randomize within rows</text>
+        </g>
+        <g transform="matrix(1,0,0,1,179.256933,422)">
+            <g transform="matrix(12,0,0,12,97.702148,0)">
+            </g>
+            <text x="-97.702px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(24,95,165);">Minimize clustering of covariate keys</text>
+        </g>
+    </g>
+    <g>
+        <g transform="matrix(1,0,0,1,-19.357401,0)">
+            <path d="M625,224L625,264C625,268.415 621.415,272 617,272L423,272C418.585,272 415,268.415 415,264L415,224C415,219.585 418.585,216 423,216L617,216C621.415,216 625,219.585 625,224Z" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,500.642599,236)">
+            <text x="-70.021px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Distribute QC samples</text>
+        </g>
+        <g transform="matrix(1,0,0,1,500.642599,254)">
+            <text x="-62.027px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">Across plates and rows</text>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,-19.357401,0)">
+        <path d="M520,272L520,300" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    </g>
+    <g>
+        <g transform="matrix(1,0,0,1,-19.357401,0)">
+            <path d="M625,308L625,348C625,352.415 621.415,356 617,356L423,356C418.585,356 415,352.415 415,348L415,308C415,303.585 418.585,300 423,300L617,300C621.415,300 625,303.585 625,308Z" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,500.642599,320)">
+            <text x="-53.696px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Plate assignment</text>
+        </g>
+        <g transform="matrix(1,0,0,1,500.642599,338)">
+            <g transform="matrix(12,0,0,12,29.027344,0)">
+            </g>
+            <g transform="matrix(12,0,0,12,32.361328,0)">
+            </g>
+            <text x="-48.357px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">Largest group ﬁrst</text>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,-19.357401,0)">
+        <path d="M520,356L520,384" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    </g>
+    <g>
+        <g transform="matrix(1,0,0,1,-19.357401,0)">
+            <path d="M625,392L625,432C625,436.415 621.415,440 617,440L423,440C418.585,440 415,436.415 415,432L415,392C415,387.585 418.585,384 423,384L617,384C621.415,384 625,387.585 625,392Z" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,500.642599,404)">
+            <text x="-59.151px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Layout plan search</text>
+        </g>
+        <g transform="matrix(1,0,0,1,500.642599,422)">
+            <text x="-54.697px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">Pruned backtracking</text>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,-19.357401,0)">
+        <path d="M520,440L520,468" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    </g>
+    <g>
+        <g transform="matrix(1,0,0,1,-19.357401,0)">
+            <path d="M625,476L625,516C625,520.415 621.415,524 617,524L423,524C418.585,524 415,520.415 415,516L415,476C415,471.585 418.585,468 423,468L617,468C621.415,468 625,471.585 625,476Z" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,500.642599,488)">
+            <text x="-57.196px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Group assignment</text>
+        </g>
+        <g transform="matrix(1,0,0,1,500.642599,506)">
+            <text x="-75.366px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">Minimize covariate deviation</text>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,-19.357401,0)">
+        <path d="M520,524L520,552" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    </g>
+    <g>
+        <g transform="matrix(1,0,0,1,-19.357401,0)">
+            <path d="M625,560L625,600C625,604.415 621.415,608 617,608L423,608C418.585,608 415,604.415 415,600L415,560C415,555.585 418.585,552 423,552L617,552C621.415,552 625,555.585 625,560Z" style="fill:rgb(225,245,238);stroke:rgb(15,110,86);stroke-width:0.5px;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,500.642599,572)">
+            <text x="-78.788px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(8,80,65);">Row + column placement</text>
+        </g>
+        <g transform="matrix(1,0,0,1,500.642599,590)">
+            <text x="-64.365px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(15,110,86);">V<tspan x="-57.023px -50.35px " y="0px 0px ">er</tspan>tical contrast, greedy</text>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,19.256933,0)">
+        <defs>
+            <mask id="Mask2">
+            
+                <g transform="matrix(1,-0,-0,1,-19.256933,0)"><image id="_Image3" width="680px" height="766px" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAqgAAAL+CAAAAABEBLlqAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAEXUlEQVR4nO3bMS8lUQCGYcQvWz9byK5ssRVaCptosA2xiFxk/IV7wjV5zfPUZ5KveIuZZM7WFgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfE/bcw8YdPBj7gWj9g7nXvAt7Mw9ANYhVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlQagkCJUEoZIgVBKESoJQSRAqCUIlYXfuAUXT89v6h183t2NJhDpsOj66Ggj17+aWLIlQh13/Or14XP/47eaWLIlQh53dHV1Oc49YHB9Tw1ZPK51+OaGSIFQShEqCUEkQKglCJUGoJAiVBKGSIFQShEqCUEkQKglCJUGoJPhxesTL+en9dDvtrQae+flvY3OWRKgj9v/c/B+4LsXnEeqAh4uT33dzj1go76gD7lfXz3NvWCqhDpnclgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4sHdKgjKG4t0jNAAAAABJRU5ErkJggg=="/>
+                </g>
+            </mask>
+        </defs>
+        <g mask="url(#Mask2)">
+            <path d="M160,440L160,656L330,656" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,-19.357401,0)">
+        <defs>
+            <mask id="Mask3">
+            
+                <g transform="matrix(1,-0,-0,1,19.357401,-0)"><image id="_Image4" width="680px" height="766px" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAqgAAAL+CAAAAABEBLlqAAAACXBIWXMAAA7EAAAOxAGVKw4bAAADJUlEQVR4nO3aMUoDURiF0UQGRIQ0YsoI2lnZWQiSfbgYN+M6bNxBKishqYIKaRwlGBi3MAOTPO9wTv0HLo+vSCCjEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8I88NGmeSj9ZR0elB0AbQiWCUIkgVCIIlQhCJYJQiSBUIgiVCEIlglCJIFQiCJUIQiWCUIkgVCIIlQhCJYJQiSBUIgiVCEIlglCJIFQiCJUIQiWCUIkgVCIIlQhCJUJVesAw7L7a31bH4/0NGSyh9mLx2P62ms2vpdqVUHuxfm5/O3mvzqf7mzJQQu3FZtP+dvx59SbUrvyYOrhm+70rvSGPUIkgVCIIlQhCJYJQiSBUIgiVCEIlglCJIFQiCJUIQiWCUIkgVCIIlQj+ON2Li9sOxye/L4vx2c2lt+/AYx3ez2o1qiav9/PSQ5IItRfLZddPTO9m9ek+pgyU76iF1B/buvSGJEItpGlKLwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAo5Q9lbNC3/xeukgAAAABJRU5ErkJggg=="/>
+                </g>
+            </mask>
+        </defs>
+        <g mask="url(#Mask3)">
+            <path d="M520,608L520,656L350,656" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+        </g>
+    </g>
+    <g>
+        <path d="M440,636L440,676C440,680.415 436.415,684 432,684L248,684C243.585,684 240,680.415 240,676L240,636C240,631.585 243.585,628 248,628L432,628C436.415,628 440,631.585 440,636Z" style="fill:rgb(238,237,254);stroke:rgb(83,74,183);stroke-width:0.5px;"/>
+        <g transform="matrix(1,0,0,1,340,648)">
+            <text x="-46.296px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(60,52,137);">Quality scoring</text>
+        </g>
+        <g transform="matrix(1,0,0,1,340,666)">
+            <text x="-54.199px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:12px;fill:rgb(83,74,183);">Balance + clustering</text>
+        </g>
+    </g>
+    <path d="M340,684L340,712" style="fill:none;fill-rule:nonzero;stroke:rgb(115,114,108);stroke-width:1.5px;"/>
+    <g>
+        <path d="M440,720L440,748C440,752.415 436.415,756 432,756L248,756C243.585,756 240,752.415 240,748L240,720C240,715.585 243.585,712 248,712L432,712C436.415,712 440,715.585 440,720Z" style="fill:rgb(241,239,232);stroke:rgb(95,94,90);stroke-width:0.5px;"/>
+        <g transform="matrix(1,0,0,1,340,734)">
+            <text x="-52.92px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:14px;fill:rgb(68,68,65);">Final plate layout</text>
+        </g>
+    </g>
+</svg>
