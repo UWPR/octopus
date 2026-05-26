@@ -52,19 +52,19 @@ When a Subject ID Column is configured with a grouping constraint, the randomiza
 
 ## How to Use Octopus
 
-### Step 1: Upload Your Data
+### Step 1: Open Your CSV File in Octopus
 
-Prepare a CSV file containing your sample information with:
+Prepare a CSV file containing your sample metadata with:
 - A unique identifier column for each sample
 - One or more columns representing experimental covariates (factors you want to balance)
 - Optionally, a subject/patient ID column for repeated measures designs
 
-Click **Choose File** to select and upload your CSV file.
+Click **Choose File** to select and import your CSV file.
 
 ### Step 2: Configuration
 
 #### Select ID Column
-Choose which column contains your unique sample identifiers. The app will automatically select common identifier column names like "_UW_Sample_ID_" or "_search name_".
+Choose which column contains your unique sample identifiers. The app will automatically select common identifier column names like "_Sample_ID_" or "_search name_".
 
 #### Choose Covariates
 Select which experimental factors should be balanced across plates. You can select multiple covariates (e.g., Treatment, Time Point, Dose Level). The selected covariates will be displayed below the selection box.
@@ -102,7 +102,7 @@ Select a column that identifies quality control or reference samples, then check
 
 QC/Reference samples will be visually distinguished in the summary panel (see Covariate Summary Panel section below).
 
-#### Set Subject ID Column (Optional — Repeated Measures)
+#### Set Subject ID Column (Optional for Repeated Measures)
 
 For experiments where the same subject is measured multiple times (e.g., multiple timepoints, longitudinal studies), select the column that identifies which samples belong to the same subject.
 
@@ -124,7 +124,7 @@ For experiments where the same subject is measured multiple times (e.g., multipl
 
 **Validation:** The app validates whether the chosen constraint is feasible given the plate dimensions. For example, if a subject has 15 samples but the plate only has 12 columns, the Same Row constraint is infeasible and an error message will appear. The "Generate Randomized Plates" button is disabled until all validation errors are resolved.
 
-**Note:** The "Keep empty spots in last plate" option is hidden when a grouping constraint is active, as the group-aware algorithm manages plate capacity differently.
+**Note:** The "Keep empty spots in last plate" option is hidden when a subject grouping constraint is active, as the subject-group-aware algorithm manages plate capacity differently.
 
 #### Configure Plate Dimensions
 - **Rows**: Set from 1-16 (default: 8)
@@ -139,7 +139,7 @@ When your sample count doesn't fill all available wells, use the **"Keep empty s
 - **Unchecked** (default): Empty wells are distributed across all plates and available rows, creating a more uniform fill level across all plates
 - **Checked**: All empty wells are concentrated in the final plate, keeping all other plates fully populated
 
-This setting affects plate capacity calculations and can impact how samples are distributed across plates. This option is not available when a grouping constraint is active.
+This setting affects plate capacity calculations and can impact how samples are distributed across plates. This option is not available when a subject grouping constraint is active.
 
 ### Step 3: Generate Randomized Plates
 
@@ -191,7 +191,7 @@ Click **"Show/Hide Covariate Summary"** to display:
 
 #### Subject Placement Panel
 
-When a Subject ID Column is configured, a **"Show/Hide Subject Placements"** button appears after randomization. 
+When a Subject ID Column is configured, a **"Show/Hide Subject Placements"** button is displayed after plates are generated. 
 
 ![Show Subject Placement Button](images/octopus_show-subject-placement-btn.png)
 
@@ -216,7 +216,7 @@ Subject highlighting and covariate highlighting are mutually exclusive — click
 
 **Overall Quality Button**: Shows experiment-wide quality score and level (Excellent, Good, Fair, Poor, or Bad)
 
-Click the quality button to open the **Quality Assessment Modal** showing:
+Click the quality button to open the **Quality Assessment Dialog** showing:
 - Overall quality score and level
 - Average balance and clustering scores across all plates
 - Individual scores for each plate with quality badges
@@ -241,10 +241,10 @@ Click the **"i"** icon in any plate header to view:
 ### Step 5: Refine Your Randomization (Optional)
 
 #### Global Re-randomization
-Click the main **"Re-randomize"** button to generate a completely new distribution for all plates while preserving your configuration settings. When a grouping constraint is active, the group-aware algorithm is used.
+Click the main **"Re-randomize"** button to generate a completely new distribution for all plates while preserving your configuration settings. When a grouping constraint is active, the subject-group-aware algorithm is used.
 
 #### Individual Plate Re-randomization
-Click the **"R"** button in any plate header to re-randomize only that specific plate. When a grouping constraint is active, the plate is re-randomized using the group-aware algorithm with the same samples currently assigned to that plate. Quality scores update automatically after any re-randomization.
+Click the **"R"** button in any plate header to re-randomize only that specific plate. When a grouping constraint is active, the plate is re-randomized using the subject-group-aware algorithm with the same samples currently assigned to that plate. Quality scores update automatically after any re-randomization.
 
 #### Drag and Drop
 You can drag samples between wells on the same plate or across plates to manually adjust the layout. Dragging swaps the contents of the source and target wells. Quality scores update automatically after any swap.
@@ -255,7 +255,7 @@ Once satisfied with the distribution, click **"Download CSV"** or **"Download Ex
 
 **CSV Export**: Includes all original sample data plus assigned plate numbers and well positions.
 
-**Excel Export**: Opens a modal allowing you to select which covariates to include in the Excel file. Treatment covariates, the subject column (if configured), and the QC column (if configured) are pre-selected by default. The exported file contains:
+**Excel Export**: Opens a dialog allowing you to select which covariates to include in the Excel file. Treatment covariates, the subject column (if configured), and the QC column (if configured) are pre-selected by default. The exported file contains:
 - Color-coded plates matching the visual display
 - Selected covariate information for each sample
 - Plate and well position assignments
@@ -418,7 +418,7 @@ When a grouping constraint (Same Row or Same Plate) is active, the quality asses
 
 ## Tips for Best Results
 
-1. **Select Relevant Covariates**: Choose only the experimental factors that matter for your analysis. Too many covariates can make it difficult to achieve a balanced distribution.
+1. **Select Relevant Covariates for Balancing**: Choose only the experimental factors that matter for your analysis. Too many covariates can make it difficult to achieve a balanced distribution.
 
 2. **Use QC/Reference Column**: Specifying QC/Reference labels helps you quickly identify these samples in the plate layout.
 
@@ -482,7 +482,7 @@ Detailed Steps:
 7. **Quality Metrics**: Adjacency counts are computed for the final layout to produce the balance and clustering scores shown in the UI.
 
 
-#### **Group-Aware Randomization** (when a Subject ID Column and grouping constraint are configured)
+#### **Subject-Group-Aware Randomization** (when a Subject ID Column and grouping constraint are configured)
 
 This algorithm keeps all samples from the same subject together while optimizing covariate balance. The algorithm differs depending on the constraint:
 
@@ -496,7 +496,7 @@ This algorithm keeps all samples from the same subject together while optimizing
 
    ![Row Layout Plan](images/octopus_row-layout-plan.svg)
 
-   - *Phase 1 — Layout Plan Search*: A backtracking algorithm determines how many groups of each size go in each row (the "row layout plan"). It explores valid combinations, skipping branches that can't lead to a complete assignment, and collects up to 50 candidate layout plans. The best plan is selected based on covariate balance scoring.
+   - *Phase 1 — Layout Plan Search*: A backtracking algorithm determines how many groups of each size go in each row (the "row layout plan"). It explores valid combinations, skipping branches that can't lead to a complete assignment, and collects up to 100 candidate layout plans (50 per pass in two passes with different search orderings for diversity). The best plan is selected based on covariate balance scoring.
 
    ![Branch Pruning — a tighter example (3×6, no singletons) showing how invalid branches are eliminated early](images/octopus_branch-pruning.svg)
    - *Phase 2 — Group Assignment*: Specific subject groups are assigned to the layout plan's slots. For each slot, the unassigned group that minimizes covariate imbalance (sum of squared deviations from global proportions) is chosen.
