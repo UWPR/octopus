@@ -836,7 +836,7 @@ const App: React.FC = () => {
         <div style={styles.helpSection}>
           <div style={styles.helpLinks}>
             <a
-              href="/octopus/octopus_doc.html"
+              href={`${process.env.PUBLIC_URL}/octopus_doc.html`}
               target="_blank"
               rel="noopener noreferrer"
               style={styles.helpLink}
@@ -844,21 +844,21 @@ const App: React.FC = () => {
               <i className="fa-solid fa-book" style={{marginRight: '4px'}}></i> Documentation
             </a>
             <a
-              href="/octopus/octopus_test_dataset_small.csv"
+              href={`${process.env.PUBLIC_URL}/octopus_test_dataset_small.csv`}
               download="octopus_test_dataset_small.csv"
               style={styles.helpLink}
             >
               <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i> Example Input File (Small)
             </a>
             <a
-              href="/octopus/octopus_test_dataset.csv"
+              href={`${process.env.PUBLIC_URL}/octopus_test_dataset.csv`}
               download="octopus_test_dataset.csv"
               style={styles.helpLink}
             >
               <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i> Example Input File (Full)
             </a>
             <a
-              href="/octopus/quick-start-guide.html"
+              href={`${process.env.PUBLIC_URL}/quick-start-guide.html`}
               target="_blank"
               rel="noopener noreferrer"
               style={styles.helpLink}
