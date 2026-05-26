@@ -1,8 +1,8 @@
 {
-  "name": "octopus-plate-designer",
+  "name": "octopus",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://uwpr.github.io/octopus-block-randomizer",
+  "homepage": "https://uwpr.github.io/octopus",
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",

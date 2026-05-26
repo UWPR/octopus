@@ -1,6 +1,6 @@
-# OCTOPUS Test Data Files
+# Octopus Test Data Files
 
-This directory contains example CSV files for testing the OCTOPUS Plate Designer application. The data is derived from a published mouse radiation proteomics study.
+This directory contains example CSV files for testing the Octopus application. The data is derived from a published mouse radiation proteomics study.
 
 ## Source Paper
 
@@ -81,7 +81,7 @@ The `Set` column encodes each sample's role in the biomarker prediction challeng
 - **UW IC Reference** — Internal Control (80 Experiment 1 lysates re-injected in Experiment 2)
 - **UW IE Reference** — Inter-Experiment Reference (pooled lysate from a separate prior experiment)
 
-## Recommended OCTOPUS Configuration
+## Recommended Octopus Configuration
 
 ### Small file (octopus_test_dataset_small.csv)
 

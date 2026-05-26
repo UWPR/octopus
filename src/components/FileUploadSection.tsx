@@ -40,6 +40,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '15px',
+    marginTop: '15px',
     marginBottom: '25px',
   },
   hiddenFileInput: {

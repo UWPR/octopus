@@ -46,7 +46,7 @@ async function uploadAndConfigureRepeatedMeasures(
 test.describe('Infeasible packing error messages', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('http://localhost:3000');
-    await expect(page.getByRole('heading', { name: 'Octopus Plate Designer' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Octopus' })).toBeVisible();
   });
 
   test('row-infeasible: 4×7 same-row shows shape-aware error after Generate', async ({ page }) => {
