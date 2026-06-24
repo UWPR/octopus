@@ -42,26 +42,25 @@ Each position is scored based on adjacent samples with the same treatment key:
 ```typescript
 score = 0
 
-// Horizontal neighbors (left/right)
+// Horizontal neighbors (left and right)
 if (same treatment adjacent horizontally) {
   score += 10  // Heavy penalty
 }
 
-// Vertical neighbors (above/below)
-if (same treatment adjacent vertically) {
+// Vertical neighbor (the cell directly above only; rows fill top-to-bottom,
+// so the cell below is always still empty when this one is placed)
+if (same treatment in the cell directly above) {
+  score += 10  // Heavy penalty
+}
+
+// Cross-row constraint (first column vs the previous row's last column)
+if (first column && previous row's last column has same treatment) {
   score += 8   // Medium-high penalty
 }
-
-// Diagonal neighbors
-if (same treatment adjacent diagonally) {
-  score += 2   // Light penalty
-}
-
-// Cross-row constraint (last column of previous row)
-if (first column && previous row's last column has same treatment) {
-  score += 15  // Very heavy penalty
-}
 ```
+
+There is no diagonal penalty. See `calculateClusterScore` in
+`src/algorithms/greedySpatialPlacement.ts` for the source of truth.
 
 **Lower scores = better positions**
 
@@ -129,7 +128,6 @@ The penalty weights in the scoring function can be adjusted to prioritize differ
 - Increase horizontal penalty to more strongly avoid side-by-side clustering
 - Increase vertical penalty to more strongly avoid stacking
 - Increase cross-row penalty to more strongly avoid row-boundary clustering
-- Adjust diagonal penalty based on importance of diagonal separation
 
 ## Limitations
 
