@@ -243,7 +243,12 @@ const App: React.FC = () => {
     setShowSubjectPlacements(false);
   };
 
-  // Update QC column values when QC column changes
+  // Derive the available QC values for the chosen QC column. This only recomputes the
+  // list of checkboxes to show; it must NOT reset the current selection. A layout load
+  // sets qcColumn and searches together, which retriggers this effect, and resetting here
+  // would wipe the selection that the load just restored. The selection is cleared where
+  // the column genuinely changes instead: handleQcColumnChange and the subject-column
+  // conflict path.
   useEffect(() => {
     if (qcColumn && searches.length > 0) {
       const uniqueValues = new Set<string>();
@@ -254,7 +259,6 @@ const App: React.FC = () => {
         }
       });
       setQcColumnValues(Array.from(uniqueValues).sort());
-      setSelectedQcValues([]); // Reset selected values when column changes
     } else {
       setQcColumnValues([]);
       setSelectedQcValues([]);
@@ -301,6 +305,7 @@ const App: React.FC = () => {
   const handleQcColumnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const newQcColumn = event.target.value;
     setQcColumn(newQcColumn);
+    setSelectedQcValues([]); // Switching columns invalidates the previous value selection.
 
     // Conflict resolution: clear subject column if it matches the new QC column
     if (subjectColumn && newQcColumn === subjectColumn) {

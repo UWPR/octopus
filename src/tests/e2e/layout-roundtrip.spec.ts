@@ -55,6 +55,12 @@ test.describe('Layout Round-Trip', () => {
     expect(NUM_COVARIATE_GROUPS).toBe(14);
     await expect(page.getByRole('button', { name: /Quality/ })).toBeVisible();
 
+    // Regression: the saved QC/Reference value selection must come back checked. The
+    // QC-column effect recomputes the available values when qcColumn and searches change
+    // together on load, and used to wipe the restored selection back to none.
+    await expect(page.getByRole('checkbox', { name: 'BatchQC' })).toBeChecked();
+    await expect(page.getByRole('checkbox', { name: 'BatchRef' })).toBeChecked();
+
     // Fingerprint again and assert exact equality with the pre-save layout.
     const after = await getAllPlateFingerprints(page, NUM_PLATES);
     expect(after).toEqual(before);
