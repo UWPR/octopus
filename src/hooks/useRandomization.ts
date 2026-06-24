@@ -67,6 +67,20 @@ export function useRandomization() {
     setPlateAssignments(undefined);
   };
 
+  /**
+   * Restore a previously saved layout directly, without re-running randomization.
+   * Used when loading a layout file: the placement is read from the file, so the exact
+   * arrangement is reproduced rather than regenerated from the stochastic algorithm.
+   */
+  const restoreLayout = (
+    plates: (SearchData | undefined)[][][],
+    plateAssignmentsToRestore: Map<number, SearchData[]>
+  ) => {
+    setRandomizedPlates(plates);
+    setPlateAssignments(plateAssignmentsToRestore);
+    setIsProcessed(true);
+  };
+
   const updatePlates = (
     fromPlate: number,
     fromRow: number,
@@ -223,6 +237,7 @@ export function useRandomization() {
     reRandomize,
     reRandomizeSinglePlate,
     resetRandomization,
+    restoreLayout,
     updatePlates,
   };
 }

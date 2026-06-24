@@ -159,14 +159,45 @@ export function randomizeSearches(
 }
 
 
-// Updated to accept idColumn parameter instead of hardcoding "search name"
-export function downloadCSV(
+/**
+ * Set the covariate key and QC flag on each sample, based on the chosen settings.
+ * Pure: depends only on its arguments, not component state. App.tsx's processMetadata
+ * and the layout import both go through this so the derivation cannot drift.
+ * @param searches - Samples to annotate (mutated in place)
+ * @param config - Covariate configuration (treatment covariates and QC/Reference settings)
+ */
+export function buildProcessedSearches(
+  searches: SearchData[],
+  config: CovariateConfig
+): void {
+  const { selectedCovariates, qcColumn, selectedQcValues } = config;
+  searches.forEach(search => {
+    let isQC = false;
+    if (qcColumn && selectedQcValues && selectedQcValues.length > 0) {
+      const sampleValue = search.metadata[qcColumn];
+      if (sampleValue && selectedQcValues.includes(sampleValue)) {
+        isQC = true;
+      }
+    }
+    search.isQC = isQC;
+    search.covariateKey = buildCovariateKey(search, {
+      selectedCovariates,
+      qcColumn,
+      selectedQcValues,
+    });
+  });
+}
+
+/**
+ * Build the placement CSV table (one row per sample: id column, metadata, plate, well).
+ * Shared by downloadCSV and the layout export so the two can never drift.
+ */
+export function buildPlacementCsv(
   searches: SearchData[],
   randomizedPlates: (SearchData | undefined)[][][],
-  idColumn: string,
-  inputFileName?: string
-) {
-  const csv = Papa.unparse(
+  idColumn: string
+): string {
+  return Papa.unparse(
     searches.map((search) => ({
       [idColumn]: search.name, // Use the selected ID column name
       ...search.metadata,
@@ -175,6 +206,16 @@ export function downloadCSV(
     })),
     { header: true }
   );
+}
+
+// Updated to accept idColumn parameter instead of hardcoding "search name"
+export function downloadCSV(
+  searches: SearchData[],
+  randomizedPlates: (SearchData | undefined)[][][],
+  idColumn: string,
+  inputFileName?: string
+) {
+  const csv = buildPlacementCsv(searches, randomizedPlates, idColumn);
 
   // Generate output filename based on input filename
   let outputFileName = 'randomized_searches_octopus.csv';
