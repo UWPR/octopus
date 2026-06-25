@@ -168,6 +168,113 @@ describe('round trip', () => {
   });
 });
 
+describe('settings round-trip (one field varied at a time)', () => {
+  // Each variant changes a single setting away from the default. Re-serializing with the
+  // same placement and re-parsing must return exactly the varied settings object, proving
+  // each field is carried through the file independently. Plate dims are only ever widened
+  // (never below the 2x3 placement) so the table stays valid.
+  const variants: Array<{ name: string; settings: LayoutSettings }> = [
+    { name: 'greedy algorithm', settings: { ...SETTINGS, selectedAlgorithm: 'greedy' } },
+    { name: 'keepEmptyInLastPlate true', settings: { ...SETTINGS, keepEmptyInLastPlate: true } },
+    { name: 'larger plate dimensions', settings: { ...SETTINGS, plateRows: 8, plateColumns: 12 } },
+    { name: 'no QC column', settings: { ...SETTINGS, qcColumn: '', selectedQcValues: [] } },
+    { name: 'multiple QC values', settings: { ...SETTINGS, qcColumn: 'Treatment', selectedQcValues: ['Drug', 'Placebo'] } },
+    { name: 'single covariate', settings: { ...SETTINGS, selectedCovariates: ['Dose'] } },
+    { name: 'reversed covariate order', settings: { ...SETTINGS, selectedCovariates: ['Dose', 'Treatment'] } },
+    { name: 'subject column + same-row grouping', settings: { ...SETTINGS, subjectColumn: 'Dose', groupingConstraint: 'same-row' } },
+    { name: 'subject column + same-plate grouping', settings: { ...SETTINGS, subjectColumn: 'Dose', groupingConstraint: 'same-plate' } },
+  ];
+
+  it.each(variants)('preserves: $name', ({ settings }) => {
+    const text = serializeLayout({
+      searches: SEARCHES,
+      randomizedPlates: PLATES,
+      settings,
+      covariateColors: COLORS,
+    });
+    const parsed = parseLayout(text);
+    expect(parsed.headerMissing).toBe(false);
+    expect(parsed.settings).toEqual(settings);
+  });
+});
+
+describe('color and style round-trip', () => {
+  it('preserves every fill style (solid, outline, stripes) verbatim', () => {
+    // COLORS already covers solid (Drug|0, Placebo|10), outline (Placebo|0), stripes (Drug|10).
+    const parsed = parseLayout(fullFile());
+    expect(parsed.covariateColors).toEqual(COLORS);
+    // Spot-check each style flag explicitly so a silent flag swap is caught.
+    expect(parsed.covariateColors!['Drug|0']).toEqual({ color: '#111111', useOutline: false, useStripes: false, textColor: '#fff' });
+    expect(parsed.covariateColors!['Placebo|0'].useOutline).toBe(true);
+    expect(parsed.covariateColors!['Drug|10'].useStripes).toBe(true);
+  });
+
+  it('preserves light colors with a recomputed black text color', () => {
+    // Light backgrounds -> getTextColorForBackground returns '#000'.
+    const lightColors: CovariateColorMap = {
+      'Drug|0': { color: '#FFFFFF', useOutline: false, useStripes: false, textColor: '#000' },
+      'Placebo|0': { color: '#FFEEAA', useOutline: true, useStripes: false, textColor: '#000' },
+      'Drug|10': { color: '#80C0FF', useOutline: false, useStripes: true, textColor: '#000' },
+    };
+    const text = serializeLayout({
+      searches: SEARCHES,
+      randomizedPlates: PLATES,
+      settings: SETTINGS,
+      covariateColors: lightColors,
+    });
+    const parsed = parseLayout(text);
+    expect(parsed.covariateColors).toEqual(lightColors);
+  });
+
+  it('preserves a distinct color per group (no value bleeds across keys)', () => {
+    const parsed = parseLayout(fullFile());
+    const colorsByKey = parsed.covariateColors!;
+    expect(colorsByKey['Drug|0'].color).toBe('#111111');
+    expect(colorsByKey['Placebo|0'].color).toBe('#222222');
+    expect(colorsByKey['Drug|10'].color).toBe('#333333');
+    expect(colorsByKey['Placebo|10'].color).toBe('#444444');
+  });
+});
+
+describe('per-cell placement', () => {
+  it('puts every saved sample back in the exact same well', () => {
+    const parsed = parseLayout(fullFile());
+    const { plates } = buildPlatesFromRows(parsed.rows, parsed.settings!);
+    const nameAt = (p: number, r: number, c: number) => plates[p][r][c]?.name;
+    // Plate 1: A01..A03, B01..B02 occupied; B03 empty.
+    expect(nameAt(0, 0, 0)).toBe('S1'); // A01
+    expect(nameAt(0, 0, 1)).toBe('S2'); // A02
+    expect(nameAt(0, 0, 2)).toBe('S3'); // A03
+    expect(nameAt(0, 1, 0)).toBe('S4'); // B01
+    expect(nameAt(0, 1, 1)).toBe('S5'); // B02
+    expect(plates[0][1][2]).toBeUndefined(); // B03 empty
+    // Plate 2: only A01 occupied.
+    expect(nameAt(1, 0, 0)).toBe('S6'); // A01
+    expect(plates[1][0][1]).toBeUndefined();
+    expect(plates[1][1][0]).toBeUndefined();
+  });
+
+  it('preserves metadata values containing commas and spaces (CSV quoting)', () => {
+    const tricky: SearchData = { name: 'X1', metadata: { Treatment: 'Drug, high', Dose: '10 mg' } };
+    const trickyPlates: (SearchData | undefined)[][][] = [
+      [
+        [tricky, undefined, undefined],
+        [undefined, undefined, undefined],
+      ],
+    ];
+    const settings: LayoutSettings = { ...SETTINGS, qcColumn: '', selectedQcValues: [] };
+    const text = serializeLayout({
+      searches: [tricky],
+      randomizedPlates: trickyPlates,
+      settings,
+      covariateColors: {},
+    });
+    const { samples } = buildPlatesFromRows(parseLayout(text).rows, settings);
+    expect(samples).toHaveLength(1);
+    expect(samples[0].metadata).toEqual({ Treatment: 'Drug, high', Dose: '10 mg' });
+  });
+});
+
 describe('header degradation', () => {
   it('parses placement when the options block is entirely missing', () => {
     const table = buildPlacementCsv(SEARCHES, PLATES, SETTINGS.selectedIdColumn);
