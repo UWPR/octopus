@@ -418,11 +418,10 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
     expect(usedPlates).toBeLessThanOrEqual(5);
 
     // Each used plate should be at or under capacity
-    result.forEach(samples => {
-      if (samples.length > 0) {
-        expect(samples.length).toBeLessThanOrEqual(15);
-      }
-    });
+    const usedPlateSizes = Array.from(result.values())
+      .map(samples => samples.length)
+      .filter(length => length > 0);
+    usedPlateSizes.forEach(length => expect(length).toBeLessThanOrEqual(15));
   });
 });
 
