@@ -66,11 +66,10 @@ describe('Property 1: Subject grouping is complete and disjoint', () => {
           expect(groupedNames).toEqual(inputNames);
 
           // (c) All samples in a group share the same subject column value (after trimming)
-          for (const group of groups) {
-            if (!group.subjectId.startsWith('__singleton_')) {
-              for (const sample of group.samples) {
-                expect(sample.metadata['SubjectID'].trim()).toBe(group.subjectId);
-              }
+          const nonSingletonGroups = groups.filter(g => !g.subjectId.startsWith('__singleton_'));
+          for (const group of nonSingletonGroups) {
+            for (const sample of group.samples) {
+              expect(sample.metadata['SubjectID'].trim()).toBe(group.subjectId);
             }
           }
         }
@@ -554,13 +553,13 @@ describe('distributeGroupsToRows', () => {
     expect(g1Row).not.toBe(g2Row);
 
     // Singletons fill remaining capacity (each row should have 3 + 2 singletons = 5)
-    result.forEach((assignedGroups) => {
-      const multiGroups = assignedGroups.filter(g => g.size > 1);
+    const rowsWithMultiGroups = Array.from(result.values()).filter(
+      assignedGroups => assignedGroups.some(g => g.size > 1)
+    );
+    rowsWithMultiGroups.forEach((assignedGroups) => {
+      // Row with a multi-sample group should have singletons filling remaining capacity
       const singletons = assignedGroups.filter(g => g.size === 1);
-      if (multiGroups.length > 0) {
-        // Row with a multi-sample group should have singletons filling remaining capacity
-        expect(singletons.length).toBe(2);
-      }
+      expect(singletons.length).toBe(2);
     });
   });
 });
@@ -2558,20 +2557,22 @@ describe('Edge case: row-level packing failure (edge-case-row-infeasible)', () =
       groupingConstraint: 'same-row',
     };
 
+    let error: Error | undefined;
     try {
       groupAwareRandomization(samples, ['Treatment'], config, false, 4, 7);
-      fail('Expected an error to be thrown');
-    } catch (e: any) {
-      // Describes the overall failure
-      expect(e.message).toMatch(/Unable to fit all subject groups into available rows/);
-      // Shows remaining row capacities so the user can see the shape problem
-      expect(e.message).toMatch(/Remaining row capacities: \[/);
-      // Explains which group sizes can't find qualifying rows
-      expect(e.message).toMatch(/group\(s\) of size 3 need rows with 3\+ wells/);
-      // Suggests actionable fixes
-      expect(e.message).toMatch(/plate dimensions/);
-      expect(e.message).toMatch(/Same Plate constraint/);
+    } catch (e) {
+      error = e as Error;
     }
+    expect(error).toBeDefined();
+    // Describes the overall failure
+    expect(error!.message).toMatch(/Unable to fit all subject groups into available rows/);
+    // Shows remaining row capacities so the user can see the shape problem
+    expect(error!.message).toMatch(/Remaining row capacities: \[/);
+    // Explains which group sizes can't find qualifying rows
+    expect(error!.message).toMatch(/group\(s\) of size 3 need rows with 3\+ wells/);
+    // Suggests actionable fixes
+    expect(error!.message).toMatch(/plate dimensions/);
+    expect(error!.message).toMatch(/Same Plate constraint/);
   });
 
   it('succeeds with Same Plate constraint (groups only need to share a plate, not a row)', () => {
@@ -2653,20 +2654,22 @@ describe('Edge case: plate-level packing failure (edge-case-plate-infeasible)', 
       groupingConstraint: 'same-row',
     };
 
+    let error: Error | undefined;
     try {
       groupAwareRandomization(samples, ['Treatment'], config, false, 2, 12);
-      fail('Expected an error to be thrown');
-    } catch (e: any) {
-      // Describes the overall failure
-      expect(e.message).toMatch(/Unable to fit all subject groups into available plates/);
-      // Shows remaining plate capacities so the user can see the shape problem
-      expect(e.message).toMatch(/Remaining plate capacities: \[/);
-      // Explains which group sizes can't find qualifying plates
-      expect(e.message).toMatch(/group\(s\) of size 4 need plates with 4\+ wells/);
-      // Suggests actionable fixes
-      expect(e.message).toMatch(/plate dimensions/);
-      expect(e.message).toMatch(/Same Plate constraint/);
+    } catch (e) {
+      error = e as Error;
     }
+    expect(error).toBeDefined();
+    // Describes the overall failure
+    expect(error!.message).toMatch(/Unable to fit all subject groups into available plates/);
+    // Shows remaining plate capacities so the user can see the shape problem
+    expect(error!.message).toMatch(/Remaining plate capacities: \[/);
+    // Explains which group sizes can't find qualifying plates
+    expect(error!.message).toMatch(/group\(s\) of size 4 need plates with 4\+ wells/);
+    // Suggests actionable fixes
+    expect(error!.message).toMatch(/plate dimensions/);
+    expect(error!.message).toMatch(/Same Plate constraint/);
   });
 
   it('succeeds with more rows (3 rows × 12 columns gives enough plate capacity)', () => {
@@ -2700,15 +2703,17 @@ describe('Edge case: plate-level packing failure (edge-case-plate-infeasible)', 
     // 2 plates, remaining plate capacities are too small for size-4 groups.
     // This is a different failure mode from the 2×12 case: the plate-level
     // packing fails because size-9 groups consume disproportionate capacity.
+    let error: Error | undefined;
     try {
       groupAwareRandomization(samples, ['Treatment'], config, false, 4, 6);
-      fail('Expected an error to be thrown');
-    } catch (e: any) {
-      expect(e.message).toMatch(/Unable to fit all subject groups into available plates/);
-      expect(e.message).toMatch(/Remaining plate capacities: \[/);
-      expect(e.message).toMatch(/group\(s\) of size 4 need plates with 4\+ wells/);
-      expect(e.message).toMatch(/plate dimensions/);
-      expect(e.message).toMatch(/Same Plate constraint/);
+    } catch (e) {
+      error = e as Error;
     }
+    expect(error).toBeDefined();
+    expect(error!.message).toMatch(/Unable to fit all subject groups into available plates/);
+    expect(error!.message).toMatch(/Remaining plate capacities: \[/);
+    expect(error!.message).toMatch(/group\(s\) of size 4 need plates with 4\+ wells/);
+    expect(error!.message).toMatch(/plate dimensions/);
+    expect(error!.message).toMatch(/Same Plate constraint/);
   });
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import FileUploadSection from './components/FileUploadSection';
 import ConfigurationForm from './components/ConfigurationForm';
 import SummaryPanel from './components/SummaryPanel';
@@ -9,8 +9,16 @@ import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
 import SubjectPlacementPanel from './components/SubjectPlacementPanel';
 import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig } from './utils/types';
-import { downloadCSV, buildCovariateKey, getCovariateKey, getQualityLevelColor, formatScore } from './utils/utils';
+import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore } from './utils/utils';
 import { exportToExcel } from './utils/excelExport';
+import {
+  serializeLayout,
+  parseLayout,
+  validateLayout,
+  buildPlatesFromRows,
+  LAYOUT_MARKER,
+  LayoutSettings,
+} from './utils/layoutIO';
 import { useFileUpload } from './hooks/useFileUpload';
 import { useModalDrag } from './hooks/useModalDrag';
 import { useRandomization } from './hooks/useRandomization';
@@ -36,6 +44,7 @@ const App: React.FC = () => {
     uploadCounter,
     handleFileUpload,
     handleIdColumnChange,
+    loadSearches,
   } = useFileUpload();
 
   // Modal drag hook
@@ -57,6 +66,7 @@ const App: React.FC = () => {
     reRandomize,
     reRandomizeSinglePlate,
     resetRandomization,
+    restoreLayout,
     updatePlates,
   } = useRandomization();
 
@@ -67,6 +77,7 @@ const App: React.FC = () => {
     generateCovariateColors,
     generateSummaryData,
     resetColors,
+    restoreColors,
     updateCovariateColor,
   } = useCovariateColors();
 
@@ -114,6 +125,11 @@ const App: React.FC = () => {
   const [showExcelExportModal, setShowExcelExportModal] = useState<boolean>(false);
   const [showSequenceExportWizard, setShowSequenceExportWizard] = useState<boolean>(false);
   const [randomizationError, setRandomizationError] = useState<string | null>(null);
+  const [layoutLoadWarning, setLayoutLoadWarning] = useState<string | null>(null);
+
+  // Set true for one render while a saved layout is being loaded, so the new-file reset
+  // effect does not wipe the settings we are restoring.
+  const isRestoringRef = useRef<boolean>(false);
 
   // Subject placement panel state
   const [showSubjectPlacements, setShowSubjectPlacements] = useState<boolean>(false);
@@ -146,11 +162,19 @@ const App: React.FC = () => {
 
   // Reset all state when a new file is uploaded (but not on initial load)
   useEffect(() => {
+    // Skip the reset when we are restoring a saved layout: the settings have just been
+    // set from the file and must not be wiped. The ref is cleared so a genuine later
+    // file upload still resets.
+    if (isRestoringRef.current) {
+      isRestoringRef.current = false;
+      return;
+    }
     // Only reset if we have a filename and searches data (indicating a successful file upload)
     if (selectedFileName && searches.length > 0) {
       // Reset all application state except the file upload state
       resetRandomization();
       setRandomizationError(null);
+      setLayoutLoadWarning(null);
       resetColors();
       resetMetrics();
       resetModalPosition();
@@ -219,7 +243,12 @@ const App: React.FC = () => {
     setShowSubjectPlacements(false);
   };
 
-  // Update QC column values when QC column changes
+  // Derive the available QC values for the chosen QC column. This only recomputes the
+  // list of checkboxes to show; it must NOT reset the current selection. A layout load
+  // sets qcColumn and searches together, which retriggers this effect, and resetting here
+  // would wipe the selection that the load just restored. The selection is cleared where
+  // the column genuinely changes instead: handleQcColumnChange and the subject-column
+  // conflict path.
   useEffect(() => {
     if (qcColumn && searches.length > 0) {
       const uniqueValues = new Set<string>();
@@ -230,7 +259,6 @@ const App: React.FC = () => {
         }
       });
       setQcColumnValues(Array.from(uniqueValues).sort());
-      setSelectedQcValues([]); // Reset selected values when column changes
     } else {
       setQcColumnValues([]);
       setSelectedQcValues([]);
@@ -277,6 +305,7 @@ const App: React.FC = () => {
   const handleQcColumnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const newQcColumn = event.target.value;
     setQcColumn(newQcColumn);
+    setSelectedQcValues([]); // Switching columns invalidates the previous value selection.
 
     // Conflict resolution: clear subject column if it matches the new QC column
     if (subjectColumn && newQcColumn === subjectColumn) {
@@ -340,26 +369,10 @@ const App: React.FC = () => {
 
   // Helper function to set treatment keys and mark QC/Reference samples
   const processMetadata = (searchesList: SearchData[]) => {
-    searchesList.forEach(search => {
-      // Determine if this sample is a QC/Reference sample
-      let isQC = false;
-
-      // Check if QC column is selected and values are checked
-      if (qcColumn && selectedQcValues.length > 0) {
-        const sampleValue = search.metadata[qcColumn];
-        if (sampleValue && selectedQcValues.includes(sampleValue)) {
-          isQC = true;
-        }
-      }
-
-      search.isQC = isQC;
-
-      // Generate covariate key using buildCovariateKey with QC info
-      search.covariateKey = buildCovariateKey(search, {
-        selectedCovariates,
-        qcColumn: qcColumn,
-        selectedQcValues: selectedQcValues
-      });
+    buildProcessedSearches(searchesList, {
+      selectedCovariates,
+      qcColumn,
+      selectedQcValues,
     });
   };
 
@@ -417,6 +430,177 @@ const App: React.FC = () => {
     if (selectedIdColumn) {
       downloadCSV(searches, randomizedPlates, selectedIdColumn, selectedFileName);
     }
+  };
+
+  // Build the LayoutSettings object describing the current configuration.
+  const collectLayoutSettings = (): LayoutSettings => ({
+    selectedIdColumn,
+    selectedCovariates,
+    qcColumn,
+    selectedQcValues,
+    selectedAlgorithm,
+    keepEmptyInLastPlate,
+    plateRows,
+    plateColumns,
+    subjectColumn,
+    groupingConstraint,
+    // Metadata columns in display order (every column except the ID column).
+    metadataColumns: availableColumns.filter(col => col !== selectedIdColumn),
+  });
+
+  // Save layout handler - export the layout together with the settings that produced it.
+  const handleSaveLayout = () => {
+    if (!selectedIdColumn || randomizedPlates.length === 0) return;
+
+    const csv = serializeLayout({
+      searches,
+      randomizedPlates,
+      settings: collectLayoutSettings(),
+      covariateColors,
+    });
+
+    let outputFileName = 'octopus_layout.csv';
+    if (selectedFileName) {
+      const baseName = selectedFileName.replace(/\.[^/.]+$/, '');
+      outputFileName = `${baseName}_octopus_layout.csv`;
+    }
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', outputFileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Apply a parsed-and-validated layout to the application state.
+  const applyLoadedLayout = (
+    fileName: string,
+    settings: LayoutSettings,
+    loadedSearches: SearchData[],
+    plates: (SearchData | undefined)[][][],
+    plateAssignmentsToRestore: Map<number, SearchData[]>,
+    storedColors: ReturnType<typeof parseLayout>['covariateColors']
+  ) => {
+    // Suppress the new-file reset effect so the settings below survive.
+    isRestoringRef.current = true;
+
+    // Restore samples and every setting.
+    loadSearches(loadedSearches, fileName, settings.selectedIdColumn, settings.metadataColumns);
+    setSelectedCovariates(settings.selectedCovariates);
+    setQcColumn(settings.qcColumn);
+    setSelectedQcValues(settings.selectedQcValues);
+    setSelectedAlgorithm(settings.selectedAlgorithm);
+    setKeepEmptyInLastPlate(settings.keepEmptyInLastPlate);
+    setPlateRows(settings.plateRows);
+    setPlateColumns(settings.plateColumns);
+    setSubjectColumn(settings.subjectColumn);
+    setGroupingConstraint(settings.groupingConstraint);
+
+    // Restore the plates directly (no re-randomization).
+    restoreLayout(plates, plateAssignmentsToRestore);
+
+    // Restore colors (verbatim if present, else regenerate deterministically) and summary.
+    let colors;
+    if (storedColors) {
+      restoreColors(storedColors);
+      colors = storedColors;
+    } else {
+      colors = generateCovariateColors(
+        loadedSearches,
+        settings.selectedCovariates,
+        settings.qcColumn,
+        settings.selectedQcValues
+      );
+    }
+    generateSummaryData(
+      colors,
+      loadedSearches,
+      settings.selectedCovariates,
+      settings.qcColumn,
+      settings.selectedQcValues
+    );
+
+    // Clear any stale highlight/error.
+    setSelectedCombination(null);
+    setSelectedSubject(null);
+    setRandomizationError(null);
+  };
+
+  // Load layout handler - read back a saved layout file and reproduce it exactly.
+  const handleLoadLayout = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Clear the input so re-selecting the same file fires change again.
+    event.target.value = '';
+    if (!file) return;
+
+    setLayoutLoadWarning(null);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result ?? '');
+
+      if (!text.includes(LAYOUT_MARKER)) {
+        setRandomizationError(
+          'That file is not a saved Octopus layout. Use "Choose File" to upload a sample CSV, ' +
+          'or "Save layout" to create a layout file you can load here.'
+        );
+        return;
+      }
+
+      if (isProcessed && !window.confirm('Loading a layout will replace the current layout. Continue?')) {
+        return;
+      }
+
+      const parsed = parseLayout(text);
+      const errors = validateLayout(parsed);
+      const fatal = errors.find(e => e.fatal);
+      if (fatal && fatal.fatal) {
+        setRandomizationError(`Could not load layout: ${fatal.message}`);
+        return;
+      }
+
+      // Non-fatal: header missing -> placement-only restore with a warning.
+      const warning = errors.find(e => !e.fatal);
+      if (warning && !warning.fatal) {
+        setLayoutLoadWarning(warning.warning);
+      }
+
+      // Without settings we cannot reproduce the configuration; abort with the warning shown.
+      if (!parsed.settings) {
+        setRandomizationError(
+          'This layout file is missing its settings header, so the configuration could not be restored.'
+        );
+        return;
+      }
+
+      const settings = parsed.settings;
+      const {
+        plates,
+        plateAssignments: restoredAssignments,
+        samples: loadedSearches,
+      } = buildPlatesFromRows(parsed.rows, settings);
+
+      // Recompute covariate keys / QC flags (shared references update the plates too).
+      buildProcessedSearches(loadedSearches, {
+        selectedCovariates: settings.selectedCovariates,
+        qcColumn: settings.qcColumn,
+        selectedQcValues: settings.selectedQcValues,
+      });
+
+      applyLoadedLayout(
+        file.name,
+        settings,
+        loadedSearches,
+        plates,
+        restoredAssignments,
+        parsed.covariateColors
+      );
+    };
+    reader.readAsText(file);
   };
 
   // Download Excel handler - opens modal for covariate selection
@@ -591,7 +775,28 @@ const App: React.FC = () => {
           selectedFileName={selectedFileName}
           onFileUpload={handleFileUpload}
           sampleCount={searches.length}
+          onLoadLayout={handleLoadLayout}
         />
+
+        {/* Layout load warning (non-fatal, e.g. settings header missing) */}
+        {layoutLoadWarning && (
+          <div style={{
+            margin: '12px 0',
+            padding: '12px 16px',
+            backgroundColor: '#fffbeb',
+            border: '1px solid #fcd34d',
+            borderRadius: '6px',
+            color: '#92400e',
+            fontSize: '14px',
+            lineHeight: '1.5',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
+          }}>
+            <span style={{ fontWeight: 600, flexShrink: 0 }}>⚠</span>
+            <span>{layoutLoadWarning}</span>
+          </div>
+        )}
 
         {/* Configuration Form */}
         <ConfigurationForm
@@ -720,6 +925,14 @@ const App: React.FC = () => {
 
                 <button onClick={handleDownloadCSV} style={styles.downloadButton}>
                   Download CSV
+                </button>
+
+                <button
+                  onClick={handleSaveLayout}
+                  style={styles.downloadButton}
+                  title="Save the layout and its settings to a file you can load back to reproduce it"
+                >
+                  Save Layout
                 </button>
 
                 <button onClick={handleDownloadExcel} style={styles.downloadButton}>

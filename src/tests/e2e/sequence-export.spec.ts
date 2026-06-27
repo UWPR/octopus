@@ -329,7 +329,7 @@ test.describe('Sequence Export with partially-filled plates', () => {
 
   async function uploadStrokeData(page: import('@playwright/test').Page) {
     const testFilePath = path.join(__dirname, '../../../test-data/stroke-multiplate-example.csv');
-    await page.locator('input[type="file"]').setInputFiles(testFilePath);
+    await page.locator('#file-upload').setInputFiles(testFilePath);
     await page.locator('#qcColumn').selectOption('Sample Type');
     await page.getByRole('checkbox', { name: 'BatchRef' }).check();
     await page.getByRole('checkbox', { name: 'BatchQC' }).check();
