@@ -10,7 +10,9 @@ import {
   CovariateColorMap,
 } from '../utils/layoutIO';
 import { buildPlacementCsv, buildProcessedSearches, getWell } from '../utils/utils';
+import { buildLayoutWorkbook } from '../utils/excelExport';
 import { SearchData } from '../utils/types';
+import ExcelJS from 'exceljs';
 
 // --- Fixture: a small, fully-known 2-plate layout (2 rows x 3 columns) ---
 
@@ -274,6 +276,83 @@ describe('per-cell placement', () => {
     expect(samples[0].metadata).toEqual({ Treatment: 'Drug, high', Dose: '10 mg' });
   });
 });
+
+describe('export round-trip fidelity', () => {
+  // Mirrors the user workflow: export an artifact, save the layout, load it back, export
+  // again. The second artifact must match the first. These exercise the real export code
+  // paths (buildPlacementCsv and buildLayoutWorkbook), not just the layout file.
+
+  it('re-exporting the placement CSV after a layout round trip is byte-identical', () => {
+    const csvBefore = buildPlacementCsv(SEARCHES, PLATES, SETTINGS.selectedIdColumn);
+
+    const parsed = parseLayout(fullFile());
+    const { plates, samples } = buildPlatesFromRows(parsed.rows, parsed.settings!);
+    const csvAfter = buildPlacementCsv(samples, plates, parsed.settings!.selectedIdColumn);
+
+    expect(csvAfter).toBe(csvBefore);
+  });
+
+  it('re-exporting the Excel workbook after a layout round trip has identical content', () => {
+    // Deep-clone the shared fixture so setting covariateKey here does not leak into the
+    // other tests (which compare against the un-processed PLATES).
+    const clone = (list: SearchData[]): SearchData[] =>
+      list.map(s => ({ name: s.name, metadata: { ...s.metadata } }));
+    const platesFrom = (byName: Map<string, SearchData>): (SearchData | undefined)[][][] =>
+      PLATES.map(plate => plate.map(row => row.map(cell => (cell ? byName.get(cell.name) : undefined))));
+
+    // "Before": clone of the original, with covariateKey computed as the app does.
+    const beforeSearches = clone(SEARCHES);
+    const beforeByName = new Map(beforeSearches.map(s => [s.name, s]));
+    const beforePlates = platesFrom(beforeByName);
+    buildProcessedSearches(beforeSearches, {
+      selectedCovariates: SETTINGS.selectedCovariates,
+      qcColumn: SETTINGS.qcColumn,
+      selectedQcValues: SETTINGS.selectedQcValues,
+    });
+
+    // "After": reconstructed from the saved layout, processed the same way.
+    const parsed = parseLayout(fullFile());
+    const { plates: afterPlates, samples: afterSearches } = buildPlatesFromRows(parsed.rows, parsed.settings!);
+    buildProcessedSearches(afterSearches, {
+      selectedCovariates: parsed.settings!.selectedCovariates,
+      qcColumn: parsed.settings!.qcColumn,
+      selectedQcValues: parsed.settings!.selectedQcValues,
+    });
+
+    const optionsFor = (s: SearchData[], p: (SearchData | undefined)[][][]) => ({
+      searches: s,
+      randomizedPlates: p,
+      covariateColors: COLORS,
+      treatmentCovariates: SETTINGS.selectedCovariates,
+      exportCovariates: SETTINGS.selectedCovariates,
+      numRows: SETTINGS.plateRows,
+      numColumns: SETTINGS.plateColumns,
+      qcColumn: SETTINGS.qcColumn || undefined,
+    });
+
+    const wbBefore = buildLayoutWorkbook(optionsFor(beforeSearches, beforePlates));
+    const wbAfter = buildLayoutWorkbook(optionsFor(afterSearches, afterPlates));
+
+    expect(projectWorkbook(wbAfter)).toEqual(projectWorkbook(wbBefore));
+  });
+});
+
+/**
+ * Reduce a workbook to a comparable, timestamp-free projection: per worksheet, the value
+ * and full style of every cell. Ignores workbook.created (a Date, different on each export)
+ * and other file-level metadata, isolating the actual layout/color/style content.
+ */
+function projectWorkbook(workbook: ExcelJS.Workbook) {
+  return workbook.worksheets.map(sheet => {
+    const cells: Array<{ row: number; col: number; value: unknown; style: unknown }> = [];
+    sheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        cells.push({ row: rowNumber, col: colNumber, value: cell.value, style: cell.style });
+      });
+    });
+    return { name: sheet.name, cells };
+  });
+}
 
 describe('header degradation', () => {
   it('parses placement when the options block is entirely missing', () => {

@@ -129,6 +129,48 @@ test.describe('Layout Round-Trip', () => {
     cleanupFile(savedPath);
   });
 
+  test('CSV export is byte-identical after a save and load round trip', async ({ page }) => {
+    await uploadConfigureAndRandomize(page);
+
+    // Export the placement CSV before saving the layout.
+    const csvBeforePath = path.join(__dirname, 'temp-csv-before.csv');
+    const [csvBeforeDl] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Download CSV' }).click(),
+    ]);
+    await csvBeforeDl.saveAs(csvBeforePath);
+    const csvBefore = fs.readFileSync(csvBeforePath, 'utf8');
+
+    // Save the layout.
+    const savedPath = path.join(__dirname, 'temp-layout-for-csv.csv');
+    const [savedDl] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Save Layout' }).click(),
+    ]);
+    await savedDl.saveAs(savedPath);
+
+    // Reload to clear state, then load the saved layout.
+    await page.goto('http://localhost:3000');
+    await expect(page.getByRole('heading', { name: 'Octopus' })).toBeVisible();
+    await page.locator('#layout-upload').setInputFiles(savedPath);
+    await expect(page.getByText('Plate 1')).toBeVisible();
+
+    // Export the CSV again. It must match the pre-save export byte-for-byte.
+    const csvAfterPath = path.join(__dirname, 'temp-csv-after.csv');
+    const [csvAfterDl] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Download CSV' }).click(),
+    ]);
+    await csvAfterDl.saveAs(csvAfterPath);
+    const csvAfter = fs.readFileSync(csvAfterPath, 'utf8');
+
+    expect(csvAfter).toBe(csvBefore);
+
+    cleanupFile(csvBeforePath);
+    cleanupFile(savedPath);
+    cleanupFile(csvAfterPath);
+  });
+
   test('loading a non-layout file is reported as an error', async ({ page }) => {
     const badPath = path.join(__dirname, 'temp-not-a-layout.csv');
     fs.writeFileSync(badPath, 'foo,bar\n1,2\n');

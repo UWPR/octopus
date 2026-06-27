@@ -53,10 +53,11 @@ const createSolidFill = (argbColor: string): ExcelJS.Fill => ({
 });
 
 /**
- * Export plate layouts to Excel with colored cells and formatting
+ * Build the plate-randomization workbook (plate sheets, legend, sample details) in memory.
+ * Pure and DOM-free, so it is reusable and unit-testable; exportToExcel adds the download.
  */
-export async function exportToExcel(options: ExcelExportOptions): Promise<void> {
-  const { searches, randomizedPlates, covariateColors, treatmentCovariates, exportCovariates, numRows, numColumns, inputFileName, qcColumn } = options;
+export function buildLayoutWorkbook(options: ExcelExportOptions): ExcelJS.Workbook {
+  const { searches, randomizedPlates, covariateColors, treatmentCovariates, exportCovariates, numRows, numColumns, qcColumn } = options;
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Octopus';
@@ -76,10 +77,19 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
   // Create sample details sheet (uses treatment covariates for color lookup)
   createSampleDetailsSheet(workbook, searches, treatmentCovariates, randomizedPlates, covariateColors);
 
+  return workbook;
+}
+
+/**
+ * Export plate layouts to Excel with colored cells and formatting
+ */
+export async function exportToExcel(options: ExcelExportOptions): Promise<void> {
+  const workbook = buildLayoutWorkbook(options);
+
   // Generate output filename based on input filename
   let outputFileName = 'plate-randomization_octopus.xlsx';
-  if (inputFileName) {
-    const baseName = inputFileName.replace(/\.[^/.]+$/, ''); // Remove extension
+  if (options.inputFileName) {
+    const baseName = options.inputFileName.replace(/\.[^/.]+$/, ''); // Remove extension
     outputFileName = `${baseName}_octopus.xlsx`;
   }
 
