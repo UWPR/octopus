@@ -16,7 +16,6 @@ import {
   parseLayout,
   validateLayout,
   buildPlatesFromRows,
-  LAYOUT_MARKER,
   LayoutSettings,
 } from './utils/layoutIO';
 import { useFileUpload } from './hooks/useFileUpload';
@@ -474,6 +473,7 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url); // Avoid leaking the object URL on repeated saves.
   };
 
   // Apply a parsed-and-validated layout to the application state.
@@ -543,7 +543,12 @@ const App: React.FC = () => {
     reader.onload = () => {
       const text = String(reader.result ?? '');
 
-      if (!text.includes(LAYOUT_MARKER)) {
+      // Parse once, then decide. Requiring an actual marker ROW (not just the marker text
+      // somewhere in the file) avoids misclassifying a sample CSV that happens to mention
+      // "Octopus Layout" in a data cell as a malformed layout file.
+      const parsed = parseLayout(text);
+
+      if (!parsed.hasMarker) {
         setRandomizationError(
           'That file is not a saved Octopus layout. Use "Choose File" to upload a sample CSV, ' +
           'or "Save layout" to create a layout file you can load here.'
@@ -555,7 +560,6 @@ const App: React.FC = () => {
         return;
       }
 
-      const parsed = parseLayout(text);
       const errors = validateLayout(parsed);
       const fatal = errors.find(e => e.fatal);
       if (fatal && fatal.fatal) {
@@ -578,27 +582,33 @@ const App: React.FC = () => {
       }
 
       const settings = parsed.settings;
-      const {
-        plates,
-        plateAssignments: restoredAssignments,
-        samples: loadedSearches,
-      } = buildPlatesFromRows(parsed.rows, settings);
+      // Defense in depth: validateLayout already rejects bad dimensions, but rebuild inside a
+      // try/catch so any malformed placement reports a clean error instead of failing silently.
+      try {
+        const {
+          plates,
+          plateAssignments: restoredAssignments,
+          samples: loadedSearches,
+        } = buildPlatesFromRows(parsed.rows, settings);
 
-      // Recompute covariate keys / QC flags (shared references update the plates too).
-      buildProcessedSearches(loadedSearches, {
-        selectedCovariates: settings.selectedCovariates,
-        qcColumn: settings.qcColumn,
-        selectedQcValues: settings.selectedQcValues,
-      });
+        // Recompute covariate keys / QC flags (shared references update the plates too).
+        buildProcessedSearches(loadedSearches, {
+          selectedCovariates: settings.selectedCovariates,
+          qcColumn: settings.qcColumn,
+          selectedQcValues: settings.selectedQcValues,
+        });
 
-      applyLoadedLayout(
-        file.name,
-        settings,
-        loadedSearches,
-        plates,
-        restoredAssignments,
-        parsed.covariateColors
-      );
+        applyLoadedLayout(
+          file.name,
+          settings,
+          loadedSearches,
+          plates,
+          restoredAssignments,
+          parsed.covariateColors
+        );
+      } catch (e) {
+        setRandomizationError(`Could not load layout: ${(e as Error).message}`);
+      }
     };
     reader.readAsText(file);
   };

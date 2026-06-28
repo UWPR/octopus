@@ -469,4 +469,35 @@ describe('validateLayout', () => {
     const errors = validateLayout(parseLayout(text));
     expect(errors.some(e => e.fatal)).toBe(true);
   });
+
+  it('rejects a non-integer plate dimension (would otherwise crash plate allocation)', () => {
+    const text = fullFile().replace('plateRows,2', 'plateRows,abc');
+    const errors = validateLayout(parseLayout(text));
+    expect(errors.some(e => e.fatal && /plate dimensions/.test(e.message))).toBe(true);
+  });
+
+  it('rejects a non-positive plate dimension', () => {
+    const text = fullFile().replace('plateColumns,3', 'plateColumns,0');
+    const errors = validateLayout(parseLayout(text));
+    expect(errors.some(e => e.fatal && /plate dimensions/.test(e.message))).toBe(true);
+  });
+
+  it('rejects a non-integer schema version', () => {
+    const text = fullFile().replace(`${LAYOUT_MARKER},${LAYOUT_SCHEMA_VERSION}`, `${LAYOUT_MARKER},foo`);
+    const errors = validateLayout(parseLayout(text));
+    expect(errors.some(e => e.fatal)).toBe(true);
+  });
+});
+
+describe('marker detection (parseLayout.hasMarker)', () => {
+  it('detects a real marker row', () => {
+    expect(parseLayout(fullFile()).hasMarker).toBe(true);
+  });
+
+  it('does not treat the marker text in a data cell as a layout file', () => {
+    // A plain sample CSV that merely mentions "Octopus Layout" in a value must not be
+    // misread as a (malformed) layout file.
+    const csv = 'Sample ID,Note\nS1,see the Octopus Layout guide\nS2,plain\n';
+    expect(parseLayout(csv).hasMarker).toBe(false);
+  });
 });

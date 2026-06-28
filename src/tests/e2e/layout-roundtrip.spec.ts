@@ -183,4 +183,18 @@ test.describe('Layout Round-Trip', () => {
 
     cleanupFile(badPath);
   });
+
+  test('a sample CSV that merely contains the marker text is rejected as not a layout', async ({ page }) => {
+    // The marker string appears in a data cell, not as a marker row. It must be reported as
+    // "not a saved Octopus layout", not the "missing settings header" path.
+    const badPath = path.join(__dirname, 'temp-marker-in-data.csv');
+    fs.writeFileSync(badPath, 'Sample ID,Note\nS1,see the Octopus Layout guide\n');
+
+    await page.locator('#layout-upload').setInputFiles(badPath);
+
+    await expect(page.getByText(/not a saved Octopus layout/)).toBeVisible();
+    await expect(page.getByText('Plate 1')).toHaveCount(0);
+
+    cleanupFile(badPath);
+  });
 });

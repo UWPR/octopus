@@ -60,6 +60,13 @@ export interface ParsedLayout {
   covariateColors: CovariateColorMap | null;
   /** Schema version declared in the marker row, or null when absent. */
   schemaVersion: number | null;
+  /**
+   * True when an actual marker ROW (`Octopus Layout` in the first cell) was found. This is
+   * the authoritative "is this a layout file" signal. It is stricter than scanning the raw
+   * text for the marker string, which false-positives on a sample CSV that merely mentions
+   * "Octopus Layout" in a data cell.
+   */
+  hasMarker: boolean;
   /** True when the `Octopus Layout` options block was missing or could not be parsed. */
   headerMissing: boolean;
   rows: LayoutRow[];
@@ -267,7 +274,7 @@ export function parseLayout(fileText: string): ParsedLayout {
     });
   }
 
-  return { settings, covariateColors, schemaVersion, headerMissing, rows };
+  return { settings, covariateColors, schemaVersion, hasMarker, headerMissing, rows };
 }
 
 /**
@@ -327,6 +334,14 @@ export function buildPlatesFromRows(
 export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
   const errors: LayoutValidationError[] = [];
 
+  if (parsed.schemaVersion !== null && !Number.isInteger(parsed.schemaVersion)) {
+    errors.push({
+      fatal: true,
+      message: 'This file has an unreadable Octopus Layout schema version.',
+    });
+    return errors;
+  }
+
   if (parsed.schemaVersion !== null && parsed.schemaVersion > LAYOUT_SCHEMA_VERSION) {
     errors.push({
       fatal: true,
@@ -348,6 +363,18 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
   }
 
   const { plateRows, plateColumns } = parsed.settings;
+
+  // Guard non-numeric plate dimensions (e.g. "plateRows,abc" parses to NaN). Left unchecked,
+  // NaN passes every bounds comparison below and then crashes buildPlatesFromRows.
+  if (!Number.isInteger(plateRows) || plateRows < 1 || !Number.isInteger(plateColumns) || plateColumns < 1) {
+    errors.push({
+      fatal: true,
+      message:
+        `The layout file has invalid plate dimensions (${plateRows} x ${plateColumns}). ` +
+        `Plate rows and columns must be positive whole numbers.`,
+    });
+    return errors;
+  }
 
   if (parsed.rows.length === 0) {
     errors.push({ fatal: true, message: 'The layout file contains no samples.' });
