@@ -233,6 +233,7 @@ export function downloadCSV(
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url); // Avoid leaking the object URL on repeated downloads.
 }
 
 export function getPlateNumber(searchName: string, randomizedPlates: (SearchData | undefined)[][][]) {

@@ -173,9 +173,16 @@ function cell(row: string[], index: number): string {
   return v === undefined || v === null ? '' : String(v);
 }
 
-/** True when a CSV line's comma-separated fields include both `plate` and `well`. */
+/**
+ * True when a CSV line's fields include both `plate` and `well`. Quote-aware: a column or
+ * value containing a comma (valid CSV when quoted) is parsed as a single field rather than
+ * naively split on `,`, so it neither breaks header detection nor false-matches. The cheap
+ * substring guard skips the PapaParse call for the many lines that obviously cannot match.
+ */
 function isTableHeaderLine(line: string): boolean {
-  const cols = line.split(',').map((c) => c.trim());
+  if (!line.includes('plate') || !line.includes('well')) return false;
+  const fields = (Papa.parse<string[]>(line).data[0] as string[] | undefined) ?? [];
+  const cols = fields.map((c) => c.trim());
   return cols.includes('plate') && cols.includes('well');
 }
 

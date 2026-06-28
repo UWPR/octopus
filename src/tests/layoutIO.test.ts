@@ -503,3 +503,59 @@ describe('marker detection (parseLayout.hasMarker)', () => {
     expect(parseLayout(csv).hasMarker).toBe(false);
   });
 });
+
+describe('table-header detection (quote-aware)', () => {
+  it('round-trips a metadata column name and value containing commas', () => {
+    const settings: LayoutSettings = {
+      ...SETTINGS,
+      selectedCovariates: ['Site, City'],
+      qcColumn: '',
+      selectedQcValues: [],
+      metadataColumns: ['Site, City'],
+    };
+    const s1: SearchData = { name: 'S1', metadata: { 'Site, City': 'Boston, MA' } };
+    const s2: SearchData = { name: 'S2', metadata: { 'Site, City': 'Reno' } };
+    const plates: (SearchData | undefined)[][][] = [
+      [
+        [s1, s2, undefined],
+        [undefined, undefined, undefined],
+      ],
+    ];
+    const text = serializeLayout({ searches: [s1, s2], randomizedPlates: plates, settings, covariateColors: {} });
+
+    const parsed = parseLayout(text);
+    expect(parsed.headerMissing).toBe(false);
+    expect(parsed.settings!.metadataColumns).toEqual(['Site, City']);
+
+    const { plates: rebuilt, samples } = buildPlatesFromRows(parsed.rows, parsed.settings!);
+    expect(rebuilt).toEqual(plates);
+    expect(samples[0].metadata).toEqual({ 'Site, City': 'Boston, MA' });
+  });
+
+  it('does not mistake a quoted options value with embedded plate/well tokens for the header', () => {
+    // Split naively on commas, the color value below exposes standalone "plate" and "well"
+    // tokens ahead of the real header. A non-quote-aware splitter would cut the file there.
+    const text =
+      `${LAYOUT_MARKER},1\n` +
+      `idColumn,Sample ID\n` +
+      `covariates,Treatment\n` +
+      `qcColumn,\n` +
+      `qcValues,\n` +
+      `algorithm,balanced\n` +
+      `keepEmptyInLastPlate,false\n` +
+      `plateRows,1\n` +
+      `plateColumns,2\n` +
+      `subjectColumn,\n` +
+      `groupingConstraint,none\n` +
+      `metadataColumns,Treatment\n` +
+      `color:Drug,"#111111 solid, plate, well"\n` +
+      `\n` +
+      `Sample ID,Treatment,plate,well\n` +
+      `S1,Drug,1,A01\n`;
+
+    const parsed = parseLayout(text);
+    expect(parsed.headerMissing).toBe(false);
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.rows[0].well).toBe('A01');
+  });
+});
