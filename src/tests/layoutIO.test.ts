@@ -418,11 +418,13 @@ describe('validateLayout', () => {
     expect(validateLayout(parseLayout(fullFile()))).toEqual([]);
   });
 
-  it('warns (non-fatal) when the options block is missing', () => {
+  it('rejects (fatal) when the options block is missing', () => {
+    // Without the options block the recorded settings (plate dimensions in particular)
+    // are gone, so a faithful reproduction is impossible and the load must be refused.
     const table = buildPlacementCsv(SEARCHES, PLATES, SETTINGS.selectedIdColumn);
     const errors = validateLayout(parseLayout(table));
     expect(errors.length).toBe(1);
-    expect(errors[0].fatal).toBe(false);
+    expect(errors[0].fatal).toBe(true);
   });
 
   it('rejects a file saved by a newer schema version', () => {

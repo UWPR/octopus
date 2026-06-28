@@ -329,7 +329,9 @@ export function buildPlatesFromRows(
 
 /**
  * Validate a parsed layout before applying it. Returns all problems found; the caller
- * aborts on any { fatal: true }. A headerMissing layout is reported as a non-fatal warning.
+ * aborts on any { fatal: true }. A missing or incomplete options block is fatal: the layout
+ * cannot be reproduced without the recorded settings (plate dimensions in particular cannot
+ * be inferred from the placement when trailing rows/columns are empty).
  */
 export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
   const errors: LayoutValidationError[] = [];
@@ -354,10 +356,10 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
 
   if (parsed.headerMissing || !parsed.settings) {
     errors.push({
-      fatal: false,
-      warning:
-        'This file has no Octopus settings; the plate layout was restored, ' +
-        'but the saved options (covariates, colors, plate size) could not be applied.',
+      fatal: true,
+      message:
+        'This file has no Octopus settings (covariates, colors, plate size), so the saved ' +
+        'layout cannot be reproduced. Re-save it with "Save Layout" to create a loadable file.',
     });
     return errors;
   }
@@ -412,8 +414,8 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
         });
       }
       occupied.add(key);
-    } catch (e: any) {
-      errors.push({ fatal: true, message: `Sample "${row.name}": ${e.message}` });
+    } catch (e) {
+      errors.push({ fatal: true, message: `Sample "${row.name}": ${(e as Error).message}` });
     }
   });
 

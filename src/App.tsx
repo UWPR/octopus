@@ -124,7 +124,6 @@ const App: React.FC = () => {
   const [showExcelExportModal, setShowExcelExportModal] = useState<boolean>(false);
   const [showSequenceExportWizard, setShowSequenceExportWizard] = useState<boolean>(false);
   const [randomizationError, setRandomizationError] = useState<string | null>(null);
-  const [layoutLoadWarning, setLayoutLoadWarning] = useState<string | null>(null);
 
   // Set true for one render while a saved layout is being loaded, so the new-file reset
   // effect does not wipe the settings we are restoring.
@@ -173,7 +172,6 @@ const App: React.FC = () => {
       // Reset all application state except the file upload state
       resetRandomization();
       setRandomizationError(null);
-      setLayoutLoadWarning(null);
       resetColors();
       resetMetrics();
       resetModalPosition();
@@ -537,8 +535,6 @@ const App: React.FC = () => {
     event.target.value = '';
     if (!file) return;
 
-    setLayoutLoadWarning(null);
-
     const reader = new FileReader();
     reader.onload = () => {
       const text = String(reader.result ?? '');
@@ -567,20 +563,9 @@ const App: React.FC = () => {
         return;
       }
 
-      // Non-fatal: header missing -> placement-only restore with a warning.
-      const warning = errors.find(e => !e.fatal);
-      if (warning && !warning.fatal) {
-        setLayoutLoadWarning(warning.warning);
-      }
-
-      // Without settings we cannot reproduce the configuration; abort with the warning shown.
-      if (!parsed.settings) {
-        setRandomizationError(
-          'This layout file is missing its settings header, so the configuration could not be restored.'
-        );
-        return;
-      }
-
+      // validateLayout flags a missing/incomplete options block as fatal, so settings is
+      // present past the check above. This guard only narrows the type for TypeScript.
+      if (!parsed.settings) return;
       const settings = parsed.settings;
       // Defense in depth: validateLayout already rejects bad dimensions, but rebuild inside a
       // try/catch so any malformed placement reports a clean error instead of failing silently.
@@ -787,26 +772,6 @@ const App: React.FC = () => {
           sampleCount={searches.length}
           onLoadLayout={handleLoadLayout}
         />
-
-        {/* Layout load warning (non-fatal, e.g. settings header missing) */}
-        {layoutLoadWarning && (
-          <div style={{
-            margin: '12px 0',
-            padding: '12px 16px',
-            backgroundColor: '#fffbeb',
-            border: '1px solid #fcd34d',
-            borderRadius: '6px',
-            color: '#92400e',
-            fontSize: '14px',
-            lineHeight: '1.5',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '8px',
-          }}>
-            <span style={{ fontWeight: 600, flexShrink: 0 }}>⚠</span>
-            <span>{layoutLoadWarning}</span>
-          </div>
-        )}
 
         {/* Configuration Form */}
         <ConfigurationForm
