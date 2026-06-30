@@ -161,8 +161,8 @@ export function randomizeSearches(
 
 /**
  * Set the covariate key and QC flag on each sample, based on the chosen settings.
- * Pure: depends only on its arguments, not component state. App.tsx's processMetadata
- * and the layout import both go through this so the derivation cannot drift.
+ * State-independent: depends only on its arguments, not component state. App.tsx's
+ * processMetadata and the layout import both go through this so the derivation cannot drift.
  * @param searches - Samples to annotate (mutated in place)
  * @param config - Covariate configuration (treatment covariates and QC/Reference settings)
  */

@@ -472,6 +472,13 @@ describe('validateLayout', () => {
     expect(errors.some(e => e.fatal)).toBe(true);
   });
 
+  it('rejects a plate number larger than the sample count (huge-allocation guard)', () => {
+    // One sample placed on plate 1000000 would otherwise allocate a million plates.
+    const text = `${optionsBlock(SETTINGS)}\n\nSample ID,Treatment,Dose,plate,well\nS1,Drug,0,1000000,A01\n`;
+    const errors = validateLayout(parseLayout(text));
+    expect(errors.some(e => e.fatal && /out of range/.test(e.message))).toBe(true);
+  });
+
   it('rejects a non-integer plate dimension (would otherwise crash plate allocation)', () => {
     const text = fullFile().replace('plateRows,2', 'plateRows,abc');
     const errors = validateLayout(parseLayout(text));

@@ -390,6 +390,21 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     return errors;
   }
 
+  // Guard an out-of-range plate number. buildPlatesFromRows allocates plates up to the
+  // maximum plate index, so a crafted file with a huge plate value (e.g. 1000000) would
+  // otherwise trigger an enormous allocation and crash the tab. A real layout has at least
+  // one sample per plate, so the maximum plate cannot exceed the number of samples.
+  const maxPlate = parsed.rows.reduce((m, r) => Math.max(m, Number.isInteger(r.plate) ? r.plate : 0), 0);
+  if (maxPlate > parsed.rows.length) {
+    errors.push({
+      fatal: true,
+      message:
+        `The layout file references plate ${maxPlate} but lists only ${parsed.rows.length} ` +
+        `sample(s), so the plate number is out of range.`,
+    });
+    return errors;
+  }
+
   // Duplicate sample names.
   const seenNames = new Set<string>();
   const duplicateNames = new Set<string>();
