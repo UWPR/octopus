@@ -66,7 +66,7 @@ test.describe('UI Interactions', () => {
 
     // Upload a DIFFERENT file to trigger reset
     const differentFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-full.csv');
-    await page.locator('input[type="file"]').setInputFiles(differentFilePath);
+    await page.locator('#file-upload').setInputFiles(differentFilePath);
     await page.waitForTimeout(500);
 
     // Plates should be gone — state was reset
@@ -84,7 +84,7 @@ test.describe('UI Interactions', () => {
 
     // Re-configure with the original small file and generate to prove app is functional after reset
     const smallFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-small.csv');
-    await page.locator('input[type="file"]').setInputFiles(smallFilePath);
+    await page.locator('#file-upload').setInputFiles(smallFilePath);
     await page.waitForTimeout(500);
     await uploadAndConfigure(page);
     await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();

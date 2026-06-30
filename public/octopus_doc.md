@@ -18,6 +18,8 @@ Octopus is a web application for distributing experimental samples across multip
 
 **Injection Sequence Export**: Once plates are finalized, a guided wizard generates a Thermo Fisher Scientific-compatible CSV sequence — including experimental runs, optional system suitability injections, autosampler slot assignments, folder paths, instrument methods, and a configurable file-naming template — so the output can be loaded directly into the instrument software.
 
+**Reproducible Layout Record**: A finished layout can be saved together with the settings that produced it to a single file, then loaded back later to reproduce the exact same plate arrangement. This provides a durable record of a run for an audit trail.
+
 ---
 
 ## How Octopus Works
@@ -60,6 +62,8 @@ Prepare a CSV file containing your sample metadata with:
 - Optionally, a subject/patient ID column for repeated measures designs
 
 Click **Choose File** to select and import your CSV file.
+
+**Reproducing a saved layout instead:** If you previously saved a layout file (see **Save Layout** in Step 6), click **Load Layout** rather than Choose File to read it back. This restores the exact plate arrangement along with every setting that produced it (covariates, QC selection, plate size, colors, and more), so you do not need to reconfigure or regenerate anything. See "Save and Reproduce a Layout" under Step 6 for details.
 
 ### Step 2: Configuration
 
@@ -262,6 +266,18 @@ Once satisfied with the distribution, click **"Download CSV"** or **"Download Ex
 - A Legend sheet mapping covariate groups to colors
 - A Sample Details sheet with all sample metadata and plate/well assignments
 
+#### Save and Reproduce a Layout
+
+The regular CSV export records where each sample was placed, but not the choices behind that placement. To keep a record you can reproduce exactly, click **"Save Layout"**. This saves the finished layout together with the settings that produced it, as a single file named `<input_file_name>_octopus_layout.csv`. It is the most durable record of a run for an audit trail.
+
+The file is plain CSV with two parts, so it still opens in any spreadsheet:
+- A short two-column options block at the top listing the settings (ID column, covariates, QC column and values, algorithm, plate size, subject column, and grouping constraint) and the covariate colors.
+- The same sample table as the regular CSV export (every sample with its assigned plate and well), below a blank line.
+
+**Loading it back:** Click **"Load Layout"** (next to Choose File at the top of the page) and select a saved layout file. Octopus recreates the exact same plate arrangement directly from the recorded positions, so the result is identical every time. It does not re-run randomization. It also restores the full configuration and your covariate colors, so the covariate summary and quality scores reappear just as they were when you saved. If a layout is already on screen, Octopus asks you to confirm before replacing it.
+
+Because the file is plain CSV, you can open it in a spreadsheet and re-save it without breaking it. If the settings rows at the top are removed or damaged, Octopus still recreates the plate positions from the sample table, but warns you that the saved options could not be restored.
+
 ### Step 7: Export Injection Sequence (Optional)
 
 Once you are happy with your plate layouts, click **"Export Sequence"** to launch the Injection Sequence Export wizard. The wizard generates a CSV acquisition sequence in the Thermo Fisher Scientific format (`Bracket Type=4` header with columns *File Name, Path, Instrument Method, Position, Inj Vol*) that can be loaded directly into the instrument software.
@@ -431,6 +447,8 @@ When a grouping constraint (Same Row or Same Plate) is active, the quality asses
 6. **Verify Subject Grouping**: When using repeated measures, open the Subject Placement Panel and click individual subjects to confirm all their samples are on the same row (or same plate, depending on your constraint).
 
 7. **Choose the Right Subject Grouping Constraint**: The grouping constraint is typically determined by the experimental design — use Same Row when samples must be processed together in the same row, and Same Plate when they just need to be on the same plate. If your design allows either, Same Plate gives the algorithm more flexibility to optimize covariate balance across multiple plates.
+
+8. **Save a Layout for Your Records**: Once you are happy with a layout, use **Save Layout** to keep a single file that captures both the plate arrangement and the settings behind it. You can load it back at any time to reproduce the run exactly, which makes it a reliable record for an audit trail.
 
 ---
 

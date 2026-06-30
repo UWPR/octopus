@@ -111,6 +111,9 @@ Click **"Download Excel"** to get:
 - Select which covariates to include
 - Formatted for easy printing and reference
 
+#### Save Layout (Reproducible Record)
+Click **"Save Layout"** to save the plate arrangement together with the settings that produced it, in a single CSV file. Later, click **"Load Layout"** (next to Choose File at the top) to read it back and reproduce the exact same layout, with all settings and colors restored. This is a durable record for an audit trail.
+
 ### Step 8: Export Injection Sequence (Optional)
 
 If you want to export a Thermo Fisher Scientific instrument-ready acquisition sequence, click **"Export Sequence"** to launch the Injection Sequence Export wizard. The wizard walks you through six configuration steps and produces a CSV in the Thermo format with file names, folder paths, instrument methods, autosampler positions, and injection volumes.
@@ -243,6 +246,7 @@ Try these to see how they affect distribution:
 
 - **CSV**: Simple format for data analysis, import into other tools
 - **Excel**: Visual reference, color-coded for easy identification, good for lab use
+- **Save Layout**: A reproducible record of the run that you can load back later to recreate the exact same layout and settings
 
 ## Need More Help?
 

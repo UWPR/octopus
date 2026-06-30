@@ -74,6 +74,27 @@ export function useFileUpload() {
     }
   };
 
+  /**
+   * Load samples from a saved layout file. Unlike handleFileUpload, this sets the searches,
+   * file name, columns, and ID column directly from the file's recorded settings, without
+   * applying the auto-ID-column defaults. Bumps uploadCounter so the Sequence Export Wizard
+   * remounts. The caller (App.handleLoadLayout) restores the remaining settings.
+   */
+  const loadSearches = (
+    loadedSearches: SearchData[],
+    fileName: string,
+    idColumn: string,
+    metadataColumns: string[]
+  ) => {
+    setUploadCounter(c => c + 1);
+    setSelectedFileName(fileName);
+    setAvailableColumns([idColumn, ...metadataColumns]);
+    setSelectedIdColumn(idColumn);
+    setSearches(loadedSearches);
+    // Imported layouts cannot be re-derived by changing the ID column, so clear parsedData.
+    setParsedData([]);
+  };
+
   const handleIdColumnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const newIdColumn = event.target.value;
     setSelectedIdColumn(newIdColumn);
@@ -92,5 +113,6 @@ export function useFileUpload() {
     uploadCounter,
     handleFileUpload,
     handleIdColumnChange,
+    loadSearches,
   };
 }

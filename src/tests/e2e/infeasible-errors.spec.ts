@@ -26,7 +26,7 @@ async function uploadAndConfigureRepeatedMeasures(
   rows: number,
   columns: number
 ) {
-  await page.locator('input[type="file"]').setInputFiles(filePath);
+  await page.locator('#file-upload').setInputFiles(filePath);
 
   // Select SubjectID as the subject column
   await page.locator('#subjectColumn').selectOption('SubjectID');

@@ -22,7 +22,7 @@ test.describe('Happy Path Workflow', () => {
   test('complete workflow from upload to export', async ({ page }) => {
     // Step 1: Upload file
     const testFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-small.csv');
-    await page.locator('input[type="file"]').setInputFiles(testFilePath);
+    await page.locator('#file-upload').setInputFiles(testFilePath);
 
     // Verify file is loaded
     await expect(page.getByText(/trx-phase1b-small\.csv/)).toBeVisible();

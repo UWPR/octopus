@@ -198,6 +198,14 @@ export function useCovariateColors() {
     setSummaryData([]);
   };
 
+  /**
+   * Restore covariate colors from a saved layout, preserving any manual color/fill edits.
+   * Callers should follow with generateSummaryData so the summary swatches stay in sync.
+   */
+  const restoreColors = useCallback((colorsMap: { [key: string]: CovariateColorInfo }) => {
+    setCovariateColors(colorsMap);
+  }, []);
+
   const updateCovariateColor = useCallback((
     combination: string,
     updates: { color?: string; useOutline?: boolean; useStripes?: boolean }
@@ -233,6 +241,7 @@ export function useCovariateColors() {
     generateCovariateColors,
     generateSummaryData,
     resetColors,
+    restoreColors,
     updateCovariateColor,
   };
 }

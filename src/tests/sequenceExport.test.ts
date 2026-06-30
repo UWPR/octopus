@@ -503,17 +503,15 @@ describe('sequenceExport - property-based tests', () => {
 
             // Verify SS during count
             const ssActive = runsAtStart > 0 || runsAtEnd > 0 || runsDuring > 0;
+            let expectedSSTotal = runsAtStart + runsAtEnd;
             if (ssActive && runsDuring > 0 && insertionInterval > 0 && totalSamples > 1) {
               // SS triggers at sampleCounter values: interval, 2*interval, ...
               // sampleCounter is checked at values 0..totalSamples-1 (before each sample)
               // Triggers when sampleCounter > 0 && sampleCounter % interval == 0
               const insertionCount = Math.floor((totalSamples - 1) / insertionInterval);
-              const expectedSSDuring = insertionCount * runsDuring;
-              const totalExpectedSS = runsAtStart + runsAtEnd + expectedSSDuring;
-              expect(ssRows.length).toBe(totalExpectedSS);
-            } else {
-              expect(ssRows.length).toBe(runsAtStart + runsAtEnd);
+              expectedSSTotal += insertionCount * runsDuring;
             }
+            expect(ssRows.length).toBe(expectedSSTotal);
 
             // All SS rows use the SS position (derived from ssSlot Y:A1)
             for (const row of ssRows) {
@@ -658,35 +656,30 @@ describe('sequenceExport - property-based tests', () => {
             const result = generateSequence(input);
             const expRows = result.rows.filter(r => r.category === 'Experimental');
 
-            // Extract plate index from sample name
-            let lastPlateIdx = 0;
-            let lastRowIdx = 0;
-            let lastColIdx = 0;
-            let isFirst = true;
-
-            for (const row of expRows) {
-              // Parse P{plate}_R{row}C{col} from fileName which contains the sampleId
+            // Parse P{plate}_R{row}C{col} from each fileName (it contains the sampleId).
+            const positions = expRows.map(row => {
               const match = row.fileName.match(/P(\d+)_R(\d+)C(\d+)/);
               expect(match).not.toBeNull();
-              const plateIdx = parseInt(match![1]);
-              const rowIdx = parseInt(match![2]);
-              const colIdx = parseInt(match![3]);
+              return {
+                plateIdx: parseInt(match![1]),
+                rowIdx: parseInt(match![2]),
+                colIdx: parseInt(match![3]),
+              };
+            });
 
-              if (isFirst) {
-                isFirst = false;
-              } else {
-                // Plate index must be non-decreasing
-                expect(plateIdx >= lastPlateIdx).toBe(true);
-                // Within same plate, row-major order
-                if (plateIdx === lastPlateIdx) {
-                  const currentPos = rowIdx * numCols + colIdx;
-                  const lastPos = lastRowIdx * numCols + lastColIdx;
-                  expect(currentPos > lastPos).toBe(true);
-                }
-              }
-              lastPlateIdx = plateIdx;
-              lastRowIdx = rowIdx;
-              lastColIdx = colIdx;
+            // Samples are emitted plate-by-plate, row-major within a plate.
+            for (let i = 1; i < positions.length; i++) {
+              const prev = positions[i - 1];
+              const curr = positions[i];
+              // Plate index must be non-decreasing
+              expect(curr.plateIdx >= prev.plateIdx).toBe(true);
+              // Within the same plate the position is strictly increasing in row-major
+              // order; across plates this check does not apply.
+              const samePlate = curr.plateIdx === prev.plateIdx;
+              const currentPos = curr.rowIdx * numCols + curr.colIdx;
+              const lastPos = prev.rowIdx * numCols + prev.colIdx;
+              const rowMajorOk = samePlate ? currentPos > lastPos : true;
+              expect(rowMajorOk).toBe(true);
             }
           }
         ),

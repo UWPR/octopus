@@ -4,12 +4,14 @@ interface FileUploadSectionProps {
   selectedFileName: string;
   onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   sampleCount: number;
+  onLoadLayout: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const FileUploadSection: React.FC<FileUploadSectionProps> = ({
   selectedFileName,
   onFileUpload,
-  sampleCount
+  sampleCount,
+  onLoadLayout
 }) => {
   return (
     <div style={styles.fileUploadContainer}>
@@ -22,6 +24,17 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
       />
       <label htmlFor="file-upload" style={styles.fileButton}>
         Choose File
+      </label>
+      <input
+        id="layout-upload"
+        type="file"
+        accept=".csv"
+        onChange={onLoadLayout}
+        style={styles.hiddenFileInput}
+      />
+      <label htmlFor="layout-upload" style={styles.loadLayoutButton}
+        title="Load a previously saved Octopus layout file to reproduce it">
+        Load Layout
       </label>
       {selectedFileName && (
         <span style={styles.fileName}>
@@ -52,6 +65,20 @@ const styles = {
     backgroundColor: '#2196f3',
     color: '#fff',
     border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    textAlign: 'center' as const,
+    textDecoration: 'none',
+    transition: 'background-color 0.3s ease',
+  },
+  loadLayoutButton: {
+    display: 'inline-block',
+    padding: '8px 16px',
+    backgroundColor: '#fff',
+    color: '#2196f3',
+    border: '1px solid #2196f3',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '16px',

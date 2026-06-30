@@ -74,7 +74,8 @@ export async function getAllPlateFingerprints(page: Page, numPlates: number): Pr
  */
 export async function uploadAndConfigure(page: Page): Promise<void> {
   const testFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-small.csv');
-  await page.locator('input[type="file"]').setInputFiles(testFilePath);
+  // Target the sample-upload input specifically (the Load Layout input is also a file input).
+  await page.locator('#file-upload').setInputFiles(testFilePath);
 
   await page.locator('#qcColumn').selectOption('Condition');
   await page.getByRole('checkbox', { name: 'BatchQC' }).check();
