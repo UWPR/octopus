@@ -84,10 +84,13 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
     if (open) itemRefs.current[0]?.focus();
   }, [open]);
 
-  // Run an action, then close the menu.
+  // Run an action, close the menu, and return focus to the trigger so keyboard / screen-reader
+  // focus does not fall back to <body> when the active menu item unmounts. Actions that open a
+  // dialog move focus again as needed after they mount.
   const runAction = (action: () => void) => {
     setOpen(false);
     action();
+    triggerRef.current?.focus();
   };
 
   // Move focus between items, wrapping at the ends.

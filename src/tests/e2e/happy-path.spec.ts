@@ -76,6 +76,8 @@ test.describe('Happy Path Workflow', () => {
     await page.getByRole('menuitem', { name: 'CSV', exact: true }).click();
     const csvDownload = await csvDownloadPromise;
     expect(csvDownload.suggestedFilename()).toMatch(/trx-phase1b-small_octopus_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
+    // After a menu action, focus returns to the Export button rather than falling back to <body>.
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeFocused();
 
     // Step 7: Excel export - modal shows pre-selected covariates, produces correct filename
     await exportVia(page, 'Excel');
