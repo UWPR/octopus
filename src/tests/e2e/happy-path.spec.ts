@@ -75,7 +75,7 @@ test.describe('Happy Path Workflow', () => {
     const csvDownloadPromise = page.waitForEvent('download');
     await page.getByRole('menuitem', { name: 'CSV', exact: true }).click();
     const csvDownload = await csvDownloadPromise;
-    expect(csvDownload.suggestedFilename()).toMatch(/trx-phase1b-small.*\.csv/);
+    expect(csvDownload.suggestedFilename()).toMatch(/trx-phase1b-small_octopus_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
 
     // Step 7: Excel export - modal shows pre-selected covariates, produces correct filename
     await exportVia(page, 'Excel');
@@ -87,7 +87,7 @@ test.describe('Happy Path Workflow', () => {
     const excelDownloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: /Export.*selected/ }).click();
     const excelDownload = await excelDownloadPromise;
-    expect(excelDownload.suggestedFilename()).toMatch(/trx-phase1b-small.*octopus\.xlsx/);
+    expect(excelDownload.suggestedFilename()).toMatch(/trx-phase1b-small_octopus_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.xlsx$/);
     await expect(page.getByText('Select Covariates for Excel Export')).not.toBeVisible();
   });
 

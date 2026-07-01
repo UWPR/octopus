@@ -81,8 +81,8 @@ test.describe('Sequence Export Wizard', () => {
     await page.getByRole('button', { name: 'Download Sequence CSV' }).click();
     const download = await downloadPromise;
 
-    // Verify filename follows pattern: <input_basename>_injection-sequence.csv
-    expect(download.suggestedFilename()).toMatch(/injection-sequence\.csv$/);
+    // Verify filename follows pattern: <input_basename>_injection-sequence_<timestamp>.csv
+    expect(download.suggestedFilename()).toMatch(/injection-sequence_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
 
     // Read and verify CSV content
     const downloadPath = await download.path();

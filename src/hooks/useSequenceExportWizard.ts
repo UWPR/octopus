@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { SearchData } from '../utils/types';
+import { withTimestamp } from '../utils/utils';
 import {
   SlotColor,
   SampleCategoryConfig,
@@ -346,7 +347,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
     if (inputFileName) {
       baseName = inputFileName.replace(/\.[^/.]+$/, ''); // Remove extension
     }
-    const exportFilename = `${baseName}_injection-sequence.csv`;
+    const exportFilename = withTimestamp(`${baseName}_injection-sequence.csv`);
     downloadSequenceCSV(csv, exportFilename);
   }, [generatedSequence, inputFileName]);
 
@@ -379,7 +380,7 @@ export function useSequenceExportWizard(props: UseSequenceExportWizardProps): Us
       const stripped = inputFileName.replace(/\.[^/.]+$/, '').trim();
       if (stripped) baseName = stripped;
     }
-    downloadSequenceCSV(csv, `${baseName}_id-mapping.csv`);
+    downloadSequenceCSV(csv, withTimestamp(`${baseName}_id-mapping.csv`));
   }, [generatedSequence, fileNamingConfig.serialIdConfig, inputFileName]);
 
   // ── Validation ───────────────────────────────────────────────────────────

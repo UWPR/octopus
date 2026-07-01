@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { SearchData, CovariateColorInfo } from './types';
-import { getCovariateKey } from './utils';
+import { getCovariateKey, withTimestamp } from './utils';
 
 interface ExcelExportOptions {
   searches: SearchData[];
@@ -99,7 +99,7 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = outputFileName;
+  link.download = withTimestamp(outputFileName);
   link.click();
   window.URL.revokeObjectURL(url);
 }
