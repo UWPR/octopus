@@ -1,16 +1,12 @@
 import React from 'react';
 
 interface FileUploadSectionProps {
-  selectedFileName: string;
   onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  sampleCount: number;
   onLoadLayout: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const FileUploadSection: React.FC<FileUploadSectionProps> = ({
-  selectedFileName,
   onFileUpload,
-  sampleCount,
   onLoadLayout
 }) => {
   return (
@@ -36,14 +32,6 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
         title="Load a previously saved Octopus layout file to reproduce it">
         Load Layout
       </label>
-      {selectedFileName && (
-        <span style={styles.fileName}>
-          {selectedFileName}
-          {sampleCount > 0 && (
-            <span style={styles.sampleCount}> ({sampleCount} samples)</span>
-          )}
-        </span>
-      )}
     </div>
   );
 };
@@ -86,16 +74,6 @@ const styles = {
     textAlign: 'center' as const,
     textDecoration: 'none',
     transition: 'background-color 0.3s ease',
-  },
-  fileName: {
-    fontSize: '14px',
-    color: '#333',
-    fontWeight: 'normal',
-    wordBreak: 'break-all' as const,
-  },
-  sampleCount: {
-    color: '#666',
-    fontStyle: 'italic',
   },
 };
 

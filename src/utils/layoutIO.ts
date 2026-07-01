@@ -366,7 +366,7 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
       fatal: true,
       message:
         'This file has no Octopus settings (covariates, colors, plate size), so the saved ' +
-        'layout cannot be reproduced. Re-save it with "Save Layout" to create a loadable file.',
+        'layout cannot be reproduced. Re-save it with the Export > Layout option to create a loadable file.',
     });
     return errors;
   }

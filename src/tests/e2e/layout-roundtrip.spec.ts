@@ -4,6 +4,7 @@ import fs from 'fs';
 import {
   uploadConfigureAndRandomize,
   getAllPlateFingerprints,
+  openExportMenu,
   NUM_PLATES,
   NUM_COVARIATE_GROUPS,
 } from './helpers';
@@ -38,8 +39,9 @@ test.describe('Layout Round-Trip', () => {
     expect(before.every(fp => fp.length > 0)).toBe(true);
 
     // Save the layout file.
+    await openExportMenu(page);
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Save Layout' }).click();
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
     const download = await downloadPromise;
     const savedPath = path.join(__dirname, 'temp-layout.csv');
     await download.saveAs(savedPath);
@@ -94,8 +96,9 @@ test.describe('Layout Round-Trip', () => {
     const before = await getAllPlateFingerprints(page, NUM_PLATES);
 
     // Save the edited layout.
+    await openExportMenu(page);
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Save Layout' }).click();
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
     const download = await downloadPromise;
     const savedPath = path.join(__dirname, 'temp-layout-colors.csv');
     await download.saveAs(savedPath);
@@ -134,18 +137,20 @@ test.describe('Layout Round-Trip', () => {
 
     // Export the placement CSV before saving the layout.
     const csvBeforePath = path.join(__dirname, 'temp-csv-before.csv');
+    await openExportMenu(page);
     const [csvBeforeDl] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Download CSV' }).click(),
+      page.getByRole('menuitem', { name: 'CSV', exact: true }).click(),
     ]);
     await csvBeforeDl.saveAs(csvBeforePath);
     const csvBefore = fs.readFileSync(csvBeforePath, 'utf8');
 
     // Save the layout.
     const savedPath = path.join(__dirname, 'temp-layout-for-csv.csv');
+    await openExportMenu(page);
     const [savedDl] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Save Layout' }).click(),
+      page.getByRole('menuitem', { name: 'Layout', exact: true }).click(),
     ]);
     await savedDl.saveAs(savedPath);
 
@@ -157,9 +162,10 @@ test.describe('Layout Round-Trip', () => {
 
     // Export the CSV again. It must match the pre-save export byte-for-byte.
     const csvAfterPath = path.join(__dirname, 'temp-csv-after.csv');
+    await openExportMenu(page);
     const [csvAfterDl] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Download CSV' }).click(),
+      page.getByRole('menuitem', { name: 'CSV', exact: true }).click(),
     ]);
     await csvAfterDl.saveAs(csvAfterPath);
     const csvAfter = fs.readFileSync(csvAfterPath, 'utf8');

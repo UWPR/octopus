@@ -3,6 +3,7 @@ import { RandomizationAlgorithm, getAlgorithmName, getAlgorithmDescription, getA
 
 interface ConfigurationFormProps {
   availableColumns: string[];
+  selectedFileName: string;
   selectedIdColumn: string;
   onIdColumnChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
   searches: any[];
@@ -32,6 +33,7 @@ interface ConfigurationFormProps {
 
 const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   availableColumns,
+  selectedFileName,
   selectedIdColumn,
   onIdColumnChange,
   searches,
@@ -121,6 +123,17 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
 
   return (
     <div style={styles.compactFormContainer}>
+      {/* Uploaded file name, shown above the configuration options */}
+      {selectedFileName && (
+        <div style={styles.uploadedFileBanner}>
+          <i className="fa-regular fa-file-lines" style={styles.uploadedFileIcon} aria-hidden="true"></i>
+          <span style={styles.uploadedFileName}>{selectedFileName}</span>
+          {searches.length > 0 && (
+            <span style={styles.uploadedFileCount}>({searches.length} samples)</span>
+          )}
+        </div>
+      )}
+
       {/* Top Row: ID Column and Covariates */}
       <div style={styles.compactRow}>
         {/* Left Column: ID Column Selection and Algorithm */}
@@ -479,6 +492,31 @@ const styles = {
     gap: '30px',
     marginBottom: '20px',
     alignItems: 'flex-start',
+  },
+  uploadedFileBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '20px',
+    padding: '8px 12px',
+    backgroundColor: '#e3f2fd',
+    border: '1px solid #bbdefb',
+    borderRadius: '6px',
+  },
+  uploadedFileIcon: {
+    color: '#1976d2',
+    fontSize: '14px',
+  },
+  uploadedFileName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1565c0',
+    wordBreak: 'break-all' as const,
+  },
+  uploadedFileCount: {
+    fontSize: '12px',
+    color: '#1976d2',
+    fontStyle: 'italic',
   },
   compactColumn: {
     flex: 1,

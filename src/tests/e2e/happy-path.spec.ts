@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
-import { getAllPlateFingerprints, uploadConfigureAndRandomize, EXPECTED_GROUPS, NUM_COVARIATE_GROUPS } from './helpers';
+import { getAllPlateFingerprints, uploadConfigureAndRandomize, openExportMenu, exportVia, EXPECTED_GROUPS, NUM_COVARIATE_GROUPS } from './helpers';
 
 /**
  * E2E Happy Path Tests
@@ -57,8 +57,7 @@ test.describe('Happy Path Workflow', () => {
     await expect(page.getByRole('button', { name: /Show.*Covariate Summary/ })).toContainText(`${NUM_COVARIATE_GROUPS} combinations`);
     await expect(page.getByRole('button', { name: 'Full Size View' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Download CSV' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Download Excel' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 
     // Step 5: Plate details modal opens and closes
     await page.locator('button[title="Show plate details"]').first().click();
@@ -67,13 +66,14 @@ test.describe('Happy Path Workflow', () => {
     await expect(page.getByText('Plate 1 Details')).not.toBeVisible();
 
     // Step 6: CSV export produces correct filename
+    await openExportMenu(page);
     const csvDownloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Download CSV' }).click();
+    await page.getByRole('menuitem', { name: 'CSV', exact: true }).click();
     const csvDownload = await csvDownloadPromise;
     expect(csvDownload.suggestedFilename()).toMatch(/trx-phase1b-small.*\.csv/);
 
     // Step 7: Excel export - modal shows pre-selected covariates, produces correct filename
-    await page.getByRole('button', { name: 'Download Excel' }).click();
+    await exportVia(page, 'Excel');
     await expect(page.getByText('Select Covariates for Excel Export')).toBeVisible();
     await expect(page.getByRole('checkbox', { name: /Condition/ })).toBeChecked();
     await expect(page.getByRole('checkbox', { name: /Radiaion Dose_cGy/ })).toBeChecked();

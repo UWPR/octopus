@@ -71,8 +71,7 @@ test.describe('UI Interactions', () => {
 
     // Plates should be gone — state was reset
     await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Download CSV' })).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Download Excel' })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).not.toBeVisible();
 
     // The "Generate Randomized Plates" button should be visible but disabled
     // (covariates haven't been re-selected)

@@ -91,3 +91,20 @@ export async function uploadConfigureAndRandomize(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
   await page.waitForTimeout(2000);
 }
+
+/** Export/save actions live behind the single "Export" menu button. */
+export type ExportOption = 'CSV' | 'Excel' | 'Layout' | 'Sequence';
+
+/**
+ * Open the "Export" menu. Use this directly when the menu item click must be captured
+ * (e.g. inside a Promise.all that waits for a download event); otherwise prefer exportVia.
+ */
+export async function openExportMenu(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+}
+
+/** Open the "Export" menu and click one of its items (CSV, Excel, Layout, Sequence). */
+export async function exportVia(page: Page, option: ExportOption): Promise<void> {
+  await openExportMenu(page);
+  await page.getByRole('menuitem', { name: option, exact: true }).click();
+}

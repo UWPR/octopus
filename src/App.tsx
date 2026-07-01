@@ -27,6 +27,7 @@ import { useQualityMetrics } from './hooks/useQualityMetrics';
 import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
+import ExportMenu from './components/ExportMenu';
 
 
 
@@ -767,15 +768,14 @@ const App: React.FC = () => {
         <p style={styles.subtitle}>Plate Designer with Balanced Block Randomization</p>
         {/* File Upload */}
         <FileUploadSection
-          selectedFileName={selectedFileName}
           onFileUpload={handleFileUpload}
-          sampleCount={searches.length}
           onLoadLayout={handleLoadLayout}
         />
 
         {/* Configuration Form */}
         <ConfigurationForm
           availableColumns={availableColumns}
+          selectedFileName={selectedFileName}
           selectedIdColumn={selectedIdColumn}
           onIdColumnChange={handleIdColumnChangeWithReset}
           searches={searches}
@@ -898,28 +898,12 @@ const App: React.FC = () => {
                   Re-randomize
                 </button>
 
-                <button onClick={handleDownloadCSV} style={styles.downloadButton}>
-                  Download CSV
-                </button>
-
-                <button
-                  onClick={handleSaveLayout}
-                  style={styles.downloadButton}
-                  title="Save the layout and its settings to a file you can load back to reproduce it"
-                >
-                  Save Layout
-                </button>
-
-                <button onClick={handleDownloadExcel} style={styles.downloadButton}>
-                  Download Excel
-                </button>
-
-                <button
-                  onClick={() => setShowSequenceExportWizard(true)}
-                  style={styles.downloadButton}
-                >
-                  Export Sequence
-                </button>
+                <ExportMenu
+                  onDownloadCsv={handleDownloadCSV}
+                  onDownloadExcel={handleDownloadExcel}
+                  onSaveLayout={handleSaveLayout}
+                  onExportSequence={() => setShowSequenceExportWizard(true)}
+                />
               </div>
 
               <SummaryPanel
