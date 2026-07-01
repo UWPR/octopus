@@ -105,6 +105,29 @@ describe('serializeLayout', () => {
     const expectedTable = buildPlacementCsv(SEARCHES, PLATES, SETTINGS.selectedIdColumn);
     expect(table).toBe(expectedTable);
   });
+
+  it('records the app version as a row right after the marker, and round-trips it', () => {
+    const text = serializeLayout({
+      searches: SEARCHES,
+      randomizedPlates: PLATES,
+      settings: SETTINGS,
+      covariateColors: COLORS,
+      appVersion: '1.1.0',
+    });
+    const lines = text.split(/\r?\n/);
+    expect(lines[0]).toBe(`${LAYOUT_MARKER},${LAYOUT_SCHEMA_VERSION}`);
+    expect(lines[1]).toBe('appVersion,1.1.0');
+
+    const parsed = parseLayout(text);
+    expect(parsed.appVersion).toBe('1.1.0');
+    // The version is provenance only and must not leak into the reproduced settings.
+    expect(parsed.settings).toEqual(SETTINGS);
+  });
+
+  it('omits the app version row when none is given (parsed appVersion is null)', () => {
+    expect(fullFile()).not.toContain('appVersion,');
+    expect(parseLayout(fullFile()).appVersion).toBeNull();
+  });
 });
 
 describe('wellToIndices', () => {

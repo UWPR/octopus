@@ -43,8 +43,12 @@ test.describe('Layout Round-Trip', () => {
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
     const download = await downloadPromise;
+    // The filename carries a YYYY-MM-DD_HH-mm-ss timestamp.
+    expect(download.suggestedFilename()).toMatch(/_octopus_layout_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
     const savedPath = path.join(__dirname, 'temp-layout.csv');
     await download.saveAs(savedPath);
+    // The saved file records the app version that produced it.
+    expect(fs.readFileSync(savedPath, 'utf8')).toMatch(/appVersion,\d+\.\d+\.\d+/);
 
     // Reload the page to clear all state, then load the saved layout.
     await page.goto('http://localhost:3000');

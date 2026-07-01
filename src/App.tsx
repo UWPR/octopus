@@ -9,7 +9,7 @@ import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
 import SubjectPlacementPanel from './components/SubjectPlacementPanel';
 import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig } from './utils/types';
-import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore } from './utils/utils';
+import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp } from './utils/utils';
 import { exportToExcel } from './utils/excelExport';
 import {
   serializeLayout,
@@ -457,13 +457,16 @@ const App: React.FC = () => {
       randomizedPlates,
       settings: collectLayoutSettings(),
       covariateColors,
+      appVersion: packageJson.version,
     });
 
-    let outputFileName = 'octopus_layout.csv';
+    let baseFileName = 'octopus_layout.csv';
     if (selectedFileName) {
       const baseName = selectedFileName.replace(/\.[^/.]+$/, '');
-      outputFileName = `${baseName}_octopus_layout.csv`;
+      baseFileName = `${baseName}_octopus_layout.csv`;
     }
+    // Timestamp the filename (YYYY-MM-DD_HH-mm-ss) so repeated saves do not overwrite each other.
+    const outputFileName = withTimestamp(baseFileName);
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');

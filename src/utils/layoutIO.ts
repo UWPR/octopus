@@ -60,6 +60,8 @@ export interface ParsedLayout {
   covariateColors: CovariateColorMap | null;
   /** Schema version declared in the marker row, or null when absent. */
   schemaVersion: number | null;
+  /** App version recorded in the options block (`appVersion` row), or null when absent. */
+  appVersion: string | null;
   /**
    * True when an actual marker ROW (`Octopus Layout` in the first cell) was found. This is
    * the authoritative "is this a layout file" signal. It is stricter than scanning the raw
@@ -141,11 +143,16 @@ export function serializeLayout(options: {
   randomizedPlates: (SearchData | undefined)[][][];
   settings: LayoutSettings;
   covariateColors: CovariateColorMap;
+  /** App version that produced the file, recorded for provenance. */
+  appVersion?: string;
 }): string {
-  const { searches, randomizedPlates, settings, covariateColors } = options;
+  const { searches, randomizedPlates, settings, covariateColors, appVersion } = options;
 
-  const optionRows: string[][] = [
-    [LAYOUT_MARKER, String(LAYOUT_SCHEMA_VERSION)],
+  const optionRows: string[][] = [[LAYOUT_MARKER, String(LAYOUT_SCHEMA_VERSION)]];
+  if (appVersion) {
+    optionRows.push(['appVersion', appVersion]);
+  }
+  optionRows.push(
     ['idColumn', settings.selectedIdColumn],
     ['covariates', settings.selectedCovariates.join('|')],
     ['qcColumn', settings.qcColumn],
@@ -157,7 +164,7 @@ export function serializeLayout(options: {
     ['subjectColumn', settings.subjectColumn],
     ['groupingConstraint', settings.groupingConstraint],
     ['metadataColumns', settings.metadataColumns.join('|')],
-  ];
+  );
   Object.entries(covariateColors).forEach(([key, info]) => {
     optionRows.push([`color:${key}`, `${info.color} ${fillToken(info)}`]);
   });
@@ -212,6 +219,7 @@ export function parseLayout(fileText: string): ParsedLayout {
 
   let settings: LayoutSettings | null = null;
   let covariateColors: CovariateColorMap | null = null;
+  let appVersion: string | null = null;
   let headerMissing = !hasMarker;
 
   if (hasMarker) {
@@ -233,6 +241,8 @@ export function parseLayout(fileText: string): ParsedLayout {
         opt[key] = value;
       }
     });
+
+    appVersion = opt['appVersion'] || null;
 
     // Core settings must be present to reproduce the configuration.
     const hasCore = 'idColumn' in opt && 'plateRows' in opt && 'plateColumns' in opt;
@@ -281,7 +291,7 @@ export function parseLayout(fileText: string): ParsedLayout {
     });
   }
 
-  return { settings, covariateColors, schemaVersion, hasMarker, headerMissing, rows };
+  return { settings, covariateColors, schemaVersion, appVersion, hasMarker, headerMissing, rows };
 }
 
 /**
