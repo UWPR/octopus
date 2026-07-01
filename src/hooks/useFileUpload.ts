@@ -19,6 +19,9 @@ export function useFileUpload() {
   const [selectedFileName, setSelectedFileName] = useState<string>('');
   const [searches, setSearches] = useState<SearchData[]>([]);
   const [uploadCounter, setUploadCounter] = useState<number>(0);
+  // True when the current file was loaded via Load Layout (a saved layout), rather than
+  // uploaded as a plain sample CSV. Lets the UI label the loaded file as a layout.
+  const [isLayoutFile, setIsLayoutFile] = useState<boolean>(false);
 
   const processSearchData = (data: any[], idColumn: string): SearchData[] => {
     return data
@@ -36,6 +39,7 @@ export function useFileUpload() {
     if (file) {
       setUploadCounter(c => c + 1);
       setSelectedFileName(file.name);
+      setIsLayoutFile(false);
       Papa.parse(file, {
         header: true,
         complete: (results) => {
@@ -88,6 +92,7 @@ export function useFileUpload() {
   ) => {
     setUploadCounter(c => c + 1);
     setSelectedFileName(fileName);
+    setIsLayoutFile(true);
     setAvailableColumns([idColumn, ...metadataColumns]);
     setSelectedIdColumn(idColumn);
     setSearches(loadedSearches);
@@ -110,6 +115,7 @@ export function useFileUpload() {
     availableColumns,
     selectedIdColumn,
     selectedFileName,
+    isLayoutFile,
     uploadCounter,
     handleFileUpload,
     handleIdColumnChange,

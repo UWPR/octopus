@@ -53,6 +53,8 @@ test.describe('Layout Round-Trip', () => {
 
     // Grid, covariate summary, and quality should reappear exactly as generated.
     await expect(page.getByText('Plate 1')).toBeVisible();
+    // The file-name banner labels a loaded layout as such.
+    await expect(page.getByText('Layout file')).toBeVisible();
     await expect(page.getByRole('button', { name: /Covariate Summary \(14 combinations\)/ })).toBeVisible();
     expect(NUM_COVARIATE_GROUPS).toBe(14);
     await expect(page.getByRole('button', { name: /Quality/ })).toBeVisible();

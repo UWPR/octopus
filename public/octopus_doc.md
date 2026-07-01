@@ -63,7 +63,7 @@ Prepare a CSV file containing your sample metadata with:
 
 Click **Choose File** to select and import your CSV file.
 
-**Reproducing a saved layout instead:** If you previously saved a layout file (see **Save Layout** in Step 6), click **Load Layout** rather than Choose File to read it back. This restores the exact plate arrangement along with every setting that produced it (covariates, QC selection, plate size, colors, and more), so you do not need to reconfigure or regenerate anything. See "Save and Reproduce a Layout" under Step 6 for details.
+**Reproducing a saved layout instead:** If you previously saved a layout file (see **Export → Layout** in Step 6), click **Load Layout** rather than Choose File to read it back. This restores the exact plate arrangement along with every setting that produced it (covariates, QC selection, plate size, colors, and more), so you do not need to reconfigure or regenerate anything. See "Save and Reproduce a Layout" under Step 6 for details.
 
 ### Step 2: Configuration
 
@@ -255,7 +255,9 @@ You can drag samples between wells on the same plate or across plates to manuall
 
 ### Step 6: Export Your Results
 
-Once satisfied with the distribution, click **"Download CSV"** or **"Download Excel"** to save your plate assignments.
+The CSV, Excel, Layout, and Sequence actions are grouped under a single **Export** button above the plates. Open it and pick the option you want.
+
+Once satisfied with the distribution, open the **Export** menu and choose **CSV** or **Excel** to save your plate assignments.
 
 **CSV Export**: Includes all original sample data plus assigned plate numbers and well positions.
 
@@ -268,7 +270,7 @@ Once satisfied with the distribution, click **"Download CSV"** or **"Download Ex
 
 #### Save and Reproduce a Layout
 
-The regular CSV export records where each sample was placed, but not the choices behind that placement. To keep a record you can reproduce exactly, click **"Save Layout"**. This saves the finished layout together with the settings that produced it, as a single file named `<input_file_name>_octopus_layout.csv`. It is the most durable record of a run for an audit trail.
+The regular CSV export records where each sample was placed, but not the choices behind that placement. To keep a record you can reproduce exactly, open the **Export** menu and choose **Layout**. This saves the finished layout together with the settings that produced it, as a single file named `<input_file_name>_octopus_layout.csv`. It is the most durable record of a run for an audit trail.
 
 The file is plain CSV with two parts, so it still opens in any spreadsheet:
 - A short two-column options block at the top listing the settings (ID column, covariates, QC column and values, algorithm, plate size, subject column, and grouping constraint) and the covariate colors.
@@ -280,7 +282,7 @@ Because the file is plain CSV, you can open it in a spreadsheet and re-save it w
 
 ### Step 7: Export Injection Sequence (Optional)
 
-Once you are happy with your plate layouts, click **"Export Sequence"** to launch the Injection Sequence Export wizard. The wizard generates a CSV acquisition sequence in the Thermo Fisher Scientific format (`Bracket Type=4` header with columns *File Name, Path, Instrument Method, Position, Inj Vol*) that can be loaded directly into the instrument software.
+Once you are happy with your plate layouts, open the **Export** menu and choose **Sequence** to launch the Injection Sequence Export wizard. The wizard generates a CSV acquisition sequence in the Thermo Fisher Scientific format (`Bracket Type=4` header with columns *File Name, Path, Instrument Method, Position, Inj Vol*) that can be loaded directly into the instrument software.
 
 The wizard reads your finalized plate assignments and walks you through six steps.
 
@@ -448,7 +450,7 @@ When a grouping constraint (Same Row or Same Plate) is active, the quality asses
 
 7. **Choose the Right Subject Grouping Constraint**: The grouping constraint is typically determined by the experimental design — use Same Row when samples must be processed together in the same row, and Same Plate when they just need to be on the same plate. If your design allows either, Same Plate gives the algorithm more flexibility to optimize covariate balance across multiple plates.
 
-8. **Save a Layout for Your Records**: Once you are happy with a layout, use **Save Layout** to keep a single file that captures both the plate arrangement and the settings behind it. You can load it back at any time to reproduce the run exactly, which makes it a reliable record for an audit trail.
+8. **Save a Layout for Your Records**: Once you are happy with a layout, use **Export → Layout** to keep a single file that captures both the plate arrangement and the settings behind it. You can load it back at any time to reproduce the run exactly, which makes it a reliable record for an audit trail.
 
 ---
 

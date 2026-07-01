@@ -20,6 +20,9 @@ test.describe('Happy Path Workflow', () => {
   });
 
   test('complete workflow from upload to export', async ({ page }) => {
+    // The app version is shown in the footer (format only, not a hardcoded number).
+    await expect(page.getByText(/^Octopus v\d+\.\d+\.\d+$/)).toBeVisible();
+
     // Step 1: Upload file
     const testFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-small.csv');
     await page.locator('#file-upload').setInputFiles(testFilePath);
@@ -27,6 +30,8 @@ test.describe('Happy Path Workflow', () => {
     // Verify file is loaded
     await expect(page.getByText(/trx-phase1b-small\.csv/)).toBeVisible();
     await expect(page.getByText(/288 samples/)).toBeVisible();
+    // A plain sample CSV is not a layout file, so no layout badge appears.
+    await expect(page.getByText('Layout file')).toHaveCount(0);
 
     // Step 2: Configure settings - verify defaults and make selections
     await expect(page.locator('#idColumn')).toHaveValue('Sample ID');

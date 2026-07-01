@@ -28,6 +28,7 @@ import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
 import ExportMenu from './components/ExportMenu';
+import packageJson from '../package.json';
 
 
 
@@ -41,6 +42,7 @@ const App: React.FC = () => {
     availableColumns,
     selectedIdColumn,
     selectedFileName,
+    isLayoutFile,
     uploadCounter,
     handleFileUpload,
     handleIdColumnChange,
@@ -776,6 +778,7 @@ const App: React.FC = () => {
         <ConfigurationForm
           availableColumns={availableColumns}
           selectedFileName={selectedFileName}
+          isLayoutFile={isLayoutFile}
           selectedIdColumn={selectedIdColumn}
           onIdColumnChange={handleIdColumnChangeWithReset}
           searches={searches}
@@ -1038,6 +1041,7 @@ const App: React.FC = () => {
               <i className="fa-regular fa-circle-question" style={{marginRight: '4px'}}></i> Quick Start Guide
             </a>
           </div>
+          <div style={styles.versionText}>Octopus v{packageJson.version}</div>
         </div>
 
       </div>
@@ -1219,6 +1223,12 @@ const styles = {
     transition: 'all 0.2s ease',
     cursor: 'pointer',
   } as React.CSSProperties,
+  versionText: {
+    marginTop: '10px',
+    textAlign: 'center' as const,
+    fontSize: '12px',
+    color: '#999',
+  },
 };
 
 export default App;
