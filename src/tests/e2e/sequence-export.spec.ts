@@ -262,6 +262,22 @@ test.describe('Sequence Export Wizard', () => {
     await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
   });
 
+  test('moves focus into the dialog on open and back to the Export button on close', async ({ page }) => {
+    const exportButton = page.getByRole('button', { name: 'Export', exact: true });
+    const dialog = page.getByRole('dialog', { name: 'Export Sequence Wizard' });
+
+    // Opening the modal moves focus into the dialog rather than leaving it on the Export
+    // trigger behind the overlay.
+    await exportVia(page, 'Sequence');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toBeFocused();
+
+    // Closing the modal returns focus to the Export button that opened it.
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(exportButton).toBeFocused();
+  });
+
   test('unsafe separator character shows warning', async ({ page }) => {
     // Open wizard
     await exportVia(page, 'Sequence');

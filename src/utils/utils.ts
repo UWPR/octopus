@@ -260,6 +260,24 @@ export function withTimestamp(filename: string, date: Date = new Date()): string
   return `${filename.slice(0, dot)}_${stamp}${filename.slice(dot)}`;
 }
 
+/**
+ * Build the base name for a saved layout (before the timestamp) from the currently loaded
+ * file's name. A saved layout is named `<base>_octopus_layout_<timestamp>.csv`, so when the
+ * loaded file is itself a saved layout, the `_octopus_layout` suffix and its timestamp are
+ * stripped first. Without this, re-saving a loaded layout stacks the suffix and timestamp
+ * (e.g. `foo_octopus_layout_<stamp>_octopus_layout_<stamp>.csv`). An empty/absent name yields
+ * the default `octopus_layout.csv`. The timestamp pattern matches formatTimestampForFilename.
+ */
+export function buildLayoutFileName(selectedFileName?: string): string {
+  if (!selectedFileName) return 'octopus_layout.csv';
+  let base = selectedFileName.replace(/\.[^/.]+$/, ''); // drop the extension
+  // Strip any stacked `_octopus_layout(_<timestamp>)` suffixes left by a previous save.
+  const suffix = /_octopus_layout(_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})?$/;
+  while (suffix.test(base)) base = base.replace(suffix, '');
+  if (!base) return 'octopus_layout.csv';
+  return `${base}_octopus_layout.csv`;
+}
+
 export function getPlateNumber(searchName: string, randomizedPlates: (SearchData | undefined)[][][]) {
   for (let plateIndex = 0; plateIndex < randomizedPlates.length; plateIndex++) {
     const plate = randomizedPlates[plateIndex];

@@ -9,6 +9,9 @@ import {
   NUM_COVARIATE_GROUPS,
 } from './helpers';
 
+/** The saved-layout filename shape: <base>_octopus_layout_<YYYY-MM-DD_HH-mm-ss>.csv */
+const SAVED_LAYOUT_NAME = /^trx-phase1b-small_octopus_layout_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/;
+
 /**
  * Layout Round-Trip Tests
  *
@@ -72,6 +75,41 @@ test.describe('Layout Round-Trip', () => {
     // Fingerprint again and assert exact equality with the pre-save layout.
     const after = await getAllPlateFingerprints(page, NUM_PLATES);
     expect(after).toEqual(before);
+
+    cleanupFile(savedPath);
+  });
+
+  test('re-saving a loaded layout does not stack the _octopus_layout suffix', async ({ page }) => {
+    await uploadConfigureAndRandomize(page);
+
+    // Save the layout once, from the uploaded sample file (trx-phase1b-small.csv).
+    await openExportMenu(page);
+    const firstDownloadPromise = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
+    const firstDownload = await firstDownloadPromise;
+    expect(firstDownload.suggestedFilename()).toMatch(SAVED_LAYOUT_NAME);
+    // Save under the suggested name (not a fixed temp name) so the reload sees a file whose
+    // name already carries the _octopus_layout_<timestamp> suffix.
+    const savedPath = path.join(__dirname, firstDownload.suggestedFilename());
+    await firstDownload.saveAs(savedPath);
+
+    // Reload to clear state, then load the saved layout back. selectedFileName now already
+    // ends in _octopus_layout_<timestamp>.
+    await page.goto('http://localhost:3000');
+    await expect(page.getByRole('heading', { name: 'Octopus' })).toBeVisible();
+    await page.locator('#layout-upload').setInputFiles(savedPath);
+    await expect(page.getByText('Layout file')).toBeVisible();
+
+    // Save again. The prior suffix and timestamp must be stripped, not stacked, so the name
+    // has the same shape as the first save: exactly one _octopus_layout and one timestamp.
+    await openExportMenu(page);
+    const secondDownloadPromise = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
+    const secondDownload = await secondDownloadPromise;
+    const resavedName = secondDownload.suggestedFilename();
+    expect(resavedName).toMatch(SAVED_LAYOUT_NAME);
+    expect(resavedName.match(/_octopus_layout/g)?.length).toBe(1);
+    expect(resavedName.match(/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/g)?.length).toBe(1);
 
     cleanupFile(savedPath);
   });

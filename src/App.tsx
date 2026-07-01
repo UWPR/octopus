@@ -9,7 +9,7 @@ import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
 import SubjectPlacementPanel from './components/SubjectPlacementPanel';
 import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig } from './utils/types';
-import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp } from './utils/utils';
+import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp, buildLayoutFileName } from './utils/utils';
 import { exportToExcel } from './utils/excelExport';
 import {
   serializeLayout,
@@ -460,11 +460,9 @@ const App: React.FC = () => {
       appVersion: packageJson.version,
     });
 
-    let baseFileName = 'octopus_layout.csv';
-    if (selectedFileName) {
-      const baseName = selectedFileName.replace(/\.[^/.]+$/, '');
-      baseFileName = `${baseName}_octopus_layout.csv`;
-    }
+    // Build the base name, stripping a prior _octopus_layout suffix/timestamp when the loaded
+    // file is itself a saved layout, so the suffix does not stack on re-save.
+    const baseFileName = buildLayoutFileName(selectedFileName);
     // Timestamp the filename (YYYY-MM-DD_HH-mm-ss) so repeated saves do not overwrite each other.
     const outputFileName = withTimestamp(baseFileName);
 
