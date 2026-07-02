@@ -356,7 +356,7 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
   if (parsed.schemaVersion !== null && !Number.isInteger(parsed.schemaVersion)) {
     errors.push({
       fatal: true,
-      message: 'This file has an unreadable Octopus Layout schema version.',
+      message: 'The Octopus Layout schema version is unreadable.',
     });
     return errors;
   }
@@ -365,7 +365,7 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     errors.push({
       fatal: true,
       message:
-        `This file was saved by a newer version of Octopus ` +
+        `It was saved by a newer version of Octopus ` +
         `(schema version ${parsed.schemaVersion}). Please update to load it.`,
     });
     return errors;
@@ -375,7 +375,7 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     errors.push({
       fatal: true,
       message:
-        'This file has no Octopus settings (covariates, colors, plate size), so the saved ' +
+        'It has no Octopus settings (covariates, colors, plate size), so the saved ' +
         'layout cannot be reproduced. Re-save it with the Export > Layout option to create a loadable file.',
     });
     return errors;
@@ -389,14 +389,14 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     errors.push({
       fatal: true,
       message:
-        `The layout file has invalid plate dimensions (${plateRows} x ${plateColumns}). ` +
+        `The plate dimensions are invalid (${plateRows} x ${plateColumns}). ` +
         `Plate rows and columns must be positive whole numbers.`,
     });
     return errors;
   }
 
   if (parsed.rows.length === 0) {
-    errors.push({ fatal: true, message: 'The layout file contains no samples.' });
+    errors.push({ fatal: true, message: 'The layout contains no samples.' });
     return errors;
   }
 
@@ -409,7 +409,7 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     errors.push({
       fatal: true,
       message:
-        `The layout file references plate ${maxPlate} but lists only ${parsed.rows.length} ` +
+        `It references plate ${maxPlate} but lists only ${parsed.rows.length} ` +
         `sample(s), so the plate number is out of range.`,
     });
     return errors;
@@ -425,7 +425,7 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
   if (duplicateNames.size > 0) {
     errors.push({
       fatal: true,
-      message: `Duplicate sample name(s) in the layout file: ${Array.from(duplicateNames).join(', ')}`,
+      message: `Duplicate sample name(s): ${Array.from(duplicateNames).join(', ')}`,
     });
   }
 

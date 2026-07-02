@@ -79,7 +79,7 @@ test.describe('Layout Round-Trip', () => {
     cleanupFile(savedPath);
   });
 
-  test('re-saving a loaded layout does not stack the _octopus_layout suffix', async ({ page }) => {
+  test('re-saving a loaded layout does not stack the _octopus_layout suffix', async ({ page }, testInfo) => {
     await uploadConfigureAndRandomize(page);
 
     // Save the layout once, from the uploaded sample file (trx-phase1b-small.csv).
@@ -89,8 +89,10 @@ test.describe('Layout Round-Trip', () => {
     const firstDownload = await firstDownloadPromise;
     expect(firstDownload.suggestedFilename()).toMatch(SAVED_LAYOUT_NAME);
     // Save under the suggested name (not a fixed temp name) so the reload sees a file whose
-    // name already carries the _octopus_layout_<timestamp> suffix.
-    const savedPath = path.join(__dirname, firstDownload.suggestedFilename());
+    // name already carries the _octopus_layout_<timestamp> suffix. Use the per-test output dir
+    // (not the shared __dirname) so parallel tests saving in the same second do not collide on
+    // the timestamp-based filename.
+    const savedPath = testInfo.outputPath(firstDownload.suggestedFilename());
     await firstDownload.saveAs(savedPath);
 
     // Reload to clear state, then load the saved layout back. selectedFileName now already
@@ -246,5 +248,52 @@ test.describe('Layout Round-Trip', () => {
     await expect(page.getByText('Plate 1')).toHaveCount(0);
 
     cleanupFile(badPath);
+  });
+
+  test('a saved layout picked via Choose File is loaded as a layout, not sample data', async ({ page }, testInfo) => {
+    await uploadConfigureAndRandomize(page);
+
+    // Save a layout.
+    await openExportMenu(page);
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
+    const download = await downloadPromise;
+    // Per-test output dir, not shared __dirname: parallel tests saving in the same second would
+    // otherwise collide on the timestamp-based filename and read each other's half-written file.
+    const savedPath = testInfo.outputPath(download.suggestedFilename());
+    await download.saveAs(savedPath);
+
+    // Reload to clear state, then pick the saved layout with CHOOSE FILE (not Load Layout).
+    await page.goto('http://localhost:3000');
+    await expect(page.getByRole('heading', { name: 'Octopus' })).toBeVisible();
+    await page.locator('#file-upload').setInputFiles(savedPath);
+
+    // It is recognised as a layout (grid + "Layout file" badge), not parsed as fake samples.
+    await expect(page.getByText('Plate 1')).toBeVisible();
+    await expect(page.getByText('Layout file')).toBeVisible();
+
+    cleanupFile(savedPath);
+  });
+
+  test('picking a saved layout via Choose File over a design replaces it after confirm', async ({ page }, testInfo) => {
+    await uploadConfigureAndRandomize(page);
+
+    await openExportMenu(page);
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
+    const download = await downloadPromise;
+    // Per-test output dir, not shared __dirname (avoids the same-second filename collision).
+    const savedPath = testInfo.outputPath(download.suggestedFilename());
+    await download.saveAs(savedPath);
+
+    // A design is still shown. Picking the layout via Choose File prompts to replace (the
+    // beforeEach dialog handler accepts) and then loads it as a layout.
+    await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
+    await page.locator('#file-upload').setInputFiles(savedPath);
+
+    await expect(page.getByText('Layout file')).toBeVisible();
+    await expect(page.getByText('Plate 1')).toBeVisible();
+
+    cleanupFile(savedPath);
   });
 });
