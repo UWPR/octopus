@@ -89,16 +89,18 @@ test.describe('Choose File validation', () => {
     await expect(page.getByText(/has repeated values/)).not.toBeVisible();
   });
 
-  test('warns when the selected ID column has blank values', async ({ page }) => {
-    // The second row has no Sample ID.
-    const csv = 'Sample ID,Condition\nS1,A\n,B\nS3,A\n';
+  test('blocks Generate when the selected ID column has blank or whitespace-only values', async ({ page }) => {
+    // The second row's Sample ID is whitespace-only (treated as blank).
+    const csv = 'Sample ID,Condition\nS1,A\n   ,B\nS3,A\n';
     await page.locator('#file-upload').setInputFiles({
       name: 'blanks.csv',
       mimeType: 'text/csv',
       buffer: Buffer.from(csv),
     });
 
-    await expect(page.getByText(/row\(s\) have no value in the ID column/)).toBeVisible();
+    await expect(page.getByText(/has \d+ blank value/)).toBeVisible();
+    await page.locator('#covariates').selectOption(['Condition']);
+    await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeDisabled();
   });
 
   test('warns about a CSV with formatting problems but still loads it', async ({ page }) => {
@@ -113,5 +115,23 @@ test.describe('Choose File validation', () => {
     await expect(page.getByText(/formatting problems/)).toBeVisible();
     // It still loaded: the ID column is populated.
     await expect(page.locator('#idColumn option')).toHaveCount(2);
+  });
+
+  test('a CSV with valid headers but no samples still replaces a shown design', async ({ page }) => {
+    await uploadConfigureAndRandomize(page);
+    await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
+
+    // Header-only CSV: it parses columns but yields zero samples. Confirm the overwrite.
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('#file-upload').setInputFiles({
+      name: 'headers-only.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('Sample ID,Condition\n'),
+    });
+
+    // The previous design is replaced even though the new file has no samples.
+    await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
+    await expect(page.getByText('Plate 1')).not.toBeVisible();
+    await expect(page.getByText(/headers-only\.csv/)).toBeVisible();
   });
 });

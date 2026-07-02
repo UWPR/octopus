@@ -160,9 +160,10 @@ const App: React.FC = () => {
   }, [subjectColumn, searches]);
 
   // Validate the chosen ID column against the loaded rows: each sample needs a unique, non-empty
-  // ID. Duplicates corrupt the name-based lookups used on export/save, so they block generation;
-  // blank values mean those rows are dropped, surfaced as a non-blocking warning. Only applies to
-  // sample CSVs - parsedData is empty for a loaded layout, which validateLayout checks separately.
+  // ID. Both problems block generation. Duplicates corrupt the name-based lookups used on
+  // export/save, and blank or whitespace-only IDs leave rows that cannot be identified. Values are
+  // trimmed here to match processSearchData. Only applies to sample CSVs - parsedData is empty for
+  // a loaded layout, which validateLayout checks separately.
   const idColumnIssues = useMemo(() => {
     if (!selectedIdColumn || parsedData.length === 0) return null;
     const seen = new Set<string>();
@@ -179,6 +180,7 @@ const App: React.FC = () => {
   }, [parsedData, selectedIdColumn]);
 
   const hasDuplicateIds = (idColumnIssues?.duplicates.length ?? 0) > 0;
+  const hasBlankIds = (idColumnIssues?.blankCount ?? 0) > 0;
 
 
   // Calculate quality metrics when randomization completes or plates change
@@ -247,8 +249,10 @@ const App: React.FC = () => {
       isRestoringRef.current = false;
       return;
     }
-    // Only reset on a successful upload (filename and parsed rows both present).
-    if (selectedFileName && searches.length > 0) {
+    // Reset the derived design whenever a new sample file is selected. Gate on the filename, not
+    // the sample count, so a file that parses but yields no usable samples (header-only, or all
+    // IDs blank) still replaces the previous design instead of leaving it on screen.
+    if (selectedFileName) {
       clearConfigAndLayout();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -629,10 +633,10 @@ const App: React.FC = () => {
     }
   };
 
-  // Validate and apply a saved layout from raw file text. The workspace has already been cleared
-  // by the caller (prepareForNewFile). Requiring an actual marker ROW (not just the marker text
-  // somewhere in the file) avoids misclassifying a sample CSV that merely mentions "Octopus
-  // Layout" in a data cell.
+  // Validate and apply a saved layout from raw file text. A valid layout fully replaces the current
+  // state via applyLoadedLayout; a non-layout or invalid file is cleared and reported via failLoad.
+  // Requiring an actual marker ROW (not just the marker text somewhere in the file) avoids
+  // misclassifying a sample CSV that merely mentions "Octopus Layout" in a data cell.
   const loadLayoutFromText = (text: string, fileName: string) => {
     const parsed = parseLayout(text);
     if (!parsed.hasMarker) {
@@ -661,10 +665,11 @@ const App: React.FC = () => {
     setLoadWarning(result.warning ?? null);
   };
 
-  // Choose File handler - only CSV files are accepted. Selecting a file first replaces the current
-  // one (confirm + clear if a plate layout is shown, silent clear otherwise), so an invalid pick
-  // never leaves the previous file in place. A sample CSV is loaded directly; a saved layout CSV
-  // (recognised by its marker row) is auto-loaded as a layout instead of parsed as sample data.
+  // Choose File handler - only CSV files are accepted. prepareForNewFile confirms first when a
+  // design is shown; the load itself then replaces the previous state (a valid sample CSV via the
+  // new-file reset effect, a valid layout via applyLoadedLayout, an invalid or unreadable pick via
+  // failLoad), so no pick leaves the previous file in place. A sample CSV is loaded directly; a
+  // saved layout CSV (recognised by its marker row) is auto-loaded as a layout, not parsed as data.
   const handleChooseFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
@@ -687,11 +692,14 @@ const App: React.FC = () => {
         loadSampleFromText(text, file.name);
       }
     };
+    // A read failure must clear the previous state too, so it does not linger behind no error.
+    reader.onerror = reader.onabort = () => failLoad(`Could not read "${file.name}".`);
     reader.readAsText(file);
   };
 
-  // Load Layout handler - read a saved layout file and reproduce it exactly. Selecting a file first
-  // replaces the current one (confirm + clear if a plate layout is shown, silent clear otherwise).
+  // Load Layout handler - read a saved layout file and reproduce it exactly. prepareForNewFile
+  // confirms first when a design is shown; a valid layout then replaces the current state via
+  // applyLoadedLayout, and an invalid or unreadable file is cleared and reported via failLoad.
   const handleLoadLayout = (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
@@ -702,6 +710,7 @@ const App: React.FC = () => {
 
     const reader = new FileReader();
     reader.onload = () => loadLayoutFromText(String(reader.result ?? ''), file.name);
+    reader.onerror = reader.onabort = () => failLoad(`Could not read "${file.name}".`);
     reader.readAsText(file);
   };
 
@@ -854,7 +863,7 @@ const App: React.FC = () => {
 
 
   const canProcess = selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0
-    && !hasDuplicateIds
+    && !hasDuplicateIds && !hasBlankIds
     && (groupValidation === null || groupValidation.isValid)
     && (!subjectColumn || groupingConstraint !== 'none');
 
@@ -951,9 +960,8 @@ const App: React.FC = () => {
             'ID column must have a unique value for each sample.'
           )}
           {!isProcessed && idColumnIssues && idColumnIssues.blankCount > 0 && renderBanner(
-            `${idColumnIssues.blankCount} row(s) have no value in the ID column "${selectedIdColumn}" ` +
-            'and will be skipped. Each sample must have an ID.',
-            'warning'
+            `The selected ID column "${selectedIdColumn}" has ${idColumnIssues.blankCount} blank value(s). ` +
+            'ID column must have a value for each sample.'
           )}
 
           {/* Process Button */}
