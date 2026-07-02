@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { SearchData } from '../../utils/types';
 import { useSequenceExportWizard, UseSequenceExportWizardProps } from '../../hooks/useSequenceExportWizard';
 import { isSSActive } from '../../utils/sequenceExport';
@@ -53,6 +53,11 @@ const SequenceExportWizard: React.FC<SequenceExportWizardProps> = ({
   };
 
   const wizard = useSequenceExportWizard(wizardProps);
+
+  // The dialog element to move focus into on open, and the element (the Export trigger) that
+  // had focus before the dialog opened, so focus can be returned there on close.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   const renderStepContent = () => {
     switch (wizard.currentStep) {
@@ -125,10 +130,24 @@ const SequenceExportWizard: React.FC<SequenceExportWizardProps> = ({
     }
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Manage modal focus: on open, remember the element that had focus (the Export trigger, which
+  // runAction focuses synchronously) and move focus into the dialog so it does not stay behind the
+  // overlay. On close, return focus to that element so the keyboard focus cycle is complete.
+  useEffect(() => {
+    if (visible) {
+      previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+      dialogRef.current?.focus();
+    } else if (previouslyFocusedRef.current) {
+      previouslyFocusedRef.current.focus();
+      previouslyFocusedRef.current = null;
+    }
+  }, [visible]);
+
   if (!visible) return null;
 
   return (
-    <div style={styles.overlay} role="dialog" aria-modal="true" aria-label="Export Sequence Wizard">
+    <div style={styles.overlay} role="dialog" aria-modal="true" aria-label="Export Sequence Wizard"
+      ref={dialogRef} tabIndex={-1}>
       <div style={styles.container}>
         <div style={styles.header}>
           <h2 style={styles.title}>Export Injection Sequence</h2>

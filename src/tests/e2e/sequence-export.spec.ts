@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { uploadConfigureAndRandomize } from './helpers';
+import { uploadConfigureAndRandomize, exportVia } from './helpers';
 import fs from 'fs';
 import path from 'path';
 
@@ -18,14 +18,14 @@ test.describe('Sequence Export Wizard', () => {
     await uploadConfigureAndRandomize(page);
   });
 
-  test('Export Sequence button is visible after plate generation', async ({ page }) => {
-    const exportButton = page.getByRole('button', { name: 'Export Sequence' });
+  test('Export menu is visible after plate generation', async ({ page }) => {
+    const exportButton = page.getByRole('button', { name: 'Export', exact: true });
     await expect(exportButton).toBeVisible();
   });
 
   test('full wizard flow produces valid Thermo CSV', async ({ page }) => {
     // Open wizard
-    await page.getByRole('button', { name: 'Export Sequence' }).click();
+    await exportVia(page, 'Sequence');
     await expect(page.getByRole('dialog', { name: 'Export Sequence Wizard' })).toBeVisible();
 
     // Step 1: System Suitability — set 1 run at start, 1 at end
@@ -81,8 +81,8 @@ test.describe('Sequence Export Wizard', () => {
     await page.getByRole('button', { name: 'Download Sequence CSV' }).click();
     const download = await downloadPromise;
 
-    // Verify filename follows pattern: <input_basename>_injection-sequence.csv
-    expect(download.suggestedFilename()).toMatch(/injection-sequence\.csv$/);
+    // Verify filename follows pattern: <input_basename>_injection-sequence_<timestamp>.csv
+    expect(download.suggestedFilename()).toMatch(/injection-sequence_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
 
     // Read and verify CSV content
     const downloadPath = await download.path();
@@ -112,7 +112,7 @@ test.describe('Sequence Export Wizard', () => {
 
   test('custom SS sample identifier appears in filenames', async ({ page }) => {
     // Open wizard
-    await page.getByRole('button', { name: 'Export Sequence' }).click();
+    await exportVia(page, 'Sequence');
 
     // Step 1: System Suitability — set 2 runs at start, change identifier to "SystSuit"
     await page.getByLabel('Runs at start:').fill('2');
@@ -162,7 +162,7 @@ test.describe('Sequence Export Wizard', () => {
 
   test('custom SS well position appears in exported CSV', async ({ page }) => {
     // Open wizard
-    await page.getByRole('button', { name: 'Export Sequence' }).click();
+    await exportVia(page, 'Sequence');
 
     // Step 1: System Suitability — set 1 run at start
     await page.getByLabel('Runs at start:').fill('1');
@@ -204,7 +204,7 @@ test.describe('Sequence Export Wizard', () => {
 
   test('wizard with no SS runs produces sequence without SS rows', async ({ page }) => {
     // Open wizard
-    await page.getByRole('button', { name: 'Export Sequence' }).click();
+    await exportVia(page, 'Sequence');
 
     // Step 1: System Suitability — leave all at 0 (default)
     await page.getByRole('button', { name: 'Next →' }).click();
@@ -249,7 +249,7 @@ test.describe('Sequence Export Wizard', () => {
 
   test('cancel closes wizard without downloading', async ({ page }) => {
     // Open wizard
-    await page.getByRole('button', { name: 'Export Sequence' }).click();
+    await exportVia(page, 'Sequence');
     await expect(page.getByRole('dialog', { name: 'Export Sequence Wizard' })).toBeVisible();
 
     // Click cancel
@@ -258,13 +258,29 @@ test.describe('Sequence Export Wizard', () => {
     // Wizard should be hidden (the component returns null when not visible)
     await expect(page.getByRole('dialog', { name: 'Export Sequence Wizard' })).not.toBeVisible();
 
-    // No download should have occurred — verify Export Sequence button is still there
-    await expect(page.getByRole('button', { name: 'Export Sequence' })).toBeVisible();
+    // No download should have occurred — verify the Export menu button is still there
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
+  });
+
+  test('moves focus into the dialog on open and back to the Export button on close', async ({ page }) => {
+    const exportButton = page.getByRole('button', { name: 'Export', exact: true });
+    const dialog = page.getByRole('dialog', { name: 'Export Sequence Wizard' });
+
+    // Opening the modal moves focus into the dialog rather than leaving it on the Export
+    // trigger behind the overlay.
+    await exportVia(page, 'Sequence');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toBeFocused();
+
+    // Closing the modal returns focus to the Export button that opened it.
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(exportButton).toBeFocused();
   });
 
   test('unsafe separator character shows warning', async ({ page }) => {
     // Open wizard
-    await page.getByRole('button', { name: 'Export Sequence' }).click();
+    await exportVia(page, 'Sequence');
 
     // Step 1: System Suitability — skip
     await page.getByRole('button', { name: 'Next →' }).click();
@@ -288,7 +304,7 @@ test.describe('Sequence Export Wizard', () => {
 
   test('unsafe SS sample identifier shows warning', async ({ page }) => {
     // Open wizard
-    await page.getByRole('button', { name: 'Export Sequence' }).click();
+    await exportVia(page, 'Sequence');
 
     // Step 1: System Suitability — set runs so identifier is relevant
     await page.getByLabel('Runs at start:').fill('1');
@@ -309,7 +325,7 @@ test.describe('Sequence Export Wizard', () => {
 
   test('step indicator prevents forward navigation', async ({ page }) => {
     // Open wizard
-    await page.getByRole('button', { name: 'Export Sequence' }).click();
+    await exportVia(page, 'Sequence');
 
     // Try clicking step 6 directly — should be disabled
     const step6Button = page.getByRole('button', { name: /Step 6/ });
@@ -339,7 +355,7 @@ test.describe('Sequence Export with partially-filled plates', () => {
   }
 
   async function navigateWizardToExport(page: import('@playwright/test').Page) {
-    await page.getByRole('button', { name: 'Export Sequence' }).click();
+    await exportVia(page, 'Sequence');
 
     // Step 1: System Suitability — leave defaults (no SS)
     await page.getByRole('button', { name: 'Next →' }).click();
@@ -372,7 +388,7 @@ test.describe('Sequence Export with partially-filled plates', () => {
 
     // Keep empty in last plate: unchecked (default)
     await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
-    await expect(page.getByRole('button', { name: 'Export Sequence' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 
     await navigateWizardToExport(page);
 
@@ -413,7 +429,7 @@ test.describe('Sequence Export with partially-filled plates', () => {
     // Check "keep empty in last plate"
     await page.getByRole('checkbox', { name: /empty/i }).check();
     await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
-    await expect(page.getByRole('button', { name: 'Export Sequence' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 
     await navigateWizardToExport(page);
 

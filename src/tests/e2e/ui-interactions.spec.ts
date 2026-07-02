@@ -64,15 +64,15 @@ test.describe('UI Interactions', () => {
     await expect(page.getByText('Plate 3')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
 
-    // Upload a DIFFERENT file to trigger reset
+    // Upload a DIFFERENT file to trigger reset. A design is shown, so accept the overwrite confirm.
     const differentFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-full.csv');
+    page.once('dialog', dialog => dialog.accept());
     await page.locator('#file-upload').setInputFiles(differentFilePath);
     await page.waitForTimeout(500);
 
     // Plates should be gone — state was reset
     await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Download CSV' })).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Download Excel' })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).not.toBeVisible();
 
     // The "Generate Randomized Plates" button should be visible but disabled
     // (covariates haven't been re-selected)

@@ -9,7 +9,7 @@ import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
 import SubjectPlacementPanel from './components/SubjectPlacementPanel';
 import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig } from './utils/types';
-import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore } from './utils/utils';
+import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp, buildLayoutFileName } from './utils/utils';
 import { exportToExcel } from './utils/excelExport';
 import {
   serializeLayout,
@@ -27,8 +27,14 @@ import { useQualityMetrics } from './hooks/useQualityMetrics';
 import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
+import ExportMenu from './components/ExportMenu';
+import packageJson from '../package.json';
 
 
+
+// Shown when the user picks a new file or layout while a plate design is already displayed.
+const REPLACE_DESIGN_MESSAGE =
+  'This will replace the current plate design and settings. Continue?';
 
 const App: React.FC = () => {
 
@@ -37,13 +43,16 @@ const App: React.FC = () => {
   // File upload hook
   const {
     searches,
+    parsedData,
     availableColumns,
     selectedIdColumn,
     selectedFileName,
+    isLayoutFile,
     uploadCounter,
-    handleFileUpload,
+    loadSampleCsvText,
     handleIdColumnChange,
     loadSearches,
+    resetFileState,
   } = useFileUpload();
 
   // Modal drag hook
@@ -124,6 +133,12 @@ const App: React.FC = () => {
   const [showExcelExportModal, setShowExcelExportModal] = useState<boolean>(false);
   const [showSequenceExportWizard, setShowSequenceExportWizard] = useState<boolean>(false);
   const [randomizationError, setRandomizationError] = useState<string | null>(null);
+  // Error from reading a new sample file or loading a saved layout. Kept separate from
+  // randomizationError so it can be shown at the top (by the file buttons), while a
+  // randomization/infeasibility error stays down by the Generate button.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // Non-blocking notice about the loaded file (e.g. some rows had formatting problems).
+  const [loadWarning, setLoadWarning] = useState<string | null>(null);
 
   // Set true for one render while a saved layout is being loaded, so the new-file reset
   // effect does not wipe the settings we are restoring.
@@ -144,6 +159,29 @@ const App: React.FC = () => {
     return buildSubjectGroups(searches, subjectColumn);
   }, [subjectColumn, searches]);
 
+  // Validate the chosen ID column against the loaded rows: each sample needs a unique, non-empty
+  // ID. Both problems block generation. Duplicates corrupt the name-based lookups used on
+  // export/save, and blank or whitespace-only IDs leave rows that cannot be identified. Values are
+  // trimmed here to match processSearchData. Only applies to sample CSVs - parsedData is empty for
+  // a loaded layout, which validateLayout checks separately.
+  const idColumnIssues = useMemo(() => {
+    if (!selectedIdColumn || parsedData.length === 0) return null;
+    const seen = new Set<string>();
+    const duplicates = new Set<string>();
+    let blankCount = 0;
+    parsedData.forEach((row: Record<string, unknown>) => {
+      const raw = row[selectedIdColumn];
+      const value = raw === undefined || raw === null ? '' : String(raw).trim();
+      if (value === '') { blankCount++; return; }
+      if (seen.has(value)) duplicates.add(value);
+      seen.add(value);
+    });
+    return { duplicates: Array.from(duplicates), blankCount };
+  }, [parsedData, selectedIdColumn]);
+
+  const hasDuplicateIds = (idColumnIssues?.duplicates.length ?? 0) > 0;
+  const hasBlankIds = (idColumnIssues?.blankCount ?? 0) > 0;
+
 
   // Calculate quality metrics when randomization completes or plates change
   useEffect(() => {
@@ -158,53 +196,67 @@ const App: React.FC = () => {
     }
   }, [isProcessed, randomizedPlates, plateAssignments, selectedCovariates, searches, calculateMetrics, groupingConstraint]);
 
-  // Reset all state when a new file is uploaded (but not on initial load)
+  // Clear all configuration, layout, colors, metrics, error, and UI state (everything derived
+  // from a loaded file), leaving the uploaded file itself in place.
+  const clearConfigAndLayout = () => {
+    resetRandomization();
+    setRandomizationError(null);
+    setLoadError(null);
+    resetColors();
+    resetMetrics();
+    resetModalPosition();
+
+    // Configuration
+    setSelectedCovariates([]);
+    setQcColumn('');
+    setQcColumnValues([]);
+    setSelectedQcValues([]);
+
+    // Repeated-measures
+    setSubjectColumn('');
+    setGroupingConstraint('none');
+    setGroupValidation(null);
+
+    // Algorithm and plate dimensions (back to defaults)
+    setSelectedAlgorithm(defaultAlgorithm);
+    setKeepEmptyInLastPlate(false);
+    setPlateRows(8);
+    setPlateColumns(12);
+
+    // UI
+    setShowSummary(false);
+    setCompactView(true);
+    setSelectedCombination(null);
+    setShowPlateDetails(false);
+    setSelectedPlateIndex(null);
+    setShowSubjectPlacements(false);
+    setSelectedSubject(null);
+  };
+
+  // Fully clear the workspace, including the uploaded file itself, so nothing from the previous
+  // file remains on screen. Used when the user confirms replacing the current design with a new
+  // file or layout, so a failed or empty load does not leave stale settings and plates behind.
+  const resetWorkspace = () => {
+    clearConfigAndLayout();
+    resetFileState();
+    setLoadWarning(null); // not cleared by clearConfigAndLayout, so a valid load's warning survives
+  };
+
+  // Reset the derived state when a new sample file is uploaded (but not on initial load, and not
+  // while restoring a saved layout, whose settings have just been set from the file).
   useEffect(() => {
-    // Skip the reset when we are restoring a saved layout: the settings have just been
-    // set from the file and must not be wiped. The ref is cleared so a genuine later
-    // file upload still resets.
     if (isRestoringRef.current) {
       isRestoringRef.current = false;
       return;
     }
-    // Only reset if we have a filename and searches data (indicating a successful file upload)
-    if (selectedFileName && searches.length > 0) {
-      // Reset all application state except the file upload state
-      resetRandomization();
-      setRandomizationError(null);
-      resetColors();
-      resetMetrics();
-      resetModalPosition();
-
-      // Reset configuration states
-      setSelectedCovariates([]);
-      setQcColumn('');
-      setQcColumnValues([]);
-      setSelectedQcValues([]);
-
-      // Reset repeated-measures state
-      setSubjectColumn('');
-      setGroupingConstraint('none');
-      setGroupValidation(null);
-
-      // Reset algorithm selection (keep defaults)
-      setSelectedAlgorithm(defaultAlgorithm);
-      setKeepEmptyInLastPlate(false);
-
-      // Reset plate dimensions (keep defaults)
-      setPlateRows(8);
-      setPlateColumns(12);
-
-      // Reset UI states
-      setShowSummary(false);
-      setCompactView(true);
-      setSelectedCombination(null);
-      setShowPlateDetails(false);
-      setSelectedPlateIndex(null);
-      setShowSubjectPlacements(false);
-      setSelectedSubject(null);
+    // Reset the derived design whenever a new sample file is selected. Gate on the filename, not
+    // the sample count, so a file that parses but yields no usable samples (header-only, or all
+    // IDs blank) still replaces the previous design instead of leaving it on screen.
+    if (selectedFileName) {
+      clearConfigAndLayout();
     }
-  }, [selectedFileName, searches.length]); // Trigger when filename changes or searches are loaded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFileName, searches.length]);
 
   // Run validation whenever subject column, grouping constraint, or plate dimensions change
   useEffect(() => {
@@ -454,13 +506,14 @@ const App: React.FC = () => {
       randomizedPlates,
       settings: collectLayoutSettings(),
       covariateColors,
+      appVersion: packageJson.version,
     });
 
-    let outputFileName = 'octopus_layout.csv';
-    if (selectedFileName) {
-      const baseName = selectedFileName.replace(/\.[^/.]+$/, '');
-      outputFileName = `${baseName}_octopus_layout.csv`;
-    }
+    // Build the base name, stripping a prior _octopus_layout suffix/timestamp when the loaded
+    // file is itself a saved layout, so the suffix does not stack on re-save.
+    const baseFileName = buildLayoutFileName(selectedFileName);
+    // Timestamp the filename (YYYY-MM-DD_HH-mm-ss) so repeated saves do not overwrite each other.
+    const outputFileName = withTimestamp(baseFileName);
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -526,75 +579,138 @@ const App: React.FC = () => {
     setSelectedCombination(null);
     setSelectedSubject(null);
     setRandomizationError(null);
+    setLoadError(null);
+    setLoadWarning(null);
   };
 
-  // Load layout handler - read back a saved layout file and reproduce it exactly.
-  const handleLoadLayout = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    // Clear the input so re-selecting the same file fires change again.
-    event.target.value = '';
+  // Confirm before replacing a displayed plate layout. Returns false when the user cancels (so
+  // nothing changes). When no layout is displayed there is no prompt. A successful load replaces
+  // the previous state on its own (the new-file reset effect for a sample CSV, applyLoadedLayout
+  // for a layout), so this does NOT clear here - clearing before a valid layout load would race
+  // with applyLoadedLayout's restore guard. Failed loads clear via failLoad instead.
+  const prepareForNewFile = (): boolean => !isProcessed || window.confirm(REPLACE_DESIGN_MESSAGE);
+
+  // Report a load failure: clear the previous file, layout, and options so nothing stale remains
+  // on screen behind the error, then show the message. This is what makes an invalid pick (an
+  // Excel file, an unreadable CSV, a non-layout) fully replace whatever was loaded before.
+  const failLoad = (message: string) => {
+    resetWorkspace();
+    setLoadError(message);
+  };
+
+  // Apply a parsed-and-validated layout: rebuild the grid and restore settings and colors. Any
+  // structural problem building the placement is reported as a load error.
+  const applyParsedLayout = (parsed: ReturnType<typeof parseLayout>, fileName: string) => {
+    if (!parsed.settings) return;
+    const settings = parsed.settings;
+    // Defense in depth: validateLayout already rejects bad dimensions, but rebuild inside a
+    // try/catch so any malformed placement reports a clean error instead of failing silently.
+    try {
+      const {
+        plates,
+        plateAssignments: restoredAssignments,
+        samples: loadedSearches,
+      } = buildPlatesFromRows(parsed.rows, settings);
+
+      // Recompute covariate keys / QC flags (shared references update the plates too).
+      buildProcessedSearches(loadedSearches, {
+        selectedCovariates: settings.selectedCovariates,
+        qcColumn: settings.qcColumn,
+        selectedQcValues: settings.selectedQcValues,
+      });
+
+      applyLoadedLayout(
+        fileName,
+        settings,
+        loadedSearches,
+        plates,
+        restoredAssignments,
+        parsed.covariateColors
+      );
+    } catch (e) {
+      isRestoringRef.current = false; // applyLoadedLayout may have set it before throwing
+      failLoad(`Could not load "${fileName}": ${(e as Error).message}`);
+    }
+  };
+
+  // Validate and apply a saved layout from raw file text. A valid layout fully replaces the current
+  // state via applyLoadedLayout; a non-layout or invalid file is cleared and reported via failLoad.
+  // Requiring an actual marker ROW (not just the marker text somewhere in the file) avoids
+  // misclassifying a sample CSV that merely mentions "Octopus Layout" in a data cell.
+  const loadLayoutFromText = (text: string, fileName: string) => {
+    const parsed = parseLayout(text);
+    if (!parsed.hasMarker) {
+      failLoad(
+        `"${fileName}" is not a saved Octopus layout. To load sample data, use "Choose File". ` +
+        'Layout files can be created from Export > Layout.'
+      );
+      return;
+    }
+    const fatal = validateLayout(parsed).find(e => e.fatal);
+    if (fatal && fatal.fatal) {
+      failLoad(`Could not load "${fileName}": ${fatal.message}`);
+      return;
+    }
+    applyParsedLayout(parsed, fileName);
+  };
+
+  // Parse and load a plain sample CSV from raw file text. A successful load replaces the previous
+  // data; a file with no readable columns clears the previous file and shows the error.
+  const loadSampleFromText = (text: string, fileName: string) => {
+    const result = loadSampleCsvText(text, fileName);
+    if (!result.ok) {
+      failLoad(result.error ?? `Could not read "${fileName}".`);
+      return;
+    }
+    setLoadWarning(result.warning ?? null);
+  };
+
+  // Choose File handler - only CSV files are accepted. prepareForNewFile confirms first when a
+  // design is shown; the load itself then replaces the previous state (a valid sample CSV via the
+  // new-file reset effect, a valid layout via applyLoadedLayout, an invalid or unreadable pick via
+  // failLoad), so no pick leaves the previous file in place. A sample CSV is loaded directly; a
+  // saved layout CSV (recognised by its marker row) is auto-loaded as a layout, not parsed as data.
+  const handleChooseFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
+    input.value = ''; // clear now so the same file can be re-selected; the File is captured below
+
+    if (!prepareForNewFile()) return; // user cancelled the replace - keep everything
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      failLoad(`"${file.name}" is not a CSV file. Only CSV files are supported.`);
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => {
       const text = String(reader.result ?? '');
-
-      // Parse once, then decide. Requiring an actual marker ROW (not just the marker text
-      // somewhere in the file) avoids misclassifying a sample CSV that happens to mention
-      // "Octopus Layout" in a data cell as a malformed layout file.
-      const parsed = parseLayout(text);
-
-      if (!parsed.hasMarker) {
-        setRandomizationError(
-          'That file is not a saved Octopus layout. Use "Choose File" to upload a sample CSV, ' +
-          'or "Save layout" to create a layout file you can load here.'
-        );
-        return;
-      }
-
-      if (isProcessed && !window.confirm('Loading a layout will replace the current layout. Continue?')) {
-        return;
-      }
-
-      const errors = validateLayout(parsed);
-      const fatal = errors.find(e => e.fatal);
-      if (fatal && fatal.fatal) {
-        setRandomizationError(`Could not load layout: ${fatal.message}`);
-        return;
-      }
-
-      // validateLayout flags a missing/incomplete options block as fatal, so settings is
-      // present past the check above. This guard only narrows the type for TypeScript.
-      if (!parsed.settings) return;
-      const settings = parsed.settings;
-      // Defense in depth: validateLayout already rejects bad dimensions, but rebuild inside a
-      // try/catch so any malformed placement reports a clean error instead of failing silently.
-      try {
-        const {
-          plates,
-          plateAssignments: restoredAssignments,
-          samples: loadedSearches,
-        } = buildPlatesFromRows(parsed.rows, settings);
-
-        // Recompute covariate keys / QC flags (shared references update the plates too).
-        buildProcessedSearches(loadedSearches, {
-          selectedCovariates: settings.selectedCovariates,
-          qcColumn: settings.qcColumn,
-          selectedQcValues: settings.selectedQcValues,
-        });
-
-        applyLoadedLayout(
-          file.name,
-          settings,
-          loadedSearches,
-          plates,
-          restoredAssignments,
-          parsed.covariateColors
-        );
-      } catch (e) {
-        setRandomizationError(`Could not load layout: ${(e as Error).message}`);
+      if (parseLayout(text).hasMarker) {
+        loadLayoutFromText(text, file.name);
+      } else {
+        loadSampleFromText(text, file.name);
       }
     };
+    // A read failure must clear the previous state too, so it does not linger behind no error.
+    reader.onerror = reader.onabort = () => failLoad(`Could not read "${file.name}".`);
+    reader.readAsText(file);
+  };
+
+  // Load Layout handler - read a saved layout file and reproduce it exactly. prepareForNewFile
+  // confirms first when a design is shown; a valid layout then replaces the current state via
+  // applyLoadedLayout, and an invalid or unreadable file is cleared and reported via failLoad.
+  const handleLoadLayout = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = ''; // clear so re-selecting the same file fires change again
+    if (!file) return;
+
+    if (!prepareForNewFile()) return; // user cancelled the replace - keep everything
+
+    const reader = new FileReader();
+    reader.onload = () => loadLayoutFromText(String(reader.result ?? ''), file.name);
+    reader.onerror = reader.onabort = () => failLoad(`Could not read "${file.name}".`);
     reader.readAsText(file);
   };
 
@@ -747,8 +863,35 @@ const App: React.FC = () => {
 
 
   const canProcess = selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0
+    && !hasDuplicateIds && !hasBlankIds
     && (groupValidation === null || groupValidation.isValid)
     && (!subjectColumn || groupingConstraint !== 'none');
+
+  // A colored notice banner - red for errors, amber for warnings. Shared by the load error/warning
+  // (top), the ID-column checks, and the randomization error so they all stay visually consistent.
+  const renderBanner = (message: string, tone: 'error' | 'warning' = 'error') => {
+    const palette = tone === 'warning'
+      ? { bg: '#fffbeb', border: '#fde68a', text: '#92400e' }
+      : { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b' };
+    return (
+      <div style={{
+        margin: '12px 0',
+        padding: '12px 16px',
+        backgroundColor: palette.bg,
+        border: `1px solid ${palette.border}`,
+        borderRadius: '6px',
+        color: palette.text,
+        fontSize: '14px',
+        lineHeight: '1.5',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '8px',
+      }}>
+        <span style={{ fontWeight: 600, flexShrink: 0 }}>⚠</span>
+        <span>{message}</span>
+      </div>
+    );
+  };
 
   return (
     <div style={styles.container}>
@@ -767,15 +910,19 @@ const App: React.FC = () => {
         <p style={styles.subtitle}>Plate Designer with Balanced Block Randomization</p>
         {/* File Upload */}
         <FileUploadSection
-          selectedFileName={selectedFileName}
-          onFileUpload={handleFileUpload}
-          sampleCount={searches.length}
+          onFileUpload={handleChooseFile}
           onLoadLayout={handleLoadLayout}
         />
+
+        {/* Load error/warning - shown near the top so they are visible without scrolling */}
+        {loadError && renderBanner(loadError)}
+        {loadWarning && renderBanner(loadWarning, 'warning')}
 
         {/* Configuration Form */}
         <ConfigurationForm
           availableColumns={availableColumns}
+          selectedFileName={selectedFileName}
+          isLayoutFile={isLayoutFile}
           selectedIdColumn={selectedIdColumn}
           onIdColumnChange={handleIdColumnChangeWithReset}
           searches={searches}
@@ -806,6 +953,17 @@ const App: React.FC = () => {
 
 
         <>
+          {/* ID-column problems - shown by the Generate button so it is clear why it is disabled */}
+          {!isProcessed && idColumnIssues && idColumnIssues.duplicates.length > 0 && renderBanner(
+            `The selected ID column "${selectedIdColumn}" has repeated values: ${idColumnIssues.duplicates.slice(0, 5).join(', ')}` +
+            `${idColumnIssues.duplicates.length > 5 ? `, and ${idColumnIssues.duplicates.length - 5} more` : ''}. ` +
+            'ID column must have a unique value for each sample.'
+          )}
+          {!isProcessed && idColumnIssues && idColumnIssues.blankCount > 0 && renderBanner(
+            `The selected ID column "${selectedIdColumn}" has ${idColumnIssues.blankCount} blank value(s). ` +
+            'ID column must have a value for each sample.'
+          )}
+
           {/* Process Button */}
           {searches.length > 0 && !isProcessed && (
             <button
@@ -820,25 +978,8 @@ const App: React.FC = () => {
             </button>
           )}
 
-          {/* Randomization error message */}
-          {randomizationError && (
-            <div style={{
-              margin: '12px 0',
-              padding: '12px 16px',
-              backgroundColor: '#fef2f2',
-              border: '1px solid #fca5a5',
-              borderRadius: '6px',
-              color: '#991b1b',
-              fontSize: '14px',
-              lineHeight: '1.5',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '8px',
-            }}>
-              <span style={{ fontWeight: 600, flexShrink: 0 }}>⚠</span>
-              <span>{randomizationError}</span>
-            </div>
-          )}
+          {/* Randomization / infeasibility error - shown by the Generate button that triggers it */}
+          {randomizationError && renderBanner(randomizationError)}
 
           {/* Plates Visualization */}
           {isProcessed && randomizedPlates.length > 0 && (
@@ -898,28 +1039,12 @@ const App: React.FC = () => {
                   Re-randomize
                 </button>
 
-                <button onClick={handleDownloadCSV} style={styles.downloadButton}>
-                  Download CSV
-                </button>
-
-                <button
-                  onClick={handleSaveLayout}
-                  style={styles.downloadButton}
-                  title="Save the layout and its settings to a file you can load back to reproduce it"
-                >
-                  Save Layout
-                </button>
-
-                <button onClick={handleDownloadExcel} style={styles.downloadButton}>
-                  Download Excel
-                </button>
-
-                <button
-                  onClick={() => setShowSequenceExportWizard(true)}
-                  style={styles.downloadButton}
-                >
-                  Export Sequence
-                </button>
+                <ExportMenu
+                  onDownloadCsv={handleDownloadCSV}
+                  onDownloadExcel={handleDownloadExcel}
+                  onSaveLayout={handleSaveLayout}
+                  onExportSequence={() => setShowSequenceExportWizard(true)}
+                />
               </div>
 
               <SummaryPanel
@@ -1054,6 +1179,7 @@ const App: React.FC = () => {
               <i className="fa-regular fa-circle-question" style={{marginRight: '4px'}}></i> Quick Start Guide
             </a>
           </div>
+          <div style={styles.versionText}>Octopus v{packageJson.version}</div>
         </div>
 
       </div>
@@ -1235,6 +1361,12 @@ const styles = {
     transition: 'all 0.2s ease',
     cursor: 'pointer',
   } as React.CSSProperties,
+  versionText: {
+    marginTop: '10px',
+    textAlign: 'center' as const,
+    fontSize: '12px',
+    color: '#999',
+  },
 };
 
 export default App;

@@ -228,12 +228,54 @@ export function downloadCSV(
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
   link.setAttribute('href', url);
-  link.setAttribute('download', outputFileName);
+  link.setAttribute('download', withTimestamp(outputFileName));
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url); // Avoid leaking the object URL on repeated downloads.
+}
+
+/**
+ * Format a date as `YYYY-MM-DD_HH-mm-ss` in local time, for use in a download filename.
+ * Uses only filename-safe characters (digits, hyphens, underscore).
+ */
+export function formatTimestampForFilename(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`
+  );
+}
+
+/**
+ * Insert a `_YYYY-MM-DD_HH-mm-ss` timestamp before the final extension of a download
+ * filename, so repeated exports do not overwrite one another. A name without an extension
+ * gets the timestamp appended. Used for every Octopus export (CSV, Excel, layout, sequence).
+ */
+export function withTimestamp(filename: string, date: Date = new Date()): string {
+  const stamp = formatTimestampForFilename(date);
+  const dot = filename.lastIndexOf('.');
+  if (dot <= 0) return `${filename}_${stamp}`;
+  return `${filename.slice(0, dot)}_${stamp}${filename.slice(dot)}`;
+}
+
+/**
+ * Build the base name for a saved layout (before the timestamp) from the currently loaded
+ * file's name. A saved layout is named `<base>_octopus_layout_<timestamp>.csv`, so when the
+ * loaded file is itself a saved layout, the `_octopus_layout` suffix and its timestamp are
+ * stripped first. Without this, re-saving a loaded layout stacks the suffix and timestamp
+ * (e.g. `foo_octopus_layout_<stamp>_octopus_layout_<stamp>.csv`). An empty/absent name yields
+ * the default `octopus_layout.csv`. The timestamp pattern matches formatTimestampForFilename.
+ */
+export function buildLayoutFileName(selectedFileName?: string): string {
+  if (!selectedFileName) return 'octopus_layout.csv';
+  let base = selectedFileName.replace(/\.[^/.]+$/, ''); // drop the extension
+  // Strip any stacked `_octopus_layout(_<timestamp>)` suffixes left by a previous save.
+  const suffix = /_octopus_layout(_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})?$/;
+  while (suffix.test(base)) base = base.replace(suffix, '');
+  if (!base) return 'octopus_layout.csv';
+  return `${base}_octopus_layout.csv`;
 }
 
 export function getPlateNumber(searchName: string, randomizedPlates: (SearchData | undefined)[][][]) {

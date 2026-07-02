@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
-import { getAllPlateFingerprints, uploadConfigureAndRandomize, EXPECTED_GROUPS, NUM_COVARIATE_GROUPS } from './helpers';
+import { getAllPlateFingerprints, uploadConfigureAndRandomize, openExportMenu, exportVia, EXPECTED_GROUPS, NUM_COVARIATE_GROUPS } from './helpers';
 
 /**
  * E2E Happy Path Tests
@@ -20,6 +20,9 @@ test.describe('Happy Path Workflow', () => {
   });
 
   test('complete workflow from upload to export', async ({ page }) => {
+    // The app version is shown in the footer (format only, not a hardcoded number).
+    await expect(page.getByText(/^Octopus v\d+\.\d+\.\d+$/)).toBeVisible();
+
     // Step 1: Upload file
     const testFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-small.csv');
     await page.locator('#file-upload').setInputFiles(testFilePath);
@@ -27,6 +30,8 @@ test.describe('Happy Path Workflow', () => {
     // Verify file is loaded
     await expect(page.getByText(/trx-phase1b-small\.csv/)).toBeVisible();
     await expect(page.getByText(/288 samples/)).toBeVisible();
+    // A plain sample CSV is not a layout file, so no layout badge appears.
+    await expect(page.getByText('Layout file')).toHaveCount(0);
 
     // Step 2: Configure settings - verify defaults and make selections
     await expect(page.locator('#idColumn')).toHaveValue('Sample ID');
@@ -57,8 +62,7 @@ test.describe('Happy Path Workflow', () => {
     await expect(page.getByRole('button', { name: /Show.*Covariate Summary/ })).toContainText(`${NUM_COVARIATE_GROUPS} combinations`);
     await expect(page.getByRole('button', { name: 'Full Size View' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Download CSV' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Download Excel' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 
     // Step 5: Plate details modal opens and closes
     await page.locator('button[title="Show plate details"]').first().click();
@@ -67,13 +71,16 @@ test.describe('Happy Path Workflow', () => {
     await expect(page.getByText('Plate 1 Details')).not.toBeVisible();
 
     // Step 6: CSV export produces correct filename
+    await openExportMenu(page);
     const csvDownloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Download CSV' }).click();
+    await page.getByRole('menuitem', { name: 'CSV', exact: true }).click();
     const csvDownload = await csvDownloadPromise;
-    expect(csvDownload.suggestedFilename()).toMatch(/trx-phase1b-small.*\.csv/);
+    expect(csvDownload.suggestedFilename()).toMatch(/trx-phase1b-small_octopus_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
+    // After a menu action, focus returns to the Export button rather than falling back to <body>.
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeFocused();
 
     // Step 7: Excel export - modal shows pre-selected covariates, produces correct filename
-    await page.getByRole('button', { name: 'Download Excel' }).click();
+    await exportVia(page, 'Excel');
     await expect(page.getByText('Select Covariates for Excel Export')).toBeVisible();
     await expect(page.getByRole('checkbox', { name: /Condition/ })).toBeChecked();
     await expect(page.getByRole('checkbox', { name: /Radiaion Dose_cGy/ })).toBeChecked();
@@ -82,7 +89,7 @@ test.describe('Happy Path Workflow', () => {
     const excelDownloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: /Export.*selected/ }).click();
     const excelDownload = await excelDownloadPromise;
-    expect(excelDownload.suggestedFilename()).toMatch(/trx-phase1b-small.*octopus\.xlsx/);
+    expect(excelDownload.suggestedFilename()).toMatch(/trx-phase1b-small_octopus_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.xlsx$/);
     await expect(page.getByText('Select Covariates for Excel Export')).not.toBeVisible();
   });
 

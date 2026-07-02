@@ -4,9 +4,13 @@ import fs from 'fs';
 import {
   uploadConfigureAndRandomize,
   getAllPlateFingerprints,
+  openExportMenu,
   NUM_PLATES,
   NUM_COVARIATE_GROUPS,
 } from './helpers';
+
+/** The saved-layout filename shape: <base>_octopus_layout_<YYYY-MM-DD_HH-mm-ss>.csv */
+const SAVED_LAYOUT_NAME = /^trx-phase1b-small_octopus_layout_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/;
 
 /**
  * Layout Round-Trip Tests
@@ -38,11 +42,16 @@ test.describe('Layout Round-Trip', () => {
     expect(before.every(fp => fp.length > 0)).toBe(true);
 
     // Save the layout file.
+    await openExportMenu(page);
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Save Layout' }).click();
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
     const download = await downloadPromise;
+    // The filename carries a YYYY-MM-DD_HH-mm-ss timestamp.
+    expect(download.suggestedFilename()).toMatch(/_octopus_layout_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
     const savedPath = path.join(__dirname, 'temp-layout.csv');
     await download.saveAs(savedPath);
+    // The saved file records the app version that produced it.
+    expect(fs.readFileSync(savedPath, 'utf8')).toMatch(/appVersion,\d+\.\d+\.\d+/);
 
     // Reload the page to clear all state, then load the saved layout.
     await page.goto('http://localhost:3000');
@@ -51,6 +60,8 @@ test.describe('Layout Round-Trip', () => {
 
     // Grid, covariate summary, and quality should reappear exactly as generated.
     await expect(page.getByText('Plate 1')).toBeVisible();
+    // The file-name banner labels a loaded layout as such.
+    await expect(page.getByText('Layout file')).toBeVisible();
     await expect(page.getByRole('button', { name: /Covariate Summary \(14 combinations\)/ })).toBeVisible();
     expect(NUM_COVARIATE_GROUPS).toBe(14);
     await expect(page.getByRole('button', { name: /Quality/ })).toBeVisible();
@@ -64,6 +75,43 @@ test.describe('Layout Round-Trip', () => {
     // Fingerprint again and assert exact equality with the pre-save layout.
     const after = await getAllPlateFingerprints(page, NUM_PLATES);
     expect(after).toEqual(before);
+
+    cleanupFile(savedPath);
+  });
+
+  test('re-saving a loaded layout does not stack the _octopus_layout suffix', async ({ page }, testInfo) => {
+    await uploadConfigureAndRandomize(page);
+
+    // Save the layout once, from the uploaded sample file (trx-phase1b-small.csv).
+    await openExportMenu(page);
+    const firstDownloadPromise = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
+    const firstDownload = await firstDownloadPromise;
+    expect(firstDownload.suggestedFilename()).toMatch(SAVED_LAYOUT_NAME);
+    // Save under the suggested name (not a fixed temp name) so the reload sees a file whose
+    // name already carries the _octopus_layout_<timestamp> suffix. Use the per-test output dir
+    // (not the shared __dirname) so parallel tests saving in the same second do not collide on
+    // the timestamp-based filename.
+    const savedPath = testInfo.outputPath(firstDownload.suggestedFilename());
+    await firstDownload.saveAs(savedPath);
+
+    // Reload to clear state, then load the saved layout back. selectedFileName now already
+    // ends in _octopus_layout_<timestamp>.
+    await page.goto('http://localhost:3000');
+    await expect(page.getByRole('heading', { name: 'Octopus' })).toBeVisible();
+    await page.locator('#layout-upload').setInputFiles(savedPath);
+    await expect(page.getByText('Layout file')).toBeVisible();
+
+    // Save again. The prior suffix and timestamp must be stripped, not stacked, so the name
+    // has the same shape as the first save: exactly one _octopus_layout and one timestamp.
+    await openExportMenu(page);
+    const secondDownloadPromise = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
+    const secondDownload = await secondDownloadPromise;
+    const resavedName = secondDownload.suggestedFilename();
+    expect(resavedName).toMatch(SAVED_LAYOUT_NAME);
+    expect(resavedName.match(/_octopus_layout/g)?.length).toBe(1);
+    expect(resavedName.match(/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/g)?.length).toBe(1);
 
     cleanupFile(savedPath);
   });
@@ -94,8 +142,9 @@ test.describe('Layout Round-Trip', () => {
     const before = await getAllPlateFingerprints(page, NUM_PLATES);
 
     // Save the edited layout.
+    await openExportMenu(page);
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Save Layout' }).click();
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
     const download = await downloadPromise;
     const savedPath = path.join(__dirname, 'temp-layout-colors.csv');
     await download.saveAs(savedPath);
@@ -134,18 +183,20 @@ test.describe('Layout Round-Trip', () => {
 
     // Export the placement CSV before saving the layout.
     const csvBeforePath = path.join(__dirname, 'temp-csv-before.csv');
+    await openExportMenu(page);
     const [csvBeforeDl] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Download CSV' }).click(),
+      page.getByRole('menuitem', { name: 'CSV', exact: true }).click(),
     ]);
     await csvBeforeDl.saveAs(csvBeforePath);
     const csvBefore = fs.readFileSync(csvBeforePath, 'utf8');
 
     // Save the layout.
     const savedPath = path.join(__dirname, 'temp-layout-for-csv.csv');
+    await openExportMenu(page);
     const [savedDl] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Save Layout' }).click(),
+      page.getByRole('menuitem', { name: 'Layout', exact: true }).click(),
     ]);
     await savedDl.saveAs(savedPath);
 
@@ -157,9 +208,10 @@ test.describe('Layout Round-Trip', () => {
 
     // Export the CSV again. It must match the pre-save export byte-for-byte.
     const csvAfterPath = path.join(__dirname, 'temp-csv-after.csv');
+    await openExportMenu(page);
     const [csvAfterDl] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Download CSV' }).click(),
+      page.getByRole('menuitem', { name: 'CSV', exact: true }).click(),
     ]);
     await csvAfterDl.saveAs(csvAfterPath);
     const csvAfter = fs.readFileSync(csvAfterPath, 'utf8');
@@ -196,5 +248,52 @@ test.describe('Layout Round-Trip', () => {
     await expect(page.getByText('Plate 1')).toHaveCount(0);
 
     cleanupFile(badPath);
+  });
+
+  test('a saved layout picked via Choose File is loaded as a layout, not sample data', async ({ page }, testInfo) => {
+    await uploadConfigureAndRandomize(page);
+
+    // Save a layout.
+    await openExportMenu(page);
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
+    const download = await downloadPromise;
+    // Per-test output dir, not shared __dirname: parallel tests saving in the same second would
+    // otherwise collide on the timestamp-based filename and read each other's half-written file.
+    const savedPath = testInfo.outputPath(download.suggestedFilename());
+    await download.saveAs(savedPath);
+
+    // Reload to clear state, then pick the saved layout with CHOOSE FILE (not Load Layout).
+    await page.goto('http://localhost:3000');
+    await expect(page.getByRole('heading', { name: 'Octopus' })).toBeVisible();
+    await page.locator('#file-upload').setInputFiles(savedPath);
+
+    // It is recognised as a layout (grid + "Layout file" badge), not parsed as fake samples.
+    await expect(page.getByText('Plate 1')).toBeVisible();
+    await expect(page.getByText('Layout file')).toBeVisible();
+
+    cleanupFile(savedPath);
+  });
+
+  test('picking a saved layout via Choose File over a design replaces it after confirm', async ({ page }, testInfo) => {
+    await uploadConfigureAndRandomize(page);
+
+    await openExportMenu(page);
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
+    const download = await downloadPromise;
+    // Per-test output dir, not shared __dirname (avoids the same-second filename collision).
+    const savedPath = testInfo.outputPath(download.suggestedFilename());
+    await download.saveAs(savedPath);
+
+    // A design is still shown. Picking the layout via Choose File prompts to replace (the
+    // beforeEach dialog handler accepts) and then loads it as a layout.
+    await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
+    await page.locator('#file-upload').setInputFiles(savedPath);
+
+    await expect(page.getByText('Layout file')).toBeVisible();
+    await expect(page.getByText('Plate 1')).toBeVisible();
+
+    cleanupFile(savedPath);
   });
 });

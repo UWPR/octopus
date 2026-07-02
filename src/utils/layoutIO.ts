@@ -60,6 +60,8 @@ export interface ParsedLayout {
   covariateColors: CovariateColorMap | null;
   /** Schema version declared in the marker row, or null when absent. */
   schemaVersion: number | null;
+  /** App version recorded in the options block (`appVersion` row), or null when absent. */
+  appVersion: string | null;
   /**
    * True when an actual marker ROW (`Octopus Layout` in the first cell) was found. This is
    * the authoritative "is this a layout file" signal. It is stricter than scanning the raw
@@ -141,11 +143,16 @@ export function serializeLayout(options: {
   randomizedPlates: (SearchData | undefined)[][][];
   settings: LayoutSettings;
   covariateColors: CovariateColorMap;
+  /** App version that produced the file, recorded for provenance. */
+  appVersion?: string;
 }): string {
-  const { searches, randomizedPlates, settings, covariateColors } = options;
+  const { searches, randomizedPlates, settings, covariateColors, appVersion } = options;
 
-  const optionRows: string[][] = [
-    [LAYOUT_MARKER, String(LAYOUT_SCHEMA_VERSION)],
+  const optionRows: string[][] = [[LAYOUT_MARKER, String(LAYOUT_SCHEMA_VERSION)]];
+  if (appVersion) {
+    optionRows.push(['appVersion', appVersion]);
+  }
+  optionRows.push(
     ['idColumn', settings.selectedIdColumn],
     ['covariates', settings.selectedCovariates.join('|')],
     ['qcColumn', settings.qcColumn],
@@ -157,7 +164,7 @@ export function serializeLayout(options: {
     ['subjectColumn', settings.subjectColumn],
     ['groupingConstraint', settings.groupingConstraint],
     ['metadataColumns', settings.metadataColumns.join('|')],
-  ];
+  );
   Object.entries(covariateColors).forEach(([key, info]) => {
     optionRows.push([`color:${key}`, `${info.color} ${fillToken(info)}`]);
   });
@@ -212,6 +219,7 @@ export function parseLayout(fileText: string): ParsedLayout {
 
   let settings: LayoutSettings | null = null;
   let covariateColors: CovariateColorMap | null = null;
+  let appVersion: string | null = null;
   let headerMissing = !hasMarker;
 
   if (hasMarker) {
@@ -233,6 +241,8 @@ export function parseLayout(fileText: string): ParsedLayout {
         opt[key] = value;
       }
     });
+
+    appVersion = opt['appVersion'] || null;
 
     // Core settings must be present to reproduce the configuration.
     const hasCore = 'idColumn' in opt && 'plateRows' in opt && 'plateColumns' in opt;
@@ -281,7 +291,7 @@ export function parseLayout(fileText: string): ParsedLayout {
     });
   }
 
-  return { settings, covariateColors, schemaVersion, hasMarker, headerMissing, rows };
+  return { settings, covariateColors, schemaVersion, appVersion, hasMarker, headerMissing, rows };
 }
 
 /**
@@ -346,7 +356,7 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
   if (parsed.schemaVersion !== null && !Number.isInteger(parsed.schemaVersion)) {
     errors.push({
       fatal: true,
-      message: 'This file has an unreadable Octopus Layout schema version.',
+      message: 'The Octopus Layout schema version is unreadable.',
     });
     return errors;
   }
@@ -355,7 +365,7 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     errors.push({
       fatal: true,
       message:
-        `This file was saved by a newer version of Octopus ` +
+        `It was saved by a newer version of Octopus ` +
         `(schema version ${parsed.schemaVersion}). Please update to load it.`,
     });
     return errors;
@@ -365,8 +375,8 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     errors.push({
       fatal: true,
       message:
-        'This file has no Octopus settings (covariates, colors, plate size), so the saved ' +
-        'layout cannot be reproduced. Re-save it with "Save Layout" to create a loadable file.',
+        'It has no Octopus settings (covariates, colors, plate size), so the saved ' +
+        'layout cannot be reproduced. Re-save it with the Export > Layout option to create a loadable file.',
     });
     return errors;
   }
@@ -379,14 +389,14 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     errors.push({
       fatal: true,
       message:
-        `The layout file has invalid plate dimensions (${plateRows} x ${plateColumns}). ` +
+        `The plate dimensions are invalid (${plateRows} x ${plateColumns}). ` +
         `Plate rows and columns must be positive whole numbers.`,
     });
     return errors;
   }
 
   if (parsed.rows.length === 0) {
-    errors.push({ fatal: true, message: 'The layout file contains no samples.' });
+    errors.push({ fatal: true, message: 'The layout contains no samples.' });
     return errors;
   }
 
@@ -399,7 +409,7 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     errors.push({
       fatal: true,
       message:
-        `The layout file references plate ${maxPlate} but lists only ${parsed.rows.length} ` +
+        `It references plate ${maxPlate} but lists only ${parsed.rows.length} ` +
         `sample(s), so the plate number is out of range.`,
     });
     return errors;
@@ -415,7 +425,7 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
   if (duplicateNames.size > 0) {
     errors.push({
       fatal: true,
-      message: `Duplicate sample name(s) in the layout file: ${Array.from(duplicateNames).join(', ')}`,
+      message: `Duplicate sample name(s): ${Array.from(duplicateNames).join(', ')}`,
     });
   }
 

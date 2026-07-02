@@ -4,6 +4,7 @@ import ExcelJS from 'exceljs';
 import fs from 'fs';
 import {
   uploadConfigureAndRandomize,
+  exportVia,
   NUM_PLATES,
   NUM_ROWS,
   NUM_COLUMNS,
@@ -44,7 +45,7 @@ function normalizeColor(color: string): string {
 // --- Excel export helper ---
 
 async function exportAndSaveExcel(page: import('@playwright/test').Page, filename: string): Promise<string> {
-  await page.getByRole('button', { name: 'Download Excel' }).click();
+  await exportVia(page, 'Excel');
   await expect(page.getByText('Select Covariates for Excel Export')).toBeVisible();
 
   const downloadPromise = page.waitForEvent('download');
