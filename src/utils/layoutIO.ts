@@ -1,31 +1,51 @@
-import Papa from 'papaparse';
 import {
   SearchData,
   RandomizationAlgorithm,
   GroupingConstraint,
   CovariateColorInfo,
+  getAllAlgorithms,
 } from './types';
-import { buildPlacementCsv, getTextColorForBackground } from './utils';
+import {
+  getPlateNumber,
+  getWell,
+  getTextColorForBackground,
+  buildProcessedSearches,
+} from './utils';
 
 /**
  * Save/load of a generated layout together with the settings that produced it.
  *
- * A layout file is a single CSV with two parts:
- *   1. A two-column "options" block: `key,value` rows (and `color:<covariateKey>` rows),
- *      led by a marker row `Octopus Layout,<schemaVersion>`. List values use `|`.
- *   2. The placement table: byte-for-byte the plain Download CSV (id column, metadata,
- *      plate, well).
- * The two parts are separated by a blank line, but parsing detects them by content (the
- * marker row, and the table header row that contains `plate` and `well`), so the file
- * survives an Excel round-trip that drops blank lines or pads rows with empty cells.
+ * A layout file is a single JSON document:
+ *   {
+ *     "format": "octopus-layout",   // marker: identifies the file as an Octopus layout
+ *     "schemaVersion": 1,           // integer; a newer version is refused
+ *     "appVersion": "1.4.0",        // optional, provenance only
+ *     "plateCount": 3,              // number of plates, enforced on load
+ *     "settings": { ... },          // the user-chosen configuration (LayoutSettings)
+ *     "covariateColors": { ... },   // optional; key -> { color, fill }
+ *     "samples": [ { id, plate, well, metadata } ]
+ *   }
  *
- * Reproduction restores the recorded placement DIRECTLY (parse plate/well -> grid). It
- * never re-runs randomization, which uses unseeded Math.random and could not reproduce a
- * prior layout.
+ * Reproduction restores the recorded placement DIRECTLY (parse plate/well -> grid). It never
+ * re-runs randomization, which uses unseeded Math.random and could not reproduce a prior
+ * layout. `covariateKey`/`isQC` are derived (recomputed from settings + metadata on load) and
+ * `textColor` is recomputed from the color, so none of the three are stored.
+ *
+ * The file is validated strictly. parseLayout catches structural problems (bad JSON, wrong
+ * field types, bad enums); validateLayout catches semantic problems (a well outside the plate,
+ * covariate combinations inconsistent with the selected covariates, a missing/empty plate,
+ * etc.). Any problem is fatal and the current app state is left unchanged.
  */
 
 export const LAYOUT_SCHEMA_VERSION = 1;
-export const LAYOUT_MARKER = 'Octopus Layout';
+export const LAYOUT_FORMAT = 'octopus-layout';
+
+/** Fill-style tokens as stored in the file (single enum, replacing the two boolean flags). */
+const FILL_TOKENS = ['solid', 'outline', 'stripes'] as const;
+type FillToken = (typeof FILL_TOKENS)[number];
+
+/** GroupingConstraint has no runtime enumeration, so list its literals for validation. */
+const GROUPING_CONSTRAINTS: GroupingConstraint[] = ['none', 'same-plate', 'same-row'];
 
 /** The user-chosen configuration that produced a layout. */
 export interface LayoutSettings {
@@ -54,52 +74,70 @@ export interface LayoutRow {
 }
 
 export interface ParsedLayout {
-  /** Settings from the options block, or null when the block is missing/incomplete. */
-  settings: LayoutSettings | null;
-  /** Colors from the `color:` rows, or null when none are present. */
-  covariateColors: CovariateColorMap | null;
-  /** Schema version declared in the marker row, or null when absent. */
-  schemaVersion: number | null;
-  /** App version recorded in the options block (`appVersion` row), or null when absent. */
-  appVersion: string | null;
   /**
-   * True when an actual marker ROW (`Octopus Layout` in the first cell) was found. This is
-   * the authoritative "is this a layout file" signal. It is stricter than scanning the raw
-   * text for the marker string, which false-positives on a sample CSV that merely mentions
-   * "Octopus Layout" in a data cell.
+   * True when the document is an object whose `format` is the Octopus marker. This is the
+   * authoritative "is this a layout file" signal. A non-JSON file, or any JSON without the
+   * marker, has hasMarker false and is not treated as a layout.
    */
   hasMarker: boolean;
-  /** True when the `Octopus Layout` options block was missing or could not be parsed. */
-  headerMissing: boolean;
+  /** Schema version declared in the file, or null when absent/unreadable. */
+  schemaVersion: number | null;
+  /** App version recorded for provenance, or null when absent. */
+  appVersion: string | null;
+  /** Declared plate count, or null when absent/invalid. */
+  plateCount: number | null;
+  /** Settings from the file, or null when the settings object is missing/invalid. */
+  settings: LayoutSettings | null;
+  /** Colors from the file, or null when none are present. */
+  covariateColors: CovariateColorMap | null;
+  /** Placement rows parsed from `samples` (empty when samples are missing/invalid). */
   rows: LayoutRow[];
+  /**
+   * Fatal problems found during the strict structural parse (bad JSON is not reported here -
+   * it makes hasMarker false instead). When non-empty, validateLayout returns these and skips
+   * the semantic checks.
+   */
+  structuralErrors: LayoutValidationError[];
 }
 
 export type LayoutValidationError =
   | { fatal: true; message: string }
   | { fatal: false; warning: string };
 
-/**
- * PapaParse auto-generates field names for malformed columns ("_1", "__parsed_extra", or
- * blank). Mirrors the helper in useFileUpload so imported tables filter the same way.
- */
-function isAutoGeneratedColumn(name: string): boolean {
-  return /^_\d+$/.test(name.trim()) || name.trim() === '' || name === '__parsed_extra';
+function fatal(message: string): LayoutValidationError {
+  return { fatal: true, message };
 }
 
-/** Split a `|`-joined list value, returning [] for an empty cell. */
-function splitList(value: string): string[] {
-  return value ? value.split('|') : [];
+// --- Small typed guards used by the strict parse ---
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+function isString(v: unknown): v is string {
+  return typeof v === 'string';
+}
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === 'string' && v.length > 0;
+}
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string');
+}
+function isStringMap(v: unknown): v is { [key: string]: string } {
+  return isRecord(v) && Object.values(v).every((x) => typeof x === 'string');
+}
+function isPositiveInt(v: unknown): v is number {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0;
 }
 
 /** Encode a covariate color's fill style as a single token. */
-function fillToken(info: CovariateColorInfo): string {
+function fillToken(info: CovariateColorInfo): FillToken {
   if (info.useStripes) return 'stripes';
   if (info.useOutline) return 'outline';
   return 'solid';
 }
 
 /** Decode a fill token back into the outline/stripes flags. */
-function fillFlags(token: string): { useOutline: boolean; useStripes: boolean } {
+function fillFlags(token: FillToken): { useOutline: boolean; useStripes: boolean } {
   return {
     useOutline: token === 'outline',
     useStripes: token === 'stripes',
@@ -135,8 +173,39 @@ export function wellToIndices(
   return { row, col };
 }
 
+// --- Serialize ---
+
+/** Build the settings object as it appears in the file (short keys). */
+function settingsToJson(s: LayoutSettings) {
+  return {
+    idColumn: s.selectedIdColumn,
+    covariates: s.selectedCovariates,
+    qcColumn: s.qcColumn,
+    qcValues: s.selectedQcValues,
+    algorithm: s.selectedAlgorithm,
+    keepEmptyInLastPlate: s.keepEmptyInLastPlate,
+    plateRows: s.plateRows,
+    plateColumns: s.plateColumns,
+    subjectColumn: s.subjectColumn,
+    groupingConstraint: s.groupingConstraint,
+    metadataColumns: s.metadataColumns,
+  };
+}
+
+/** Build a sample's metadata object with exactly the declared columns, in order. */
+function pickMetadata(source: { [key: string]: string }, columns: string[]): { [key: string]: string } {
+  const md: { [key: string]: string } = {};
+  columns.forEach((col) => {
+    const v = source[col];
+    md[col] = v === undefined || v === null ? '' : String(v);
+  });
+  return md;
+}
+
 /**
- * Serialize a layout plus its settings and colors to the two-section CSV string.
+ * Serialize a layout plus its settings and colors to the JSON document string. Samples are
+ * emitted in `searches` order (the same order as Download CSV), each carrying its 1-based plate
+ * number and well label. `plateCount` is derived from the plates grid.
  */
 export function serializeLayout(options: {
   searches: SearchData[];
@@ -148,151 +217,226 @@ export function serializeLayout(options: {
 }): string {
   const { searches, randomizedPlates, settings, covariateColors, appVersion } = options;
 
-  const optionRows: string[][] = [[LAYOUT_MARKER, String(LAYOUT_SCHEMA_VERSION)]];
-  if (appVersion) {
-    optionRows.push(['appVersion', appVersion]);
+  const colorEntries = Object.entries(covariateColors);
+  const covariateColorsJson =
+    colorEntries.length > 0
+      ? Object.fromEntries(
+          colorEntries.map(([key, info]) => [key, { color: info.color, fill: fillToken(info) }])
+        )
+      : undefined;
+
+  const doc = {
+    format: LAYOUT_FORMAT,
+    schemaVersion: LAYOUT_SCHEMA_VERSION,
+    ...(appVersion ? { appVersion } : {}),
+    plateCount: randomizedPlates.length,
+    settings: settingsToJson(settings),
+    ...(covariateColorsJson ? { covariateColors: covariateColorsJson } : {}),
+    samples: searches.map((search) => ({
+      id: search.name,
+      plate: getPlateNumber(search.name, randomizedPlates),
+      well: getWell(search.name, randomizedPlates),
+      metadata: pickMetadata(search.metadata, settings.metadataColumns),
+    })),
+  };
+
+  return JSON.stringify(doc, null, 2);
+}
+
+// --- Parse (strict, structural) ---
+
+/** Validate and read the settings object. Returns the settings or the problems found. */
+function parseSettings(raw: unknown): { value: LayoutSettings | null; errors: LayoutValidationError[] } {
+  if (!isRecord(raw)) {
+    return { value: null, errors: [fatal('The layout file is missing its "settings" object.')] };
   }
-  optionRows.push(
-    ['idColumn', settings.selectedIdColumn],
-    ['covariates', settings.selectedCovariates.join('|')],
-    ['qcColumn', settings.qcColumn],
-    ['qcValues', settings.selectedQcValues.join('|')],
-    ['algorithm', settings.selectedAlgorithm],
-    ['keepEmptyInLastPlate', String(settings.keepEmptyInLastPlate)],
-    ['plateRows', String(settings.plateRows)],
-    ['plateColumns', String(settings.plateColumns)],
-    ['subjectColumn', settings.subjectColumn],
-    ['groupingConstraint', settings.groupingConstraint],
-    ['metadataColumns', settings.metadataColumns.join('|')],
+  const r = raw;
+  const errors: LayoutValidationError[] = [];
+  const need = (cond: boolean, msg: string) => {
+    if (!cond) errors.push(fatal(msg));
+  };
+
+  need(isNonEmptyString(r.idColumn), 'settings.idColumn must be a non-empty string.');
+  need(isStringArray(r.covariates), 'settings.covariates must be an array of strings.');
+  need(isString(r.qcColumn), 'settings.qcColumn must be a string.');
+  need(isStringArray(r.qcValues), 'settings.qcValues must be an array of strings.');
+  need(
+    isString(r.algorithm) && getAllAlgorithms().includes(r.algorithm as RandomizationAlgorithm),
+    `settings.algorithm must be one of: ${getAllAlgorithms().join(', ')}.`
   );
-  Object.entries(covariateColors).forEach(([key, info]) => {
-    optionRows.push([`color:${key}`, `${info.color} ${fillToken(info)}`]);
+  need(typeof r.keepEmptyInLastPlate === 'boolean', 'settings.keepEmptyInLastPlate must be a boolean.');
+  need(isPositiveInt(r.plateRows), 'settings.plateRows must be a positive integer.');
+  need(isPositiveInt(r.plateColumns), 'settings.plateColumns must be a positive integer.');
+  need(isString(r.subjectColumn), 'settings.subjectColumn must be a string.');
+  need(
+    isString(r.groupingConstraint) && GROUPING_CONSTRAINTS.includes(r.groupingConstraint as GroupingConstraint),
+    `settings.groupingConstraint must be one of: ${GROUPING_CONSTRAINTS.join(', ')}.`
+  );
+  need(isStringArray(r.metadataColumns), 'settings.metadataColumns must be an array of strings.');
+
+  if (errors.length) return { value: null, errors };
+  return {
+    value: {
+      selectedIdColumn: r.idColumn as string,
+      selectedCovariates: r.covariates as string[],
+      qcColumn: r.qcColumn as string,
+      selectedQcValues: r.qcValues as string[],
+      selectedAlgorithm: r.algorithm as RandomizationAlgorithm,
+      keepEmptyInLastPlate: r.keepEmptyInLastPlate as boolean,
+      plateRows: r.plateRows as number,
+      plateColumns: r.plateColumns as number,
+      subjectColumn: r.subjectColumn as string,
+      groupingConstraint: r.groupingConstraint as GroupingConstraint,
+      metadataColumns: r.metadataColumns as string[],
+    },
+    errors: [],
+  };
+}
+
+/** Validate and read the optional covariateColors object. */
+function parseColors(raw: unknown): { value: CovariateColorMap; errors: LayoutValidationError[] } {
+  if (!isRecord(raw)) {
+    return { value: {}, errors: [fatal('covariateColors must be an object.')] };
+  }
+  const errors: LayoutValidationError[] = [];
+  const out: CovariateColorMap = {};
+  Object.entries(raw).forEach(([key, v]) => {
+    if (!isRecord(v)) {
+      errors.push(fatal(`covariateColors["${key}"] must be an object.`));
+      return;
+    }
+    const color = v.color;
+    const fill = v.fill;
+    if (!isString(color) || !/^#[0-9a-fA-F]{6}$/.test(color)) {
+      errors.push(fatal(`covariateColors["${key}"].color must be a #RRGGBB hex string.`));
+      return;
+    }
+    if (!isString(fill) || !FILL_TOKENS.includes(fill as FillToken)) {
+      errors.push(fatal(`covariateColors["${key}"].fill must be one of: ${FILL_TOKENS.join(', ')}.`));
+      return;
+    }
+    out[key] = {
+      color,
+      ...fillFlags(fill as FillToken),
+      textColor: getTextColorForBackground(color),
+    };
   });
-
-  const optionsCsv = Papa.unparse(optionRows);
-  const table = buildPlacementCsv(searches, randomizedPlates, settings.selectedIdColumn);
-  return `${optionsCsv}\n\n${table}`;
+  return { value: out, errors };
 }
 
-/** Read cell at index, returning '' when absent. */
-function cell(row: string[], index: number): string {
-  const v = index >= 0 ? row[index] : undefined;
-  return v === undefined || v === null ? '' : String(v);
+/** Validate and read the samples array into placement rows. */
+function parseSamples(raw: unknown): { value: LayoutRow[]; errors: LayoutValidationError[] } {
+  if (!Array.isArray(raw)) {
+    return { value: [], errors: [fatal('"samples" must be an array.')] };
+  }
+  if (raw.length === 0) {
+    return { value: [], errors: [fatal('The layout contains no samples.')] };
+  }
+  const errors: LayoutValidationError[] = [];
+  const rows: LayoutRow[] = [];
+  raw.forEach((entry, i) => {
+    if (!isRecord(entry)) {
+      errors.push(fatal(`samples[${i}] must be an object.`));
+      return;
+    }
+    const e = entry;
+    if (!isNonEmptyString(e.id)) {
+      errors.push(fatal(`samples[${i}].id must be a non-empty string.`));
+      return;
+    }
+    if (!isPositiveInt(e.plate)) {
+      errors.push(fatal(`Sample "${String(e.id)}" has an invalid plate (must be a positive integer).`));
+      return;
+    }
+    if (!isNonEmptyString(e.well)) {
+      errors.push(fatal(`Sample "${String(e.id)}" has an invalid well (must be a non-empty string).`));
+      return;
+    }
+    if (!isStringMap(e.metadata)) {
+      errors.push(fatal(`Sample "${String(e.id)}" has invalid metadata (must be an object of string values).`));
+      return;
+    }
+    rows.push({ name: e.id, plate: e.plate, well: e.well, metadata: { ...e.metadata } });
+  });
+  return { value: rows, errors };
 }
 
 /**
- * True when a CSV line's fields include both `plate` and `well`. Quote-aware: a column or
- * value containing a comma (valid CSV when quoted) is parsed as a single field rather than
- * naively split on `,`, so it neither breaks header detection nor false-matches. The cheap
- * substring guard skips the PapaParse call for the many lines that obviously cannot match.
- */
-function isTableHeaderLine(line: string): boolean {
-  if (!line.includes('plate') || !line.includes('well')) return false;
-  const fields = (Papa.parse<string[]>(line).data[0] as string[] | undefined) ?? [];
-  const cols = fields.map((c) => c.trim());
-  return cols.includes('plate') && cols.includes('well');
-}
-
-/**
- * Parse a two-section layout file into settings, colors, and placement rows. The file is
- * split into the options block and the placement table at the table-header line (the first
- * line whose columns include `plate` and `well`); the two parts are then parsed separately,
- * so blank-line and trailing-empty differences from an Excel round-trip do not matter.
- * When the options block is missing or incomplete, settings is null and headerMissing is
- * set, but the placement table is still parsed so the caller can degrade gracefully.
+ * Parse a JSON layout file into settings, colors, and placement rows, validating its structure
+ * strictly. A non-JSON file, or JSON without the Octopus marker, returns hasMarker false and no
+ * errors (the caller reports "not a saved Octopus layout"). A marked file with a structural
+ * problem returns hasMarker true and one or more fatal structuralErrors.
  */
 export function parseLayout(fileText: string): ParsedLayout {
-  const lines = fileText.split(/\r\n|\n|\r/);
-  const headerIdx = lines.findIndex(isTableHeaderLine);
+  const base: ParsedLayout = {
+    hasMarker: false,
+    schemaVersion: null,
+    appVersion: null,
+    plateCount: null,
+    settings: null,
+    covariateColors: null,
+    rows: [],
+    structuralErrors: [],
+  };
 
-  const optionText = (headerIdx >= 0 ? lines.slice(0, headerIdx) : lines).join('\n');
-  const tableText = headerIdx >= 0 ? lines.slice(headerIdx).join('\n') : '';
-
-  // --- Options block ---
-  const optionGrid = (
-    Papa.parse<string[]>(optionText, { skipEmptyLines: 'greedy' }).data as string[][]
-  ).filter(Array.isArray);
-
-  const markerRow = optionGrid.find((row) => cell(row, 0) === LAYOUT_MARKER);
-  const hasMarker = markerRow !== undefined;
-  const schemaVersion = markerRow ? parseInt(cell(markerRow, 1), 10) : null;
-
-  let settings: LayoutSettings | null = null;
-  let covariateColors: CovariateColorMap | null = null;
-  let appVersion: string | null = null;
-  let headerMissing = !hasMarker;
-
-  if (hasMarker) {
-    const opt: { [key: string]: string } = {};
-    const colors: CovariateColorMap = {};
-    optionGrid.forEach((row) => {
-      const key = cell(row, 0);
-      const value = cell(row, 1);
-      if (key === LAYOUT_MARKER) return;
-      if (key.startsWith('color:')) {
-        const covariateKey = key.slice('color:'.length);
-        const [color, token] = value.split(/\s+/);
-        colors[covariateKey] = {
-          color,
-          ...fillFlags(token),
-          textColor: getTextColorForBackground(color),
-        };
-      } else if (key) {
-        opt[key] = value;
-      }
-    });
-
-    appVersion = opt['appVersion'] || null;
-
-    // Core settings must be present to reproduce the configuration.
-    const hasCore = 'idColumn' in opt && 'plateRows' in opt && 'plateColumns' in opt;
-    if (hasCore) {
-      settings = {
-        selectedIdColumn: opt['idColumn'],
-        selectedCovariates: splitList(opt['covariates'] ?? ''),
-        qcColumn: opt['qcColumn'] ?? '',
-        selectedQcValues: splitList(opt['qcValues'] ?? ''),
-        selectedAlgorithm: (opt['algorithm'] || 'balanced') as RandomizationAlgorithm,
-        keepEmptyInLastPlate: opt['keepEmptyInLastPlate'] === 'true',
-        plateRows: parseInt(opt['plateRows'], 10),
-        plateColumns: parseInt(opt['plateColumns'], 10),
-        subjectColumn: opt['subjectColumn'] ?? '',
-        groupingConstraint: (opt['groupingConstraint'] || 'none') as GroupingConstraint,
-        metadataColumns: splitList(opt['metadataColumns'] ?? ''),
-      };
-      covariateColors = Object.keys(colors).length > 0 ? colors : null;
-    } else {
-      headerMissing = true;
-    }
+  let root: unknown;
+  try {
+    root = JSON.parse(fileText);
+  } catch {
+    return base; // not JSON -> not a layout file
   }
 
-  // --- Placement table ---
-  const rows: LayoutRow[] = [];
-  if (headerIdx >= 0) {
-    const table = Papa.parse<Record<string, string>>(tableText, {
-      header: true,
-      skipEmptyLines: true,
-    });
-    const idColumn = settings?.selectedIdColumn ?? (table.meta.fields?.[0] ?? '');
-    table.data.forEach((row) => {
-      if (!row || !row[idColumn]) return;
-      const metadata: { [key: string]: string } = {};
-      Object.keys(row).forEach((colName) => {
-        if (colName === idColumn || colName === 'plate' || colName === 'well') return;
-        if (isAutoGeneratedColumn(colName)) return;
-        metadata[colName.trim()] = row[colName];
-      });
-      rows.push({
-        name: row[idColumn],
-        metadata,
-        plate: parseInt(row['plate'], 10),
-        well: (row['well'] ?? '').trim(),
-      });
-    });
+  if (!isRecord(root) || root.format !== LAYOUT_FORMAT) {
+    return base; // no marker -> not a layout file
   }
 
-  return { settings, covariateColors, schemaVersion, appVersion, hasMarker, headerMissing, rows };
+  base.hasMarker = true;
+  const errors: LayoutValidationError[] = [];
+
+  // Schema version gate. An unreadable or newer version stops further structural parsing.
+  const rawVersion = root.schemaVersion;
+  if (typeof rawVersion !== 'number' || !Number.isInteger(rawVersion)) {
+    base.structuralErrors = [fatal('The layout file has an unreadable schema version.')];
+    return base;
+  }
+  base.schemaVersion = rawVersion;
+  if (rawVersion > LAYOUT_SCHEMA_VERSION) {
+    base.structuralErrors = [
+      fatal(
+        `This layout was saved by a newer version of Octopus (schema version ${rawVersion}). ` +
+          'Please update Octopus to load it.'
+      ),
+    ];
+    return base;
+  }
+
+  base.appVersion = isString(root.appVersion) ? root.appVersion : null;
+
+  if (isPositiveInt(root.plateCount)) {
+    base.plateCount = root.plateCount;
+  } else {
+    errors.push(fatal('The layout file has an invalid plate count (must be a positive integer).'));
+  }
+
+  const settingsResult = parseSettings(root.settings);
+  if (settingsResult.errors.length) errors.push(...settingsResult.errors);
+  else base.settings = settingsResult.value;
+
+  if (root.covariateColors !== undefined) {
+    const colorsResult = parseColors(root.covariateColors);
+    if (colorsResult.errors.length) errors.push(...colorsResult.errors);
+    else base.covariateColors = Object.keys(colorsResult.value).length > 0 ? colorsResult.value : null;
+  }
+
+  const samplesResult = parseSamples(root.samples);
+  if (samplesResult.errors.length) errors.push(...samplesResult.errors);
+  else base.rows = samplesResult.value;
+
+  base.structuralErrors = errors;
+  return base;
 }
+
+// --- Build plates ---
 
 /**
  * Rebuild the plates grid and plateAssignments map from parsed placement rows.
@@ -344,112 +488,132 @@ export function buildPlatesFromRows(
   return { plates, plateAssignments, samples };
 }
 
+// --- Validate (semantic) ---
+
+function sortedEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const x = [...a].sort();
+  const y = [...b].sort();
+  return x.every((v, i) => v === y[i]);
+}
+
 /**
- * Validate a parsed layout before applying it. Returns all problems found; the caller
- * aborts on any { fatal: true }. A missing or incomplete options block is fatal: the layout
- * cannot be reproduced without the recorded settings (plate dimensions in particular cannot
- * be inferred from the placement when trailing rows/columns are empty).
+ * Validate a parsed layout before applying it. Structural problems (from parseLayout) are
+ * returned first and short-circuit the semantic checks. The semantic checks enforce that the
+ * recorded placement is internally consistent and matches the recorded settings:
+ *   - every well is inside the plate dimensions and no two samples share a well,
+ *   - plates 1..plateCount each hold at least one sample (a missing/empty plate is rejected),
+ *   - no duplicate sample ids,
+ *   - covariates are a subset of the metadata columns and every sample carries exactly the
+ *     declared metadata columns,
+ *   - the QC and subject columns are declared columns and mutually exclusive,
+ *   - every stored covariate color corresponds to a covariate combination the samples produce.
+ * Returns all problems found; the caller aborts on any fatal error.
  */
 export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
+  if (parsed.structuralErrors.length > 0) return parsed.structuralErrors;
+  if (!parsed.settings || parsed.plateCount === null) {
+    return [fatal('The layout file is missing settings, so it cannot be reproduced.')];
+  }
+
+  const s = parsed.settings;
+  const plateCount = parsed.plateCount;
+  const { plateRows, plateColumns } = s;
   const errors: LayoutValidationError[] = [];
 
-  if (parsed.schemaVersion !== null && !Number.isInteger(parsed.schemaVersion)) {
-    errors.push({
-      fatal: true,
-      message: 'The Octopus Layout schema version is unreadable.',
-    });
-    return errors;
+  // Column integrity: covariates, QC, and subject columns must be declared metadata columns.
+  const metaSet = new Set(s.metadataColumns);
+  s.selectedCovariates.forEach((cov) => {
+    if (!metaSet.has(cov)) {
+      errors.push(fatal(`Covariate column "${cov}" is not one of the layout's metadata columns.`));
+    }
+  });
+  if (s.qcColumn && !metaSet.has(s.qcColumn)) {
+    errors.push(fatal(`QC column "${s.qcColumn}" is not one of the layout's metadata columns.`));
+  }
+  if (s.subjectColumn) {
+    if (!metaSet.has(s.subjectColumn)) {
+      errors.push(fatal(`Subject column "${s.subjectColumn}" is not one of the layout's metadata columns.`));
+    }
+    if (s.selectedCovariates.includes(s.subjectColumn)) {
+      errors.push(fatal(`Subject column "${s.subjectColumn}" cannot also be a covariate.`));
+    }
+    if (s.subjectColumn === s.qcColumn) {
+      errors.push(fatal(`Subject column "${s.subjectColumn}" cannot also be the QC column.`));
+    }
   }
 
-  if (parsed.schemaVersion !== null && parsed.schemaVersion > LAYOUT_SCHEMA_VERSION) {
-    errors.push({
-      fatal: true,
-      message:
-        `It was saved by a newer version of Octopus ` +
-        `(schema version ${parsed.schemaVersion}). Please update to load it.`,
-    });
-    return errors;
-  }
-
-  if (parsed.headerMissing || !parsed.settings) {
-    errors.push({
-      fatal: true,
-      message:
-        'It has no Octopus settings (covariates, colors, plate size), so the saved ' +
-        'layout cannot be reproduced. Re-save it with the Export > Layout option to create a loadable file.',
-    });
-    return errors;
-  }
-
-  const { plateRows, plateColumns } = parsed.settings;
-
-  // Guard non-numeric plate dimensions (e.g. "plateRows,abc" parses to NaN). Left unchecked,
-  // NaN passes every bounds comparison below and then crashes buildPlatesFromRows.
-  if (!Number.isInteger(plateRows) || plateRows < 1 || !Number.isInteger(plateColumns) || plateColumns < 1) {
-    errors.push({
-      fatal: true,
-      message:
-        `The plate dimensions are invalid (${plateRows} x ${plateColumns}). ` +
-        `Plate rows and columns must be positive whole numbers.`,
-    });
-    return errors;
-  }
-
-  if (parsed.rows.length === 0) {
-    errors.push({ fatal: true, message: 'The layout contains no samples.' });
-    return errors;
-  }
-
-  // Guard an out-of-range plate number. buildPlatesFromRows allocates plates up to the
-  // maximum plate index, so a crafted file with a huge plate value (e.g. 1000000) would
-  // otherwise trigger an enormous allocation and crash the tab. A real layout has at least
-  // one sample per plate, so the maximum plate cannot exceed the number of samples.
-  const maxPlate = parsed.rows.reduce((m, r) => Math.max(m, Number.isInteger(r.plate) ? r.plate : 0), 0);
-  if (maxPlate > parsed.rows.length) {
-    errors.push({
-      fatal: true,
-      message:
-        `It references plate ${maxPlate} but lists only ${parsed.rows.length} ` +
-        `sample(s), so the plate number is out of range.`,
-    });
-    return errors;
-  }
-
-  // Duplicate sample names.
+  // Per-sample checks: plate range, well bounds, single occupancy, metadata columns, duplicates.
   const seenNames = new Set<string>();
   const duplicateNames = new Set<string>();
+  const occupied = new Set<string>();
+  const platesWithSamples = new Set<number>();
+
   parsed.rows.forEach((row) => {
     if (seenNames.has(row.name)) duplicateNames.add(row.name);
     seenNames.add(row.name);
-  });
-  if (duplicateNames.size > 0) {
-    errors.push({
-      fatal: true,
-      message: `Duplicate sample name(s): ${Array.from(duplicateNames).join(', ')}`,
-    });
-  }
 
-  // Well/plate bounds and single occupancy.
-  const occupied = new Set<string>();
-  parsed.rows.forEach((row) => {
-    if (!Number.isInteger(row.plate) || row.plate < 1) {
-      errors.push({ fatal: true, message: `Sample "${row.name}" has an invalid plate "${row.plate}".` });
-      return;
+    if (!Number.isInteger(row.plate) || row.plate < 1 || row.plate > plateCount) {
+      errors.push(
+        fatal(`Sample "${row.name}" is on plate ${row.plate}, outside the layout's ${plateCount} plate(s).`)
+      );
+      return; // a bad plate makes the well key meaningless
     }
+    platesWithSamples.add(row.plate);
+
     try {
       const { row: r, col: c } = wellToIndices(row.well, plateRows, plateColumns);
       const key = `${row.plate}:${r}:${c}`;
       if (occupied.has(key)) {
-        errors.push({
-          fatal: true,
-          message: `Two samples occupy plate ${row.plate} well ${row.well}.`,
-        });
+        errors.push(fatal(`Two samples occupy plate ${row.plate} well ${row.well}.`));
       }
       occupied.add(key);
     } catch (e) {
-      errors.push({ fatal: true, message: `Sample "${row.name}": ${(e as Error).message}` });
+      errors.push(fatal(`Sample "${row.name}": ${(e as Error).message}`));
+    }
+
+    if (!sortedEqual(Object.keys(row.metadata), s.metadataColumns)) {
+      errors.push(
+        fatal(
+          `Sample "${row.name}" has metadata columns [${Object.keys(row.metadata).join(', ')}] ` +
+            `but the layout declares [${s.metadataColumns.join(', ')}].`
+        )
+      );
     }
   });
+
+  if (duplicateNames.size > 0) {
+    errors.push(fatal(`Duplicate sample name(s): ${Array.from(duplicateNames).join(', ')}`));
+  }
+
+  // Every declared plate must hold at least one sample (the range check above already rejects a
+  // plate number above plateCount, so this also enforces max(plate) == plateCount).
+  for (let p = 1; p <= plateCount; p++) {
+    if (!platesWithSamples.has(p)) {
+      errors.push(fatal(`Plate ${p} has no samples, but the layout declares ${plateCount} plate(s).`));
+    }
+  }
+
+  // Covariate-color consistency: every stored color must key a covariate combination that the
+  // samples actually produce under the selected covariates.
+  if (parsed.covariateColors) {
+    const samples: SearchData[] = parsed.rows.map((r) => ({ name: r.name, metadata: r.metadata }));
+    buildProcessedSearches(samples, {
+      selectedCovariates: s.selectedCovariates,
+      qcColumn: s.qcColumn,
+      selectedQcValues: s.selectedQcValues,
+    });
+    const derivedKeys = new Set(samples.map((x) => x.covariateKey));
+    Object.keys(parsed.covariateColors).forEach((key) => {
+      if (!derivedKeys.has(key)) {
+        errors.push(
+          fatal(
+            `The layout has a color for "${key}", which no sample produces under the selected covariates.`
+          )
+        );
+      }
+    });
+  }
 
   return errors;
 }

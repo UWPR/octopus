@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 import { uploadAndConfigure, uploadConfigureAndRandomize } from './helpers';
 
 /**
- * Choose File accepts only CSV files. A non-CSV file (e.g. an Excel workbook) is rejected up
- * front by extension, and a .csv that yields no readable columns is rejected after parsing.
- * Either way an error is shown and the file is not adopted.
+ * Choose File accepts CSV sample files and JSON layout files. A file with any other extension
+ * (e.g. an Excel workbook) is rejected up front, and a .csv that yields no readable columns is
+ * rejected after parsing. Either way an error is shown and the file is not adopted.
  */
 
 // An in-memory Excel file - only its name matters for the extension check.
@@ -23,7 +23,7 @@ test.describe('Choose File validation', () => {
   test('rejects a non-CSV (Excel) file with an error and does not adopt it', async ({ page }) => {
     await page.locator('#file-upload').setInputFiles(XLSX_FILE);
 
-    await expect(page.getByText(/is not a CSV file/)).toBeVisible();
+    await expect(page.getByText(/is not a CSV or JSON file/)).toBeVisible();
     // The rejected file is not loaded: the ID-column selector has no columns.
     await expect(page.locator('#idColumn option')).toHaveCount(0);
   });
@@ -36,7 +36,7 @@ test.describe('Choose File validation', () => {
     page.once('dialog', dialog => dialog.accept());
     await page.locator('#file-upload').setInputFiles(XLSX_FILE);
 
-    await expect(page.getByText(/is not a CSV file/)).toBeVisible();
+    await expect(page.getByText(/is not a CSV or JSON file/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
     await expect(page.getByText('Plate 1')).not.toBeVisible();
     await expect(page.locator('#idColumn option')).toHaveCount(0);
@@ -53,7 +53,7 @@ test.describe('Choose File validation', () => {
     await page.locator('#file-upload').setInputFiles(XLSX_FILE);
 
     expect(sawDialog).toBe(false);
-    await expect(page.getByText(/is not a CSV file/)).toBeVisible();
+    await expect(page.getByText(/is not a CSV or JSON file/)).toBeVisible();
     await expect(page.getByText(/trx-phase1b-small\.csv/)).not.toBeVisible();
     await expect(page.locator('#idColumn option')).toHaveCount(0);
   });

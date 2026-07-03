@@ -11,6 +11,8 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 }) => {
   return (
     <div style={styles.fileUploadContainer}>
+      {/* Default the picker to CSV; a user can switch to "All files" and pick a saved .json
+          layout, which handleChooseFile still routes to the layout load. */}
       <input
         id="file-upload"
         type="file"
@@ -24,12 +26,12 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
       <input
         id="layout-upload"
         type="file"
-        accept=".csv"
+        accept=".json"
         onChange={onLoadLayout}
         style={styles.hiddenFileInput}
       />
       <label htmlFor="layout-upload" style={styles.loadLayoutButton}
-        title="Load a previously saved Octopus layout file to reproduce it">
+        title="Load a previously saved Octopus layout .json file to reproduce the plate layout">
         Load Layout
       </label>
     </div>

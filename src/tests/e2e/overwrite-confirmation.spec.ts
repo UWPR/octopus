@@ -12,7 +12,7 @@ import { uploadConfigureAndRandomize } from './helpers';
  */
 
 // A plain sample CSV. Used both as a "new file" for Choose File and as an invalid layout for Load
-// Layout (it has no Octopus Layout marker row, so loading it as a layout fails validation).
+// Layout (it is not JSON with the Octopus marker, so loading it as a layout fails validation).
 const OTHER_CSV = path.join(__dirname, '../../../test-data/trx-phase1b-full.csv');
 
 test.describe('Overwrite confirmation on new file / layout', () => {

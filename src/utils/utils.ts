@@ -262,20 +262,20 @@ export function withTimestamp(filename: string, date: Date = new Date()): string
 
 /**
  * Build the base name for a saved layout (before the timestamp) from the currently loaded
- * file's name. A saved layout is named `<base>_octopus_layout_<timestamp>.csv`, so when the
+ * file's name. A saved layout is named `<base>_octopus_layout_<timestamp>.json`, so when the
  * loaded file is itself a saved layout, the `_octopus_layout` suffix and its timestamp are
  * stripped first. Without this, re-saving a loaded layout stacks the suffix and timestamp
- * (e.g. `foo_octopus_layout_<stamp>_octopus_layout_<stamp>.csv`). An empty/absent name yields
- * the default `octopus_layout.csv`. The timestamp pattern matches formatTimestampForFilename.
+ * (e.g. `foo_octopus_layout_<stamp>_octopus_layout_<stamp>.json`). An empty/absent name yields
+ * the default `octopus_layout.json`. The timestamp pattern matches formatTimestampForFilename.
  */
 export function buildLayoutFileName(selectedFileName?: string): string {
-  if (!selectedFileName) return 'octopus_layout.csv';
+  if (!selectedFileName) return 'octopus_layout.json';
   let base = selectedFileName.replace(/\.[^/.]+$/, ''); // drop the extension
   // Strip any stacked `_octopus_layout(_<timestamp>)` suffixes left by a previous save.
   const suffix = /_octopus_layout(_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})?$/;
   while (suffix.test(base)) base = base.replace(suffix, '');
-  if (!base) return 'octopus_layout.csv';
-  return `${base}_octopus_layout.csv`;
+  if (!base) return 'octopus_layout.json';
+  return `${base}_octopus_layout.json`;
 }
 
 export function getPlateNumber(searchName: string, randomizedPlates: (SearchData | undefined)[][][]) {

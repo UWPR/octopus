@@ -501,7 +501,7 @@ const App: React.FC = () => {
   const handleSaveLayout = () => {
     if (!selectedIdColumn || randomizedPlates.length === 0) return;
 
-    const csv = serializeLayout({
+    const json = serializeLayout({
       searches,
       randomizedPlates,
       settings: collectLayoutSettings(),
@@ -515,7 +515,7 @@ const App: React.FC = () => {
     // Timestamp the filename (YYYY-MM-DD_HH-mm-ss) so repeated saves do not overwrite each other.
     const outputFileName = withTimestamp(baseFileName);
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -641,8 +641,8 @@ const App: React.FC = () => {
     const parsed = parseLayout(text);
     if (!parsed.hasMarker) {
       failLoad(
-        `"${fileName}" is not a saved Octopus layout. To load sample data, use "Choose File". ` +
-        'Layout files can be created from Export > Layout.'
+        `"${fileName}" is not a saved Octopus layout. Layout files are JSON, created from Export > Layout. ` +
+        'To load sample data, use "Choose File".'
       );
       return;
     }
@@ -678,15 +678,20 @@ const App: React.FC = () => {
 
     if (!prepareForNewFile()) return; // user cancelled the replace - keep everything
 
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      failLoad(`"${file.name}" is not a CSV file. Only CSV files are supported.`);
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith('.csv') && !lowerName.endsWith('.json')) {
+      failLoad(`"${file.name}" is not a CSV or JSON file. Only CSV sample files and JSON layout files are supported.`);
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
       const text = String(reader.result ?? '');
-      if (parseLayout(text).hasMarker) {
+      // Route by extension: a .json file is opened as a saved layout, a .csv as sample data. The
+      // gate above already rejected anything else. A .json that is not actually an Octopus layout
+      // still goes to the layout path, where loadLayoutFromText reports a clear "not a saved
+      // Octopus layout" error rather than being parsed as fake sample rows.
+      if (lowerName.endsWith('.json')) {
         loadLayoutFromText(text, file.name);
       } else {
         loadSampleFromText(text, file.name);
