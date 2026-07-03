@@ -31,7 +31,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
         style={styles.hiddenFileInput}
       />
       <label htmlFor="layout-upload" style={styles.loadLayoutButton}
-        title="Load a previously saved Octopus layout .json file to reproduce the plate layout">
+        title="Load a previously saved Octopus layout file (.json) to reproduce the plate layout">
         Load Layout
       </label>
     </div>

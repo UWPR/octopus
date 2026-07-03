@@ -42,13 +42,13 @@ export const NUM_COVARIATE_GROUPS = Object.keys(EXPECTED_GROUPS).length; // 14
  */
 export async function getPlateFingerprint(page: Page, plateIndex: number): Promise<string> {
   return page.evaluate((idx) => {
-    const wellsPerPlate = 96;
-    const allTitles = Array.from(document.querySelectorAll('[title]'))
+    // Scope to this plate's grid by its data-testid, so tooltips elsewhere in the document
+    // (buttons, labels) cannot leak into the fingerprint. Only occupied cells carry a title.
+    const grid = document.querySelector(`[data-testid="plate-grid-${idx}"]`);
+    if (!grid) return '';
+    return Array.from(grid.querySelectorAll('[title]'))
       .map(cell => cell.getAttribute('title') || '')
-      .filter(title => title.includes('(') && title.includes(')'));
-    const start = idx * wellsPerPlate;
-    const end = start + wellsPerPlate;
-    return allTitles.slice(start, end).join('|');
+      .join('|');
   }, plateIndex);
 }
 
