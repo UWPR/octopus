@@ -281,11 +281,17 @@ function createLegendSheet(
   titleRow.font = { bold: true, size: 14 };
   sheet.mergeCells(1, 1, 1, 4);
 
-  // Count samples by covariate combination (total) - use treatment covariates
+  // Count samples by covariate combination (total) - use treatment covariates.
+  // Keep one sample per group so covariate values and QC status come from
+  // the sample data instead of from splitting the key.
   const combinationCounts = new Map<string, number>();
+  const representativeByKey = new Map<string, SearchData>();
   searches.forEach(search => {
     const key = getCovariateKey(search);
     combinationCounts.set(key, (combinationCounts.get(key) || 0) + 1);
+    if (!representativeByKey.has(key)) {
+      representativeByKey.set(key, search);
+    }
   });
 
   // Count samples by covariate combination per plate - use treatment covariates
@@ -320,28 +326,22 @@ function createLegendSheet(
     const colorInfo = covariateColors[combination];
     if (!colorInfo) return;
 
-    const values = combination.split('|');
+    // Read covariate values from the sample's metadata instead of splitting the
+    // key, so a value containing '|' can't shift or drop columns.
+    // A missing value falls back to "N/A", matching the Plate Details modal.
+    // A present "na" shows as-is.
+    const representative = representativeByKey.get(combination);
+    const covCell = (cov: string): string => representative?.metadata[cov] || 'N/A';
 
-    // Build display values aligned to legendCovHeaders
+    // Build display values aligned to legendCovHeaders.
     let displayValues: string[];
-    if (showQcColumn && values.length > treatmentCovariates.length) {
-      // QC group: key is "QcType|na|na|..." — first value is QC type, rest are placeholders
-      const qcType = values[0];
-      const covValues = values.slice(1).map(v => {
-        const lower = v.toLowerCase();
-        return (lower === 'na' || lower === 'n/a') ? '' : v;
-      });
-      // Pad to match treatmentCovariates length if needed
-      while (covValues.length < treatmentCovariates.length) covValues.push('');
-      displayValues = [qcType, ...covValues.slice(0, treatmentCovariates.length)];
-    } else if (showQcColumn) {
-      // Non-QC group: no QC column value, just treatment covariate values
-      displayValues = ['', ...values];
-      // Pad to match legendCovHeaders length
-      while (displayValues.length < legendCovHeaders.length) displayValues.push('');
-      displayValues = displayValues.slice(0, legendCovHeaders.length);
+    if (showQcColumn) {
+      // Classify QC by the sample's real QC status, not by the key's part count.
+      // The QC column carries the sample's QC value only for a QC group.
+      const qcCell = representative?.isQC && qcColumn ? (representative.metadata[qcColumn] || '') : '';
+      displayValues = [qcCell, ...treatmentCovariates.map(covCell)];
     } else {
-      displayValues = values;
+      displayValues = treatmentCovariates.map(covCell);
     }
 
     // Get per-plate counts for this combination

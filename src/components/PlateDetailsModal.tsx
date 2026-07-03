@@ -214,12 +214,18 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                   }
                 });
 
-                // Calculate global distribution for percentage calculation
+                // Calculate global distribution for percentage calculation.
+                // Also keep one sample per group so covariate values come from
+                // metadata instead of from splitting the key.
                 const globalDistribution = new Map<string, number>();
+                const representativeByKey = new Map<string, SearchData>();
                 searches.forEach(sample => {
                   try {
                     const key = getCovariateKey(sample);
                     globalDistribution.set(key, (globalDistribution.get(key) || 0) + 1);
+                    if (!representativeByKey.has(key)) {
+                      representativeByKey.set(key, sample);
+                    }
                   } catch (error) {
                     console.error(error);
                   }
@@ -288,11 +294,14 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                                   ...styles.distributionCombination,
                                   ...(count === 0 ? { color: '#999' } : {})
                                 }}>
-                                  {selectedCovariates.map((cov, idx) => {
-                                    const values = combination.split('|');
+                                  {selectedCovariates.map((cov) => {
+                                    // Read each covariate from the sample's metadata,
+                                    // so a value containing '|' stays in its own row.
+                                    const representative = representativeByKey.get(combination);
+                                    const value = representative ? (representative.metadata[cov] || 'N/A') : 'N/A';
                                     return (
                                       <div key={cov} style={styles.covariateItem}>
-                                        <strong>{cov}:</strong> {values[idx] || 'N/A'}
+                                        <strong>{cov}:</strong> {value}
                                       </div>
                                     );
                                   })}

@@ -1,5 +1,5 @@
 import { SearchData, SubjectGroup, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig, BlockType } from '../utils/types';
-import { shuffleArray, groupByCovariates } from '../utils/utils';
+import { shuffleArray, groupByCovariates, buildCovariateKey } from '../utils/utils';
 import { greedyPlaceInRow } from './greedySpatialPlacement';
 import { distributeToBlocks, calculateExpectedMinimums } from './balancedRandomization';
 
@@ -1184,10 +1184,11 @@ export function groupAwareRandomization(
   const qcSamples = shuffleArray(searches.filter(s => s.isQC === true));
   const experimentalSamples = searches.filter(s => s.isQC !== true);
 
-  // Ensure covariateKey is set on experimental samples (needed for groupByCovariates in same-plate branch)
+  // Ensure covariateKey is set on experimental samples (needed for groupByCovariates in same-plate branch).
+  // Use the single key builder so escaping can't drift from buildProcessedSearches.
   for (const sample of experimentalSamples) {
     if (!sample.covariateKey && selectedCovariates.length > 0) {
-      sample.covariateKey = selectedCovariates.map(cov => sample.metadata[cov] || 'N/A').join('|');
+      sample.covariateKey = buildCovariateKey(sample, { selectedCovariates });
     }
   }
 

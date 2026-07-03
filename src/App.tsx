@@ -1227,6 +1227,7 @@ const styles = {
     fontSize: '36px',
     fontWeight: 'bold',
     marginBottom: '4px',
+    marginTop: '4px',
     color: '#333',
     textAlign: 'center' as const,
   },

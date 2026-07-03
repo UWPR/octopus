@@ -1,0 +1,13 @@
+Sample ID,Treatment,Dose,Site,QC
+S01,Drug|Hi,10,S1,
+S02,Drug|Hi,10,S1,
+S03,Drug|Hi,10,S1,
+S04,Drug,Hi|10,S1,
+S05,Drug,Hi|10,S1,
+S06,Drug,Hi|10,S1,
+S07,Placebo,5,na,
+S08,Placebo,5,na,
+S09,Placebo,5,,
+S10,Placebo,5,N/A,
+R01,Control,na,FA1,BatchQC
+R02,Control,na,FA1,BatchQC
