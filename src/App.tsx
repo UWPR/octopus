@@ -501,13 +501,20 @@ const App: React.FC = () => {
   const handleSaveLayout = () => {
     if (!selectedIdColumn || randomizedPlates.length === 0) return;
 
-    const json = serializeLayout({
-      searches,
-      randomizedPlates,
-      settings: collectLayoutSettings(),
-      covariateColors,
-      appVersion: packageJson.version,
-    });
+    let json: string;
+    try {
+      json = serializeLayout({
+        searches,
+        randomizedPlates,
+        settings: collectLayoutSettings(),
+        covariateColors,
+        appVersion: packageJson.version,
+      });
+    } catch (e) {
+      // serializeLayout throws if a sample is not on the grid. Show it instead of downloading.
+      setLoadWarning((e as Error).message);
+      return;
+    }
 
     // Build the base name, stripping a prior _octopus_layout suffix/timestamp when the loaded
     // file is itself a saved layout, so the suffix does not stack on re-save.
@@ -665,11 +672,13 @@ const App: React.FC = () => {
     setLoadWarning(result.warning ?? null);
   };
 
-  // Choose File handler - only CSV files are accepted. prepareForNewFile confirms first when a
-  // design is shown; the load itself then replaces the previous state (a valid sample CSV via the
-  // new-file reset effect, a valid layout via applyLoadedLayout, an invalid or unreadable pick via
-  // failLoad), so no pick leaves the previous file in place. A sample CSV is loaded directly; a
-  // saved layout CSV (recognised by its marker row) is auto-loaded as a layout, not parsed as data.
+  // Choose File handler. Routes a single file input by extension:
+  //   - .csv  -> loaded as sample data
+  //   - .json -> loaded as a saved layout
+  //   - other -> rejected up front by failLoad
+  // If a design is already shown, prepareForNewFile confirms the replace first (cancel keeps it).
+  // A file that loads successfully replaces the current state. A rejected or unreadable file is
+  // cleared via failLoad, so a failed load never leaves the previous file in place.
   const handleChooseFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const file = input.files?.[0];

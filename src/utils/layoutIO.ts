@@ -233,12 +233,22 @@ export function serializeLayout(options: {
     plateCount: randomizedPlates.length,
     settings: settingsToJson(settings),
     ...(covariateColorsJson ? { covariateColors: covariateColorsJson } : {}),
-    samples: searches.map((search) => ({
-      id: search.name,
-      plate: getPlateNumber(search.name, randomizedPlates),
-      well: getWell(search.name, randomizedPlates),
-      metadata: pickMetadata(search.metadata, settings.metadataColumns),
-    })),
+    samples: searches.map((search) => {
+      // getPlateNumber/getWell return '' when the sample is not on the grid. That must never be
+      // written (plate has to be a positive integer), so fail the save rather than emit a file the
+      // strict parser would reject.
+      const plate = getPlateNumber(search.name, randomizedPlates);
+      const well = getWell(search.name, randomizedPlates);
+      if (typeof plate !== 'number' || well === '') {
+        throw new Error(`Cannot save layout: sample "${search.name}" is not placed on any plate.`);
+      }
+      return {
+        id: search.name,
+        plate,
+        well,
+        metadata: pickMetadata(search.metadata, settings.metadataColumns),
+      };
+    }),
   };
 
   return JSON.stringify(doc, null, 2);

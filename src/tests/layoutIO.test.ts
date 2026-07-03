@@ -126,6 +126,13 @@ describe('serializeLayout', () => {
     expect('covariateColors' in (JSON.parse(text) as object)).toBe(false);
     expect(parseLayout(text).covariateColors).toBeNull();
   });
+
+  it('throws when a sample is not on any plate instead of emitting an invalid plate', () => {
+    const orphan = makeSample('ORPHAN', 'Drug', '0'); // in searches but not placed in PLATES
+    expect(() =>
+      serializeLayout({ searches: [...SEARCHES, orphan], randomizedPlates: PLATES, settings: SETTINGS, covariateColors: COLORS })
+    ).toThrow(/sample "ORPHAN" is not placed on any plate/);
+  });
 });
 
 describe('wellToIndices', () => {
