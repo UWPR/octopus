@@ -45,7 +45,9 @@ export async function getPlateFingerprint(page: Page, plateIndex: number): Promi
     // Scope to this plate's grid by its data-testid, so tooltips elsewhere in the document
     // (buttons, labels) cannot leak into the fingerprint. Only occupied cells carry a title.
     const grid = document.querySelector(`[data-testid="plate-grid-${idx}"]`);
-    if (!grid) return '';
+    if (!grid) {
+      throw new Error(`getPlateFingerprint: no plate grid found for index ${idx} (data-testid="plate-grid-${idx}").`);
+    }
     return Array.from(grid.querySelectorAll('[title]'))
       .map(cell => cell.getAttribute('title') || '')
       .join('|');
