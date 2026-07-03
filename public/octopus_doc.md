@@ -255,7 +255,7 @@ You can drag samples between wells on the same plate or across plates to manuall
 
 ### Step 6: Export Your Results
 
-The CSV, Excel, Layout, and Sequence actions are grouped under a single **Export** button above the plates. Open it and pick the option you want.
+The CSV, Excel, Layout, and Sequence actions are grouped under a single **Export** button above the plates. Open it and pick the option you want. Every exported file's name ends with a timestamp (`_YYYY-MM-DD_HH-mm-ss`).
 
 Once satisfied with the distribution, open the **Export** menu and choose **CSV** or **Excel** to save your plate assignments.
 
@@ -270,15 +270,15 @@ Once satisfied with the distribution, open the **Export** menu and choose **CSV*
 
 #### Save and Reproduce a Layout
 
-The regular CSV export records where each sample was placed, but not the choices behind that placement. To keep a record you can reproduce exactly, open the **Export** menu and choose **Layout**. This saves the finished layout together with the settings that produced it, as a single file named `<input_file_name>_octopus_layout.csv`. It is the most durable record of a run for an audit trail.
+The regular CSV export records where each sample was placed, but not the choices behind that placement. To keep a record you can reproduce exactly, open the **Export** menu and choose **Layout**. This saves the finished layout together with the settings that produced it, as a single file named `<input_file_name>_octopus_layout_<YYYY-MM-DD_HH-mm-ss>.json`. It is s durable record of the plate layout generation for an audit trail.
 
-The file is plain CSV with two parts, so it still opens in any spreadsheet:
-- A short two-column options block at the top listing the settings (ID column, covariates, QC column and values, algorithm, plate size, subject column, and grouping constraint) and the covariate colors.
-- The same sample table as the regular CSV export (every sample with its assigned plate and well), below a blank line.
+The file is a single JSON document that captures everything needed to reproduce the plate layout:
+- The settings that produced the layout (ID column, covariates, QC column and values, plate size, subject column, and grouping constraint) and the covariate colors.
+- Every sample with its assigned plate and well.
 
-**Loading it back:** Click **"Load Layout"** (next to Choose File at the top of the page) and select a saved layout file. Octopus recreates the exact same plate arrangement directly from the recorded positions, so the result is identical every time. It does not re-run randomization. It also restores the full configuration and your covariate colors, so the covariate summary and quality scores reappear just as they were when you saved. If a layout is already on screen, Octopus asks you to confirm before replacing it.
+**Loading it back:** Click **"Load Layout"** (next to Choose File at the top of the page) and select a saved layout file. Octopus recreates the same plate arrangement directly from the recorded plate and well positions, so the result is identical every time. It does not re-run randomization. It also restores the full configuration and the assigned covariate colors. 
 
-Because the file is plain CSV, you can open it in a spreadsheet and re-save it without breaking it. If the settings rows at the top are removed or damaged, Octopus still recreates the plate positions from the sample table, but warns you that the saved options could not be restored.
+The file is validated strictly when you load it. If it is not a valid Octopus layout, or has been changed into an inconsistent state (for example a well outside the plate, or covariate values that do not match the saved settings), Octopus refuses to load it and displays an error message. 
 
 ### Step 7: Export Injection Sequence (Optional)
 

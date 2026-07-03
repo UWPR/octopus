@@ -112,7 +112,7 @@ Open the **Export** menu and choose **Excel** to get:
 - Formatted for easy printing and reference
 
 #### Save Layout (Reproducible Record)
-Open the **Export** menu and choose **Layout** to save the plate arrangement together with the settings that produced it, in a single CSV file. Later, click **"Load Layout"** (next to Choose File at the top) to read it back and reproduce the exact same layout, with all settings and colors restored. This is a durable record for an audit trail.
+Open the **Export** menu and choose **Layout** to save the plate arrangement together with the settings that produced it, in a single JSON file. Later, click **"Load Layout"** (next to Choose File at the top) to read it back and reproduce the exact same layout, with all settings and colors restored. This is a durable record for an audit trail.
 
 ### Step 8: Export Injection Sequence (Optional)
 
@@ -244,7 +244,7 @@ Try these to see how they affect distribution:
 
 ### Exporting for Different Purposes
 
-All of these are in the **Export** menu above the plates:
+Each exported file's name includes a timestamp, so repeated exports do not overwrite each other. All of these are in the **Export** menu above the plates:
 
 - **CSV**: Simple format for data analysis, import into other tools
 - **Excel**: Visual reference, color-coded for easy identification, good for lab use
