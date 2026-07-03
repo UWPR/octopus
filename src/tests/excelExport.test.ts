@@ -3,8 +3,8 @@
  *
  * The legend must read covariate values from structured metadata (not by
  * splitting the key), classify QC by the sample's real QC status (not by the
- * key's part count), and render a covariate cell blank only when the value is
- * genuinely missing (a present "na" is rendered literally).
+ * key's part count), and render a missing covariate value as "N/A" (matching the
+ * Plate Details modal), while a present "na" is rendered literally.
  */
 
 import ExcelJS from 'exceljs';
@@ -86,7 +86,7 @@ function readLegendRows(sheet: ExcelJS.Worksheet): Array<{ [header: string]: str
 }
 
 describe('Excel legend structured decode and flag-based QC', () => {
-  it('reads values from metadata, classifies QC by status, and blanks only missing', () => {
+  it('reads values from metadata, classifies QC by status, and renders missing as N/A', () => {
     const withPipe = mk({ Treatment: 'Drug|Hi', Dose: '10', QC: '' }); // non-QC, value has delimiter
     const qcNa = mk({ Treatment: 'na', Dose: '5', QC: 'Ref' });        // real QC, present 'na' value
     const missing = mk({ Treatment: 'Ctrl', Dose: '', QC: '' });       // non-QC, genuinely missing Dose
@@ -106,10 +106,43 @@ describe('Excel legend structured decode and flag-based QC', () => {
     expect(b!['QC']).toBe('Ref');
     expect(b!['Treatment']).toBe('na');
 
-    // A genuinely missing value renders blank (not 'N/A').
+    // A genuinely missing covariate value renders as 'N/A', matching the modal.
+    // The QC column stays blank for a non-QC sample.
     const c = rows.find(r => r['Treatment'] === 'Ctrl');
     expect(c).toBeDefined();
-    expect(c!['Dose']).toBe('');
+    expect(c!['Dose']).toBe('N/A');
     expect(c!['QC']).toBe('');
+  });
+
+  it('keeps a QC value containing "|" intact and under the QC column', () => {
+    // A QC value with the key delimiter must not shift or drop legend columns:
+    // the QC cell shows the literal value and the treatment columns stay aligned.
+    const qcPipe = mk({ Treatment: 'Ctrl', Dose: '5', QC: 'Batch|QC' });
+    const config: CovariateConfig = {
+      selectedCovariates: TREATMENT_COVARIATES,
+      qcColumn: QC_COLUMN,
+      selectedQcValues: ['Batch|QC'],
+    };
+    buildProcessedSearches([qcPipe], config);
+
+    const covariateColors: { [key: string]: CovariateColorInfo } = {};
+    covariateColors[qcPipe.covariateKey!] = color();
+
+    const workbook = buildLayoutWorkbook({
+      searches: [qcPipe],
+      randomizedPlates: [[[qcPipe]]],
+      covariateColors,
+      treatmentCovariates: TREATMENT_COVARIATES,
+      exportCovariates: TREATMENT_COVARIATES,
+      numRows: 1,
+      numColumns: 1,
+      qcColumn: QC_COLUMN,
+    });
+    const rows = readLegendRows(workbook.getWorksheet('Legend')!);
+
+    const r = rows.find(row => row['QC'] === 'Batch|QC');
+    expect(r).toBeDefined();
+    expect(r!['Treatment']).toBe('Ctrl');
+    expect(r!['Dose']).toBe('5');
   });
 });

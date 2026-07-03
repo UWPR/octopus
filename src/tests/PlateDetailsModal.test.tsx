@@ -60,4 +60,32 @@ describe('PlateDetailsModal covariate decode', () => {
     expectCovariateRow('Dose', '10');
     expectCovariateRow('Site', 'S1');
   });
+
+  it('shows a QC sample\'s covariate values in their own rows despite the prepended QC key segment', () => {
+    const sample: SearchData = {
+      name: 'qc-sample',
+      metadata: { Treatment: 'Ctrl', Dose: '5', Site: 'S2', Condition: 'BatchQC' },
+    };
+    // A QC sample's key prepends the QC value, so the key has one more segment
+    // than the covariates. Reading metadata directly must ignore that offset;
+    // splitting the key would shift every covariate value into the next row.
+    sample.covariateKey = buildCovariateKey(sample, {
+      selectedCovariates: COVS,
+      qcColumn: 'Condition',
+      selectedQcValues: ['BatchQC'],
+    });
+
+    render(
+      <PlateDetailsModal
+        {...baseProps}
+        plateAssignments={new Map([[0, [sample]]])}
+        searches={[sample]}
+        selectedCovariates={COVS}
+      />
+    );
+
+    expectCovariateRow('Treatment', 'Ctrl');
+    expectCovariateRow('Dose', '5');
+    expectCovariateRow('Site', 'S2');
+  });
 });

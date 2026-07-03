@@ -328,9 +328,10 @@ function createLegendSheet(
 
     // Read covariate values from the sample's metadata instead of splitting the
     // key, so a value containing '|' can't shift or drop columns.
-    // A cell is blank only for a genuinely missing value. A present "na" shows as-is.
+    // A missing value falls back to "N/A", matching the Plate Details modal.
+    // A present "na" shows as-is.
     const representative = representativeByKey.get(combination);
-    const covCell = (cov: string): string => representative?.metadata[cov] || '';
+    const covCell = (cov: string): string => representative?.metadata[cov] || 'N/A';
 
     // Build display values aligned to legendCovHeaders.
     let displayValues: string[];
