@@ -36,30 +36,30 @@ describe('withTimestamp', () => {
 });
 
 describe('buildLayoutFileName', () => {
-  it('appends _octopus_layout.csv to a plain sample file name', () => {
-    expect(buildLayoutFileName('mydata.csv')).toBe('mydata_octopus_layout.csv');
+  it('appends _octopus_layout.json to a plain sample file name', () => {
+    expect(buildLayoutFileName('mydata.csv')).toBe('mydata_octopus_layout.json');
   });
 
   it('returns the default name when no file is loaded', () => {
-    expect(buildLayoutFileName('')).toBe('octopus_layout.csv');
-    expect(buildLayoutFileName(undefined)).toBe('octopus_layout.csv');
+    expect(buildLayoutFileName('')).toBe('octopus_layout.json');
+    expect(buildLayoutFileName(undefined)).toBe('octopus_layout.json');
   });
 
   it('does not stack the suffix when re-saving a loaded layout (with timestamp)', () => {
-    expect(buildLayoutFileName('mydata_octopus_layout_2026-06-30_10-00-00.csv'))
-      .toBe('mydata_octopus_layout.csv');
+    expect(buildLayoutFileName('mydata_octopus_layout_2026-06-30_10-00-00.json'))
+      .toBe('mydata_octopus_layout.json');
   });
 
   it('strips a prior _octopus_layout suffix that has no timestamp', () => {
-    expect(buildLayoutFileName('mydata_octopus_layout.csv')).toBe('mydata_octopus_layout.csv');
+    expect(buildLayoutFileName('mydata_octopus_layout.json')).toBe('mydata_octopus_layout.json');
   });
 
   it('collapses an already double-stacked name back to a single suffix', () => {
-    expect(buildLayoutFileName('mydata_octopus_layout_2026-06-01_09-00-00_octopus_layout_2026-06-30_10-00-00.csv'))
-      .toBe('mydata_octopus_layout.csv');
+    expect(buildLayoutFileName('mydata_octopus_layout_2026-06-01_09-00-00_octopus_layout_2026-06-30_10-00-00.json'))
+      .toBe('mydata_octopus_layout.json');
   });
 
   it('falls back to the default when the name is only the suffix', () => {
-    expect(buildLayoutFileName('_octopus_layout_2026-06-30_10-00-00.csv')).toBe('octopus_layout.csv');
+    expect(buildLayoutFileName('_octopus_layout_2026-06-30_10-00-00.json')).toBe('octopus_layout.json');
   });
 });

@@ -501,13 +501,20 @@ const App: React.FC = () => {
   const handleSaveLayout = () => {
     if (!selectedIdColumn || randomizedPlates.length === 0) return;
 
-    const csv = serializeLayout({
-      searches,
-      randomizedPlates,
-      settings: collectLayoutSettings(),
-      covariateColors,
-      appVersion: packageJson.version,
-    });
+    let json: string;
+    try {
+      json = serializeLayout({
+        searches,
+        randomizedPlates,
+        settings: collectLayoutSettings(),
+        covariateColors,
+        appVersion: packageJson.version,
+      });
+    } catch (e) {
+      // serializeLayout throws if a sample is not on the grid. Show it instead of downloading.
+      setLoadWarning((e as Error).message);
+      return;
+    }
 
     // Build the base name, stripping a prior _octopus_layout suffix/timestamp when the loaded
     // file is itself a saved layout, so the suffix does not stack on re-save.
@@ -515,7 +522,7 @@ const App: React.FC = () => {
     // Timestamp the filename (YYYY-MM-DD_HH-mm-ss) so repeated saves do not overwrite each other.
     const outputFileName = withTimestamp(baseFileName);
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -641,8 +648,8 @@ const App: React.FC = () => {
     const parsed = parseLayout(text);
     if (!parsed.hasMarker) {
       failLoad(
-        `"${fileName}" is not a saved Octopus layout. To load sample data, use "Choose File". ` +
-        'Layout files can be created from Export > Layout.'
+        `"${fileName}" is not a saved Octopus layout. Layout files are JSON, created from Export > Layout. ` +
+        'To load sample data, use "Choose File".'
       );
       return;
     }
@@ -665,11 +672,13 @@ const App: React.FC = () => {
     setLoadWarning(result.warning ?? null);
   };
 
-  // Choose File handler - only CSV files are accepted. prepareForNewFile confirms first when a
-  // design is shown; the load itself then replaces the previous state (a valid sample CSV via the
-  // new-file reset effect, a valid layout via applyLoadedLayout, an invalid or unreadable pick via
-  // failLoad), so no pick leaves the previous file in place. A sample CSV is loaded directly; a
-  // saved layout CSV (recognised by its marker row) is auto-loaded as a layout, not parsed as data.
+  // Choose File handler. Routes a single file input by extension:
+  //   - .csv  -> loaded as sample data
+  //   - .json -> loaded as a saved layout
+  //   - other -> rejected up front by failLoad
+  // If a design is already shown, prepareForNewFile confirms the replace first (cancel keeps it).
+  // A file that loads successfully replaces the current state. A rejected or unreadable file is
+  // cleared via failLoad, so a failed load never leaves the previous file in place.
   const handleChooseFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
@@ -678,15 +687,20 @@ const App: React.FC = () => {
 
     if (!prepareForNewFile()) return; // user cancelled the replace - keep everything
 
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      failLoad(`"${file.name}" is not a CSV file. Only CSV files are supported.`);
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith('.csv') && !lowerName.endsWith('.json')) {
+      failLoad(`"${file.name}" is not a CSV or JSON file. Only CSV sample files and JSON layout files are supported.`);
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
       const text = String(reader.result ?? '');
-      if (parseLayout(text).hasMarker) {
+      // Route by extension: a .json file is opened as a saved layout, a .csv as sample data. The
+      // gate above already rejected anything else. A .json that is not actually an Octopus layout
+      // still goes to the layout path, where loadLayoutFromText reports a clear "not a saved
+      // Octopus layout" error rather than being parsed as fake sample rows.
+      if (lowerName.endsWith('.json')) {
         loadLayoutFromText(text, file.name);
       } else {
         loadSampleFromText(text, file.name);

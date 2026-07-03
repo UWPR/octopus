@@ -178,7 +178,8 @@ describe('layout round-trip (property-based)', () => {
         const parsed = parseLayout(text);
 
         // 1. Settings: every field preserved.
-        expect(parsed.headerMissing).toBe(false);
+        expect(parsed.hasMarker).toBe(true);
+        expect(parsed.structuralErrors).toEqual([]);
         expect(parsed.settings).toEqual(settings);
 
         // 2. Colors and styles: every entry preserved (text color recomputed identically).

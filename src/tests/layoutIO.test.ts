@@ -5,7 +5,7 @@ import {
   buildPlatesFromRows,
   wellToIndices,
   LayoutSettings,
-  LAYOUT_MARKER,
+  LAYOUT_FORMAT,
   LAYOUT_SCHEMA_VERSION,
   CovariateColorMap,
 } from '../utils/layoutIO';
@@ -59,6 +59,8 @@ const SETTINGS: LayoutSettings = {
   metadataColumns: ['Treatment', 'Dose'],
 };
 
+// Every color key matches a covariate combination the samples actually produce, so the
+// well-formed fixture passes validateLayout's covariate-color consistency check.
 // Dark colors -> recomputed textColor is always '#fff', so round-trip equality holds.
 const COLORS: CovariateColorMap = {
   'Drug|0': { color: '#111111', useOutline: false, useStripes: false, textColor: '#fff' },
@@ -67,66 +69,69 @@ const COLORS: CovariateColorMap = {
   'Placebo|10': { color: '#444444', useOutline: false, useStripes: false, textColor: '#fff' },
 };
 
-function fullFile(): string {
+function fullFile(appVersion?: string): string {
   return serializeLayout({
     searches: SEARCHES,
     randomizedPlates: PLATES,
     settings: SETTINGS,
     covariateColors: COLORS,
+    appVersion,
   });
 }
 
-/** The options block of a layout file (everything before the placement table). */
-function optionsBlock(settings: LayoutSettings, colors: CovariateColorMap = {}): string {
-  return serializeLayout({
-    searches: [],
-    randomizedPlates: [],
-    settings,
-    covariateColors: colors,
-  }).split('\n\n')[0];
+/** Parse the well-formed file into a plain object so a test can tweak one field and re-serialize. */
+function doc(): { [key: string]: unknown } {
+  return JSON.parse(fullFile());
+}
+function ser(d: unknown): string {
+  return JSON.stringify(d);
 }
 
 describe('serializeLayout', () => {
-  it('starts with the marker row and writes settings as two-column rows', () => {
-    const text = fullFile();
-    const lines = text.split(/\r?\n/);
-    expect(lines[0]).toBe(`${LAYOUT_MARKER},${LAYOUT_SCHEMA_VERSION}`);
-    expect(text).toContain('idColumn,Sample ID');
-    expect(text).toContain('covariates,Treatment|Dose');
-    expect(text).toContain('qcValues,Placebo');
-    expect(text).toContain('plateRows,2');
-    // Colors are encoded as `color:<key>,#RRGGBB <fill>` rows.
-    expect(text).toContain('color:Drug|10,#333333 stripes');
-    expect(text).toContain('color:Placebo|0,#222222 outline');
+  it('emits a JSON document with the marker, version, plate count, settings, colors, and samples', () => {
+    const d = JSON.parse(fullFile()) as any;
+    expect(d.format).toBe(LAYOUT_FORMAT);
+    expect(d.schemaVersion).toBe(LAYOUT_SCHEMA_VERSION);
+    expect(d.plateCount).toBe(2);
+    expect(d.settings.idColumn).toBe('Sample ID');
+    expect(d.settings.covariates).toEqual(['Treatment', 'Dose']);
+    expect(d.settings.qcValues).toEqual(['Placebo']);
+    expect(d.settings.plateRows).toBe(2);
+    expect(d.settings.metadataColumns).toEqual(['Treatment', 'Dose']);
+    // Colors are encoded as { color, fill } with a single fill enum.
+    expect(d.covariateColors['Drug|10']).toEqual({ color: '#333333', fill: 'stripes' });
+    expect(d.covariateColors['Placebo|0']).toEqual({ color: '#222222', fill: 'outline' });
+    expect(d.covariateColors['Drug|0']).toEqual({ color: '#111111', fill: 'solid' });
+    // Samples carry id, 1-based plate, well, and exactly the declared metadata columns.
+    expect(d.samples).toHaveLength(6);
+    expect(d.samples[0]).toEqual({ id: 'S1', plate: 1, well: 'A01', metadata: { Treatment: 'Drug', Dose: '0' } });
+    expect(d.samples[5]).toEqual({ id: 'S6', plate: 2, well: 'A01', metadata: { Treatment: 'Placebo', Dose: '10' } });
   });
 
-  it('placement table is byte-for-byte the Download CSV table', () => {
-    const table = fullFile().split('\n\n')[1];
-    const expectedTable = buildPlacementCsv(SEARCHES, PLATES, SETTINGS.selectedIdColumn);
-    expect(table).toBe(expectedTable);
-  });
-
-  it('records the app version as a row right after the marker, and round-trips it', () => {
-    const text = serializeLayout({
-      searches: SEARCHES,
-      randomizedPlates: PLATES,
-      settings: SETTINGS,
-      covariateColors: COLORS,
-      appVersion: '1.1.0',
-    });
-    const lines = text.split(/\r?\n/);
-    expect(lines[0]).toBe(`${LAYOUT_MARKER},${LAYOUT_SCHEMA_VERSION}`);
-    expect(lines[1]).toBe('appVersion,1.1.0');
-
-    const parsed = parseLayout(text);
+  it('records the app version when given and round-trips it without leaking into settings', () => {
+    const withVersion = JSON.parse(fullFile('1.1.0')) as any;
+    expect(withVersion.appVersion).toBe('1.1.0');
+    const parsed = parseLayout(fullFile('1.1.0'));
     expect(parsed.appVersion).toBe('1.1.0');
-    // The version is provenance only and must not leak into the reproduced settings.
     expect(parsed.settings).toEqual(SETTINGS);
   });
 
-  it('omits the app version row when none is given (parsed appVersion is null)', () => {
-    expect(fullFile()).not.toContain('appVersion,');
+  it('omits the app version when none is given (parsed appVersion is null)', () => {
+    expect('appVersion' in (JSON.parse(fullFile()) as object)).toBe(false);
     expect(parseLayout(fullFile()).appVersion).toBeNull();
+  });
+
+  it('omits covariateColors when the color map is empty', () => {
+    const text = serializeLayout({ searches: SEARCHES, randomizedPlates: PLATES, settings: SETTINGS, covariateColors: {} });
+    expect('covariateColors' in (JSON.parse(text) as object)).toBe(false);
+    expect(parseLayout(text).covariateColors).toBeNull();
+  });
+
+  it('throws when a sample is not on any plate instead of emitting an invalid plate', () => {
+    const orphan = makeSample('ORPHAN', 'Drug', '0'); // in searches but not placed in PLATES
+    expect(() =>
+      serializeLayout({ searches: [...SEARCHES, orphan], randomizedPlates: PLATES, settings: SETTINGS, covariateColors: COLORS })
+    ).toThrow(/sample "ORPHAN" is not placed on any plate/);
   });
 });
 
@@ -154,8 +159,10 @@ describe('wellToIndices', () => {
 describe('round trip', () => {
   it('serialize -> parse -> buildPlatesFromRows reproduces the exact plates', () => {
     const parsed = parseLayout(fullFile());
-    expect(parsed.headerMissing).toBe(false);
+    expect(parsed.hasMarker).toBe(true);
+    expect(parsed.structuralErrors).toEqual([]);
     expect(parsed.settings).toEqual(SETTINGS);
+    expect(parsed.plateCount).toBe(2);
     expect(parsed.rows.length).toBe(6);
 
     const { plates, plateAssignments, samples } = buildPlatesFromRows(parsed.rows, SETTINGS);
@@ -194,10 +201,10 @@ describe('round trip', () => {
 });
 
 describe('settings round-trip (one field varied at a time)', () => {
-  // Each variant changes a single setting away from the default. Re-serializing with the
-  // same placement and re-parsing must return exactly the varied settings object, proving
-  // each field is carried through the file independently. Plate dims are only ever widened
-  // (never below the 2x3 placement) so the table stays valid.
+  // Each variant changes a single setting away from the default. Re-serializing with the same
+  // placement and re-parsing must return exactly the varied settings object, proving each field
+  // is carried through the file independently. Plate dims are only ever widened (never below the
+  // 2x3 placement) so the table stays valid.
   const variants: Array<{ name: string; settings: LayoutSettings }> = [
     { name: 'greedy algorithm', settings: { ...SETTINGS, selectedAlgorithm: 'greedy' } },
     { name: 'keepEmptyInLastPlate true', settings: { ...SETTINGS, keepEmptyInLastPlate: true } },
@@ -218,7 +225,8 @@ describe('settings round-trip (one field varied at a time)', () => {
       covariateColors: COLORS,
     });
     const parsed = parseLayout(text);
-    expect(parsed.headerMissing).toBe(false);
+    expect(parsed.hasMarker).toBe(true);
+    expect(parsed.structuralErrors).toEqual([]);
     expect(parsed.settings).toEqual(settings);
   });
 });
@@ -228,7 +236,6 @@ describe('color and style round-trip', () => {
     // COLORS already covers solid (Drug|0, Placebo|10), outline (Placebo|0), stripes (Drug|10).
     const parsed = parseLayout(fullFile());
     expect(parsed.covariateColors).toEqual(COLORS);
-    // Spot-check each style flag explicitly so a silent flag swap is caught.
     expect(parsed.covariateColors!['Drug|0']).toEqual({ color: '#111111', useOutline: false, useStripes: false, textColor: '#fff' });
     expect(parsed.covariateColors!['Placebo|0'].useOutline).toBe(true);
     expect(parsed.covariateColors!['Drug|10'].useStripes).toBe(true);
@@ -266,20 +273,18 @@ describe('per-cell placement', () => {
     const parsed = parseLayout(fullFile());
     const { plates } = buildPlatesFromRows(parsed.rows, parsed.settings!);
     const nameAt = (p: number, r: number, c: number) => plates[p][r][c]?.name;
-    // Plate 1: A01..A03, B01..B02 occupied; B03 empty.
     expect(nameAt(0, 0, 0)).toBe('S1'); // A01
     expect(nameAt(0, 0, 1)).toBe('S2'); // A02
     expect(nameAt(0, 0, 2)).toBe('S3'); // A03
     expect(nameAt(0, 1, 0)).toBe('S4'); // B01
     expect(nameAt(0, 1, 1)).toBe('S5'); // B02
     expect(plates[0][1][2]).toBeUndefined(); // B03 empty
-    // Plate 2: only A01 occupied.
     expect(nameAt(1, 0, 0)).toBe('S6'); // A01
     expect(plates[1][0][1]).toBeUndefined();
     expect(plates[1][1][0]).toBeUndefined();
   });
 
-  it('preserves metadata values containing commas and spaces (CSV quoting)', () => {
+  it('preserves metadata values containing commas and spaces', () => {
     const tricky: SearchData = { name: 'X1', metadata: { Treatment: 'Drug, high', Dose: '10 mg' } };
     const trickyPlates: (SearchData | undefined)[][][] = [
       [
@@ -301,9 +306,9 @@ describe('per-cell placement', () => {
 });
 
 describe('export round-trip fidelity', () => {
-  // Mirrors the user workflow: export an artifact, save the layout, load it back, export
-  // again. The second artifact must match the first. These exercise the real export code
-  // paths (buildPlacementCsv and buildLayoutWorkbook), not just the layout file.
+  // Mirrors the user workflow: export an artifact, save the layout, load it back, export again.
+  // The second artifact must match the first. These exercise the real export code paths
+  // (buildPlacementCsv and buildLayoutWorkbook), not just the layout file.
 
   it('re-exporting the placement CSV after a layout round trip is byte-identical', () => {
     const csvBefore = buildPlacementCsv(SEARCHES, PLATES, SETTINGS.selectedIdColumn);
@@ -316,14 +321,11 @@ describe('export round-trip fidelity', () => {
   });
 
   it('re-exporting the Excel workbook after a layout round trip has identical content', () => {
-    // Deep-clone the shared fixture so setting covariateKey here does not leak into the
-    // other tests (which compare against the un-processed PLATES).
     const clone = (list: SearchData[]): SearchData[] =>
       list.map(s => ({ name: s.name, metadata: { ...s.metadata } }));
     const platesFrom = (byName: Map<string, SearchData>): (SearchData | undefined)[][][] =>
       PLATES.map(plate => plate.map(row => row.map(cell => (cell ? byName.get(cell.name) : undefined))));
 
-    // "Before": clone of the original, with covariateKey computed as the app does.
     const beforeSearches = clone(SEARCHES);
     const beforeByName = new Map(beforeSearches.map(s => [s.name, s]));
     const beforePlates = platesFrom(beforeByName);
@@ -333,7 +335,6 @@ describe('export round-trip fidelity', () => {
       selectedQcValues: SETTINGS.selectedQcValues,
     });
 
-    // "After": reconstructed from the saved layout, processed the same way.
     const parsed = parseLayout(fullFile());
     const { plates: afterPlates, samples: afterSearches } = buildPlatesFromRows(parsed.rows, parsed.settings!);
     buildProcessedSearches(afterSearches, {
@@ -360,11 +361,6 @@ describe('export round-trip fidelity', () => {
   });
 });
 
-/**
- * Reduce a workbook to a comparable, timestamp-free projection: per worksheet, the value
- * and full style of every cell. Ignores workbook.created (a Date, different on each export)
- * and other file-level metadata, isolating the actual layout/color/style content.
- */
 function projectWorkbook(workbook: ExcelJS.Workbook) {
   return workbook.worksheets.map(sheet => {
     const cells: Array<{ row: number; col: number; value: unknown; style: unknown }> = [];
@@ -377,215 +373,163 @@ function projectWorkbook(workbook: ExcelJS.Workbook) {
   });
 }
 
-describe('header degradation', () => {
-  it('parses placement when the options block is entirely missing', () => {
-    const table = buildPlacementCsv(SEARCHES, PLATES, SETTINGS.selectedIdColumn);
-    const parsed = parseLayout(table);
-    expect(parsed.headerMissing).toBe(true);
-    expect(parsed.settings).toBeNull();
-    expect(parsed.rows.length).toBe(6);
+describe('marker detection (parseLayout.hasMarker)', () => {
+  it('detects a real layout document', () => {
+    expect(parseLayout(fullFile()).hasMarker).toBe(true);
   });
 
-  it('flags missing settings when only the marker row is present', () => {
-    const table = buildPlacementCsv(SEARCHES, PLATES, SETTINGS.selectedIdColumn);
-    const text = `${LAYOUT_MARKER},1\n\n${table}`;
-    const parsed = parseLayout(text);
-    expect(parsed.headerMissing).toBe(true);
-    expect(parsed.settings).toBeNull();
+  it('does not treat a non-JSON file as a layout', () => {
+    expect(parseLayout('Sample ID,Note\nS1,see the Octopus Layout guide\n').hasMarker).toBe(false);
+    expect(parseLayout('not json at all {[').hasMarker).toBe(false);
   });
 
-  it('flags missing settings when core options are incomplete', () => {
-    const table = buildPlacementCsv(SEARCHES, PLATES, SETTINGS.selectedIdColumn);
-    // idColumn present but plateRows/plateColumns missing.
-    const text = `${LAYOUT_MARKER},1\nidColumn,Sample ID\n\n${table}`;
-    const parsed = parseLayout(text);
-    expect(parsed.headerMissing).toBe(true);
-    expect(parsed.settings).toBeNull();
-  });
-
-  it('parses settings with no color rows (colors null, header present)', () => {
-    const text = serializeLayout({
-      searches: SEARCHES,
-      randomizedPlates: PLATES,
-      settings: SETTINGS,
-      covariateColors: {},
-    });
-    const parsed = parseLayout(text);
-    expect(parsed.headerMissing).toBe(false);
-    expect(parsed.settings).toEqual(SETTINGS);
-    expect(parsed.covariateColors).toBeNull();
-  });
-
-  it('survives an Excel-style round trip that pads rows and drops the blank line', () => {
-    // Every row padded to the table width (6 cols), no blank separator line.
-    const padded = fullFile()
-      .split('\n')
-      .filter(line => line.trim() !== '')
-      .map(line => {
-        const cells = line.split(',');
-        while (cells.length < 6) cells.push('');
-        return cells.join(',');
-      })
-      .join('\n');
-    const parsed = parseLayout(padded);
-    expect(parsed.headerMissing).toBe(false);
-    expect(parsed.settings).toEqual(SETTINGS);
-    expect(parsed.rows.length).toBe(6);
-    const { plates } = buildPlatesFromRows(parsed.rows, parsed.settings!);
-    expect(plates).toEqual(PLATES);
+  it('does not treat JSON without the format marker as a layout', () => {
+    expect(parseLayout('{"foo":"bar","samples":[]}').hasMarker).toBe(false);
   });
 });
 
-describe('validateLayout', () => {
+describe('parseLayout strict structural validation', () => {
+  it('flags an unreadable (non-integer) schema version', () => {
+    const d = doc();
+    d.schemaVersion = 'x';
+    const parsed = parseLayout(ser(d));
+    expect(parsed.hasMarker).toBe(true);
+    expect(parsed.structuralErrors.some(e => e.fatal)).toBe(true);
+    expect(validateLayout(parsed).some(e => e.fatal)).toBe(true);
+  });
+
+  it('flags a schema version newer than supported', () => {
+    const d = doc();
+    d.schemaVersion = LAYOUT_SCHEMA_VERSION + 1;
+    const parsed = parseLayout(ser(d));
+    expect(parsed.structuralErrors.some(e => e.fatal && /newer version/.test(e.message))).toBe(true);
+  });
+
+  it('flags an invalid plate count', () => {
+    const d = doc();
+    d.plateCount = 0;
+    expect(parseLayout(ser(d)).structuralErrors.some(e => e.fatal && /plate count/.test(e.message))).toBe(true);
+  });
+
+  it.each([
+    ['non-integer plateRows', (d: any) => { d.settings.plateRows = 'abc'; }],
+    ['non-positive plateColumns', (d: any) => { d.settings.plateColumns = 0; }],
+    ['unknown algorithm', (d: any) => { d.settings.algorithm = 'quantum'; }],
+    ['unknown groupingConstraint', (d: any) => { d.settings.groupingConstraint = 'same-galaxy'; }],
+    ['covariates not an array', (d: any) => { d.settings.covariates = 'Treatment'; }],
+    ['idColumn not a string', (d: any) => { d.settings.idColumn = 5; }],
+  ])('flags bad settings: %s', (_label, mutate) => {
+    const d = doc();
+    mutate(d);
+    const parsed = parseLayout(ser(d));
+    expect(parsed.settings).toBeNull();
+    expect(parsed.structuralErrors.some(e => e.fatal)).toBe(true);
+  });
+
+  it.each([
+    ['bad color hex', (d: any) => { d.covariateColors['Drug|0'].color = 'red'; }],
+    ['bad fill token', (d: any) => { d.covariateColors['Drug|0'].fill = 'zebra'; }],
+  ])('flags bad covariateColors: %s', (_label, mutate) => {
+    const d = doc();
+    mutate(d);
+    expect(parseLayout(ser(d)).structuralErrors.some(e => e.fatal)).toBe(true);
+  });
+
+  it.each([
+    ['plate not an integer', (d: any) => { d.samples[0].plate = '1'; }],
+    ['missing id', (d: any) => { delete d.samples[0].id; }],
+    ['well not a string', (d: any) => { d.samples[0].well = 12; }],
+    ['metadata value not a string', (d: any) => { d.samples[0].metadata.Dose = 0; }],
+  ])('flags bad samples: %s', (_label, mutate) => {
+    const d = doc();
+    mutate(d);
+    const parsed = parseLayout(ser(d));
+    expect(parsed.rows).toEqual([]);
+    expect(parsed.structuralErrors.some(e => e.fatal)).toBe(true);
+  });
+
+  it('flags an empty samples array', () => {
+    const d = doc();
+    d.samples = [];
+    expect(parseLayout(ser(d)).structuralErrors.some(e => e.fatal && /no samples/.test(e.message))).toBe(true);
+  });
+});
+
+describe('validateLayout semantic checks', () => {
   it('accepts a well-formed layout with no errors', () => {
     expect(validateLayout(parseLayout(fullFile()))).toEqual([]);
   });
 
-  it('rejects (fatal) when the options block is missing', () => {
-    // Without the options block the recorded settings (plate dimensions in particular)
-    // are gone, so a faithful reproduction is impossible and the load must be refused.
-    const table = buildPlacementCsv(SEARCHES, PLATES, SETTINGS.selectedIdColumn);
-    const errors = validateLayout(parseLayout(table));
-    expect(errors.length).toBe(1);
-    expect(errors[0].fatal).toBe(true);
-  });
-
-  it('rejects a file saved by a newer schema version', () => {
-    const text = fullFile().replace(`${LAYOUT_MARKER},${LAYOUT_SCHEMA_VERSION}`, `${LAYOUT_MARKER},${LAYOUT_SCHEMA_VERSION + 1}`);
-    const errors = validateLayout(parseLayout(text));
-    expect(errors.length).toBe(1);
-    expect(errors[0].fatal).toBe(true);
-  });
-
-  it('rejects duplicate sample names', () => {
-    const dup = makeSample('S1', 'Drug', '0');
-    const dupSearches = [...SEARCHES, dup];
-    const dupPlates: (SearchData | undefined)[][][] = [
-      [
-        [S1, S2, S3],
-        [S4, S5, dup],
-      ],
-      [[S6, undefined, undefined], [undefined, undefined, undefined]],
-    ];
-    const text = serializeLayout({
-      searches: dupSearches,
-      randomizedPlates: dupPlates,
-      settings: SETTINGS,
-      covariateColors: COLORS,
-    });
-    const errors = validateLayout(parseLayout(text));
-    expect(errors.some(e => e.fatal && e.message.includes('Duplicate'))).toBe(true);
-  });
-
   it('rejects an out-of-bounds well', () => {
-    const text = `${optionsBlock(SETTINGS)}\n\nSample ID,Treatment,Dose,plate,well\nS1,Drug,0,1,C01\n`;
-    const errors = validateLayout(parseLayout(text));
-    expect(errors.some(e => e.fatal)).toBe(true);
+    const d = doc() as any;
+    d.samples[0].well = 'C01'; // row C (index 2) is outside the 2-row plate
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal)).toBe(true);
   });
 
   it('rejects two samples in the same well', () => {
-    const text = `${optionsBlock(SETTINGS)}\n\nSample ID,Treatment,Dose,plate,well\nS1,Drug,0,1,A01\nS2,Placebo,0,1,A01\n`;
-    const errors = validateLayout(parseLayout(text));
-    expect(errors.some(e => e.fatal && e.message.includes('occupy'))).toBe(true);
+    const d = doc() as any;
+    d.samples[1].plate = 1;
+    d.samples[1].well = 'A01'; // same as samples[0]
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /occupy/.test(e.message))).toBe(true);
   });
 
-  it('rejects an invalid plate number', () => {
-    const text = `${optionsBlock(SETTINGS)}\n\nSample ID,Treatment,Dose,plate,well\nS1,Drug,0,0,A01\n`;
-    const errors = validateLayout(parseLayout(text));
-    expect(errors.some(e => e.fatal)).toBe(true);
+  it('rejects a plate number outside the plate count', () => {
+    const d = doc() as any;
+    d.samples[0].plate = 5; // plateCount is 2
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /outside the layout's 2 plate/.test(e.message))).toBe(true);
   });
 
-  it('rejects a plate number larger than the sample count (huge-allocation guard)', () => {
-    // One sample placed on plate 1000000 would otherwise allocate a million plates.
-    const text = `${optionsBlock(SETTINGS)}\n\nSample ID,Treatment,Dose,plate,well\nS1,Drug,0,1000000,A01\n`;
-    const errors = validateLayout(parseLayout(text));
-    expect(errors.some(e => e.fatal && /out of range/.test(e.message))).toBe(true);
+  it('rejects a declared plate with no samples', () => {
+    const d = doc() as any;
+    d.plateCount = 3; // but only plates 1 and 2 hold samples
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /samples appear on 2 distinct plate\(s\)/.test(e.message))).toBe(true);
   });
 
-  it('rejects a non-integer plate dimension (would otherwise crash plate allocation)', () => {
-    const text = fullFile().replace('plateRows,2', 'plateRows,abc');
-    const errors = validateLayout(parseLayout(text));
-    expect(errors.some(e => e.fatal && /plate dimensions/.test(e.message))).toBe(true);
+  it('rejects a huge plate count without looping over it', () => {
+    const d = doc() as any;
+    d.plateCount = 1_000_000_000; // corrupt/hand-edited: must be rejected without a per-plate loop
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /samples appear on 2 distinct plate\(s\)/.test(e.message))).toBe(true);
   });
 
-  it('rejects a non-positive plate dimension', () => {
-    const text = fullFile().replace('plateColumns,3', 'plateColumns,0');
-    const errors = validateLayout(parseLayout(text));
-    expect(errors.some(e => e.fatal && /plate dimensions/.test(e.message))).toBe(true);
+  it('rejects duplicate sample ids', () => {
+    const d = doc() as any;
+    d.samples[1].id = 'S1';
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /Duplicate/.test(e.message))).toBe(true);
   });
 
-  it('rejects a non-integer schema version', () => {
-    const text = fullFile().replace(`${LAYOUT_MARKER},${LAYOUT_SCHEMA_VERSION}`, `${LAYOUT_MARKER},foo`);
-    const errors = validateLayout(parseLayout(text));
-    expect(errors.some(e => e.fatal)).toBe(true);
-  });
-});
-
-describe('marker detection (parseLayout.hasMarker)', () => {
-  it('detects a real marker row', () => {
-    expect(parseLayout(fullFile()).hasMarker).toBe(true);
+  it('rejects a covariate that is not a metadata column', () => {
+    const d = doc() as any;
+    d.settings.covariates = ['Treatment', 'Ghost'];
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /Covariate column "Ghost"/.test(e.message))).toBe(true);
   });
 
-  it('does not treat the marker text in a data cell as a layout file', () => {
-    // A plain sample CSV that merely mentions "Octopus Layout" in a value must not be
-    // misread as a (malformed) layout file.
-    const csv = 'Sample ID,Note\nS1,see the Octopus Layout guide\nS2,plain\n';
-    expect(parseLayout(csv).hasMarker).toBe(false);
-  });
-});
-
-describe('table-header detection (quote-aware)', () => {
-  it('round-trips a metadata column name and value containing commas', () => {
-    const settings: LayoutSettings = {
-      ...SETTINGS,
-      selectedCovariates: ['Site, City'],
-      qcColumn: '',
-      selectedQcValues: [],
-      metadataColumns: ['Site, City'],
-    };
-    const s1: SearchData = { name: 'S1', metadata: { 'Site, City': 'Boston, MA' } };
-    const s2: SearchData = { name: 'S2', metadata: { 'Site, City': 'Reno' } };
-    const plates: (SearchData | undefined)[][][] = [
-      [
-        [s1, s2, undefined],
-        [undefined, undefined, undefined],
-      ],
-    ];
-    const text = serializeLayout({ searches: [s1, s2], randomizedPlates: plates, settings, covariateColors: {} });
-
-    const parsed = parseLayout(text);
-    expect(parsed.headerMissing).toBe(false);
-    expect(parsed.settings!.metadataColumns).toEqual(['Site, City']);
-
-    const { plates: rebuilt, samples } = buildPlatesFromRows(parsed.rows, parsed.settings!);
-    expect(rebuilt).toEqual(plates);
-    expect(samples[0].metadata).toEqual({ 'Site, City': 'Boston, MA' });
+  it('rejects a sample missing a declared metadata column', () => {
+    const d = doc() as any;
+    delete d.samples[0].metadata.Dose;
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /metadata columns/.test(e.message))).toBe(true);
   });
 
-  it('does not mistake a quoted options value with embedded plate/well tokens for the header', () => {
-    // Split naively on commas, the color value below exposes standalone "plate" and "well"
-    // tokens ahead of the real header. A non-quote-aware splitter would cut the file there.
-    const text =
-      `${LAYOUT_MARKER},1\n` +
-      `idColumn,Sample ID\n` +
-      `covariates,Treatment\n` +
-      `qcColumn,\n` +
-      `qcValues,\n` +
-      `algorithm,balanced\n` +
-      `keepEmptyInLastPlate,false\n` +
-      `plateRows,1\n` +
-      `plateColumns,2\n` +
-      `subjectColumn,\n` +
-      `groupingConstraint,none\n` +
-      `metadataColumns,Treatment\n` +
-      `color:Drug,"#111111 solid, plate, well"\n` +
-      `\n` +
-      `Sample ID,Treatment,plate,well\n` +
-      `S1,Drug,1,A01\n`;
+  it('rejects a sample with an extra metadata column', () => {
+    const d = doc() as any;
+    d.samples[0].metadata.Extra = 'x';
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /metadata columns/.test(e.message))).toBe(true);
+  });
 
-    const parsed = parseLayout(text);
-    expect(parsed.headerMissing).toBe(false);
-    expect(parsed.rows).toHaveLength(1);
-    expect(parsed.rows[0].well).toBe('A01');
+  it('rejects a QC column that is not a metadata column', () => {
+    const d = doc() as any;
+    d.settings.qcColumn = 'Ghost';
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /QC column "Ghost"/.test(e.message))).toBe(true);
+  });
+
+  it('rejects a subject column that overlaps a covariate', () => {
+    const d = doc() as any;
+    d.settings.subjectColumn = 'Treatment'; // Treatment is a covariate
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /cannot also be a covariate/.test(e.message))).toBe(true);
+  });
+
+  it('rejects a covariate color for a combination no sample produces', () => {
+    const d = doc() as any;
+    d.covariateColors['Ghost|0'] = { color: '#abcdef', fill: 'solid' };
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /no sample produces/.test(e.message))).toBe(true);
   });
 });

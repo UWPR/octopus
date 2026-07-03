@@ -9,8 +9,8 @@ import {
   NUM_COVARIATE_GROUPS,
 } from './helpers';
 
-/** The saved-layout filename shape: <base>_octopus_layout_<YYYY-MM-DD_HH-mm-ss>.csv */
-const SAVED_LAYOUT_NAME = /^trx-phase1b-small_octopus_layout_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/;
+/** The saved-layout filename shape: <base>_octopus_layout_<YYYY-MM-DD_HH-mm-ss>.json */
+const SAVED_LAYOUT_NAME = /^trx-phase1b-small_octopus_layout_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/;
 
 /**
  * Layout Round-Trip Tests
@@ -47,11 +47,11 @@ test.describe('Layout Round-Trip', () => {
     await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
     const download = await downloadPromise;
     // The filename carries a YYYY-MM-DD_HH-mm-ss timestamp.
-    expect(download.suggestedFilename()).toMatch(/_octopus_layout_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
-    const savedPath = path.join(__dirname, 'temp-layout.csv');
+    expect(download.suggestedFilename()).toMatch(/_octopus_layout_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/);
+    const savedPath = path.join(__dirname, 'temp-layout.json');
     await download.saveAs(savedPath);
     // The saved file records the app version that produced it.
-    expect(fs.readFileSync(savedPath, 'utf8')).toMatch(/appVersion,\d+\.\d+\.\d+/);
+    expect(fs.readFileSync(savedPath, 'utf8')).toMatch(/"appVersion":\s*"\d+\.\d+\.\d+"/);
 
     // Reload the page to clear all state, then load the saved layout.
     await page.goto('http://localhost:3000');
@@ -146,7 +146,7 @@ test.describe('Layout Round-Trip', () => {
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
     const download = await downloadPromise;
-    const savedPath = path.join(__dirname, 'temp-layout-colors.csv');
+    const savedPath = path.join(__dirname, 'temp-layout-colors.json');
     await download.saveAs(savedPath);
 
     // Reload to clear state, then load the saved layout.
@@ -192,7 +192,7 @@ test.describe('Layout Round-Trip', () => {
     const csvBefore = fs.readFileSync(csvBeforePath, 'utf8');
 
     // Save the layout.
-    const savedPath = path.join(__dirname, 'temp-layout-for-csv.csv');
+    const savedPath = path.join(__dirname, 'temp-layout-for-csv.json');
     await openExportMenu(page);
     const [savedDl] = await Promise.all([
       page.waitForEvent('download'),
@@ -236,11 +236,11 @@ test.describe('Layout Round-Trip', () => {
     cleanupFile(badPath);
   });
 
-  test('a sample CSV that merely contains the marker text is rejected as not a layout', async ({ page }) => {
-    // The marker string appears in a data cell, not as a marker row. It must be reported as
-    // "not a saved Octopus layout", not the "missing settings header" path.
-    const badPath = path.join(__dirname, 'temp-marker-in-data.csv');
-    fs.writeFileSync(badPath, 'Sample ID,Note\nS1,see the Octopus Layout guide\n');
+  test('a JSON file without the Octopus marker is rejected as not a layout', async ({ page }) => {
+    // Valid JSON, but no "format": "octopus-layout" marker. It must be reported as
+    // "not a saved Octopus layout".
+    const badPath = path.join(__dirname, 'temp-not-a-layout.json');
+    fs.writeFileSync(badPath, '{"foo":"bar","samples":[]}');
 
     await page.locator('#layout-upload').setInputFiles(badPath);
 
