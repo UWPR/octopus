@@ -1,4 +1,7 @@
-import { formatTimestampForFilename, withTimestamp, buildLayoutFileName } from '../utils/utils';
+import { formatTimestampForFilename, withTimestamp, buildLayoutFileName, buildCovariateKey } from '../utils/utils';
+import { SearchData, CovariateConfig } from '../utils/types';
+
+const mkSample = (metadata: { [key: string]: string }): SearchData => ({ name: 'sample', metadata });
 
 describe('formatTimestampForFilename', () => {
   it('formats a date as YYYY-MM-DD_HH-mm-ss in local time', () => {
@@ -61,5 +64,56 @@ describe('buildLayoutFileName', () => {
 
   it('falls back to the default when the name is only the suffix', () => {
     expect(buildLayoutFileName('_octopus_layout_2026-06-30_10-00-00.json')).toBe('octopus_layout.json');
+  });
+});
+
+describe('buildCovariateKey injectivity (escape encoding)', () => {
+  const config: CovariateConfig = { selectedCovariates: ['Treatment', 'Dose', 'Site'] };
+
+  it('produces distinct keys when a covariate value contains the delimiter', () => {
+    // Two different combinations that both plain-join to "Drug|Hi|10|S1".
+    const a = mkSample({ Treatment: 'Drug|Hi', Dose: '10', Site: 'S1' });
+    const b = mkSample({ Treatment: 'Drug', Dose: 'Hi|10', Site: 'S1' });
+    expect(buildCovariateKey(a, config)).not.toBe(buildCovariateKey(b, config));
+    expect(buildCovariateKey(a, config)).toBe('Drug\\|Hi|10|S1');
+    expect(buildCovariateKey(b, config)).toBe('Drug|Hi\\|10|S1');
+  });
+
+  it('preserves injectivity when a value contains the escape character', () => {
+    // Both plain-join to "\||x"; escaping the backslash keeps them distinct.
+    const c2: CovariateConfig = { selectedCovariates: ['C1', 'C2'] };
+    const t1 = mkSample({ C1: '\\|', C2: 'x' });
+    const t2 = mkSample({ C1: '\\', C2: '|x' });
+    expect(buildCovariateKey(t1, c2)).not.toBe(buildCovariateKey(t2, c2));
+  });
+
+  it('escapes the delimiter inside the prepended QC value', () => {
+    const qcConfig: CovariateConfig = {
+      selectedCovariates: ['Dose', 'Site'],
+      qcColumn: 'Condition',
+      selectedQcValues: ['Batch|QC'],
+    };
+    const qc = mkSample({ Condition: 'Batch|QC', Dose: '108', Site: 'FA1' });
+    expect(buildCovariateKey(qc, qcConfig)).toBe('Batch\\|QC|108|FA1');
+  });
+
+  it('is byte-identical to the legacy pipe-join for clean data', () => {
+    const clean = mkSample({ Treatment: 'Training', Dose: '108', Site: 'FA1' });
+    expect(buildCovariateKey(clean, config)).toBe('Training|108|FA1');
+  });
+
+  it('keeps the N/A fallback for a genuinely missing value (B-min)', () => {
+    const missing = mkSample({ Treatment: 'Training', Dose: '', Site: 'FA1' });
+    expect(buildCovariateKey(missing, config)).toBe('Training|N/A|FA1');
+  });
+
+  it('preserves the QC prefix for clean data', () => {
+    const qcConfig: CovariateConfig = {
+      selectedCovariates: ['Dose', 'Site'],
+      qcColumn: 'Condition',
+      selectedQcValues: ['BatchQC'],
+    };
+    const qc = mkSample({ Condition: 'BatchQC', Dose: '108', Site: 'FA1' });
+    expect(buildCovariateKey(qc, qcConfig)).toBe('BatchQC|108|FA1');
   });
 });

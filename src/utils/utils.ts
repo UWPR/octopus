@@ -34,6 +34,12 @@ export function getCovariateKey(sample: SearchData): string {
   return sample.covariateKey;
 }
 
+// Escape any backslash or "|" in a value, so joining values with "|" can't turn
+// two different combinations into the same key. Escape backslash before pipe.
+function escapeCovariateValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+}
+
 export function buildCovariateKey(
   search: SearchData,
   config: CovariateConfig
@@ -42,7 +48,7 @@ export function buildCovariateKey(
 
   // Build the base covariate key
   const baseKey = selectedCovariates
-    .map(cov => search.metadata[cov] || 'N/A')
+    .map(cov => escapeCovariateValue(search.metadata[cov] || 'N/A'))
     .join('|');
 
 // Check if this sample is a QC sample and QC column is not in covariates
@@ -54,7 +60,7 @@ export function buildCovariateKey(
 
     // Prepend QC value if sample is QC and QC column is not a covariate
     if (isQC) {
-      return `${sampleValue}|${baseKey}`;
+      return `${escapeCovariateValue(sampleValue)}|${baseKey}`;
     }
   }
 

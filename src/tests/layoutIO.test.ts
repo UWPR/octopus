@@ -533,3 +533,50 @@ describe('validateLayout semantic checks', () => {
     expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /no sample produces/.test(e.message))).toBe(true);
   });
 });
+
+describe('collision-free layout for values containing the delimiter', () => {
+  // Two combinations that both plain-join to "Drug|Hi|10" but are genuinely
+  // different groups. The escape-encoded key keeps them distinct, so the saved
+  // layout records two distinct color entries (Requirement 6).
+  const A = makeSample('A', 'Drug|Hi', '10'); // tuple ["Drug|Hi", "10"]
+  const B = makeSample('B', 'Drug', 'Hi|10'); // tuple ["Drug", "Hi|10"]
+  const searches = [A, B];
+  const plates: (SearchData | undefined)[][][] = [
+    [
+      [A, B, undefined],
+      [undefined, undefined, undefined],
+    ],
+  ];
+  const settings: LayoutSettings = { ...SETTINGS, qcColumn: '', selectedQcValues: [] };
+
+  // Derive the escape-encoded keys exactly as the app does when saving.
+  function derivedKeys(): { keyA: string; keyB: string } {
+    const clones: SearchData[] = searches.map(s => ({ name: s.name, metadata: { ...s.metadata } }));
+    buildProcessedSearches(clones, {
+      selectedCovariates: settings.selectedCovariates,
+      qcColumn: settings.qcColumn,
+      selectedQcValues: settings.selectedQcValues,
+    });
+    return { keyA: clones[0].covariateKey!, keyB: clones[1].covariateKey! };
+  }
+
+  it('saves two distinct color entries for two distinct groups and round-trips', () => {
+    const { keyA, keyB } = derivedKeys();
+    expect(keyA).not.toBe(keyB);
+
+    const colors: CovariateColorMap = {
+      [keyA]: { color: '#111111', useOutline: false, useStripes: false, textColor: '#fff' },
+      [keyB]: { color: '#222222', useOutline: false, useStripes: false, textColor: '#fff' },
+    };
+
+    const parsed = parseLayout(
+      serializeLayout({ searches, randomizedPlates: plates, settings, covariateColors: colors })
+    );
+
+    expect(parsed.structuralErrors).toEqual([]);
+    // Both keys match a real group derived through the single key builder.
+    expect(validateLayout(parsed)).toEqual([]);
+    expect(Object.keys(parsed.covariateColors!)).toHaveLength(2);
+    expect(parsed.covariateColors).toEqual(colors);
+  });
+});
