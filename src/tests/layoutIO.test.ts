@@ -475,7 +475,13 @@ describe('validateLayout semantic checks', () => {
   it('rejects a declared plate with no samples', () => {
     const d = doc() as any;
     d.plateCount = 3; // but only plates 1 and 2 hold samples
-    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /Plate 3 has no samples/.test(e.message))).toBe(true);
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /samples appear on 2 distinct plate\(s\)/.test(e.message))).toBe(true);
+  });
+
+  it('rejects a huge plate count without looping over it', () => {
+    const d = doc() as any;
+    d.plateCount = 1_000_000_000; // corrupt/hand-edited: must be rejected without a per-plate loop
+    expect(validateLayout(parseLayout(ser(d))).some(e => e.fatal && /samples appear on 2 distinct plate\(s\)/.test(e.message))).toBe(true);
   });
 
   it('rejects duplicate sample ids', () => {

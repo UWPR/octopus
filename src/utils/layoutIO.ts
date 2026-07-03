@@ -31,10 +31,11 @@ import {
  * layout. `covariateKey`/`isQC` are derived (recomputed from settings + metadata on load) and
  * `textColor` is recomputed from the color, so none of the three are stored.
  *
- * The file is validated strictly. parseLayout catches structural problems (bad JSON, wrong
- * field types, bad enums); validateLayout catches semantic problems (a well outside the plate,
- * covariate combinations inconsistent with the selected covariates, a missing/empty plate,
- * etc.). Any problem is fatal and the current app state is left unchanged.
+ * The file is validated strictly. parseLayout catches structural problems (wrong field types,
+ * missing required fields, bad enums). A non-JSON file, or JSON without the Octopus marker, is
+ * treated as "not a saved layout" (hasMarker false). validateLayout catches semantic problems
+ * (well bounds, plate count, covariate and column consistency, etc.). Any problem is fatal and
+ * the current app state is left unchanged.
  */
 
 export const LAYOUT_SCHEMA_VERSION = 1;
@@ -586,12 +587,19 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     errors.push(fatal(`Duplicate sample name(s): ${Array.from(duplicateNames).join(', ')}`));
   }
 
-  // Every declared plate must hold at least one sample (the range check above already rejects a
-  // plate number above plateCount, so this also enforces max(plate) == plateCount).
-  for (let p = 1; p <= plateCount; p++) {
-    if (!platesWithSamples.has(p)) {
-      errors.push(fatal(`Plate ${p} has no samples, but the layout declares ${plateCount} plate(s).`));
-    }
+  // Every declared plate must hold at least one sample. Each sample's plate was already checked to
+  // be an integer in 1..plateCount, so the distinct plates that have samples number at most
+  // plateCount and equal it exactly when none is empty (which also forces min plate 1 and max
+  // plate plateCount). Comparing the set size avoids looping over plateCount, so a corrupt (huge)
+  // plate count is rejected in O(1) instead of stalling the load.
+  const distinctPlateCount = platesWithSamples.size;
+  if (distinctPlateCount !== plateCount) {
+    errors.push(
+      fatal(
+        `The layout declares ${plateCount} plate(s) but samples appear on ${distinctPlateCount} ` +
+          `distinct plate(s). Every plate must have at least one sample.`
+      )
+    );
   }
 
   // Covariate-color consistency: every stored color must key a covariate combination that the
