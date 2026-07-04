@@ -108,8 +108,10 @@ describe('distributeToBlocks - Plate-Level Distribution', () => {
     // Verify proportional distribution
     const groupCounts = countSamplesPerGroup(result, selectedCovariates);
 
-    // Control group (8 samples) should be distributed 4 per plate
-    const controlCounts = groupCounts.get('N/A|N/A|Control');
+    // Control group (8 samples) should be distributed 4 per plate. The blank Gender and Plate
+    // cells resolve to the missing marker under the default policy, so the rebuilt key is
+    // "\|\|Control" (not "N/A|N/A|Control" as before na-value-handling).
+    const controlCounts = groupCounts.get('\\|\\|Control');
     expect(controlCounts?.size).toBe(2);
     expect(controlCounts!.get(0)).toBe(4);
     expect(controlCounts!.get(1)).toBe(4);

@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
-import { SearchData, CovariateColorInfo } from './types';
-import { getCovariateKey, withTimestamp } from './utils';
+import { SearchData, CovariateColorInfo, NaPolicy, DEFAULT_NA_POLICY } from './types';
+import { getCovariateKey, withTimestamp, effectiveDisplayValue } from './utils';
 
 interface ExcelExportOptions {
   searches: SearchData[];
@@ -12,6 +12,7 @@ interface ExcelExportOptions {
   numColumns: number;
   inputFileName?: string;
   qcColumn?: string; // QC/Reference column name (for legend display when not in treatmentCovariates)
+  naPolicy?: NaPolicy; // Global N/A grouping choice; the legend shows folded groups as N/A
 }
 
 // Style constants
@@ -57,7 +58,7 @@ const createSolidFill = (argbColor: string): ExcelJS.Fill => ({
  * Pure and DOM-free, so it is reusable and unit-testable; exportToExcel adds the download.
  */
 export function buildLayoutWorkbook(options: ExcelExportOptions): ExcelJS.Workbook {
-  const { searches, randomizedPlates, covariateColors, treatmentCovariates, exportCovariates, numRows, numColumns, qcColumn } = options;
+  const { searches, randomizedPlates, covariateColors, treatmentCovariates, exportCovariates, numRows, numColumns, qcColumn, naPolicy = DEFAULT_NA_POLICY } = options;
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Octopus';
@@ -72,7 +73,7 @@ export function buildLayoutWorkbook(options: ExcelExportOptions): ExcelJS.Workbo
   });
 
   // Create legend sheet (always uses treatment covariates for color grouping)
-  createLegendSheet(workbook, searches, covariateColors, treatmentCovariates, randomizedPlates, qcColumn);
+  createLegendSheet(workbook, searches, covariateColors, treatmentCovariates, randomizedPlates, qcColumn, naPolicy);
 
   // Create sample details sheet (uses treatment covariates for color lookup)
   createSampleDetailsSheet(workbook, searches, treatmentCovariates, randomizedPlates, covariateColors);
@@ -125,7 +126,7 @@ function calculateOptimalColumnWidth(
 
     // Check covariate value lengths (format: "covariate: value")
     selectedCovariates.forEach(cov => {
-      const covariateText = `${cov}: ${sample.metadata[cov] || 'N/A'}`;
+      const covariateText = `${cov}: ${sample.metadata[cov] ?? ''}`;
       maxLength = Math.max(maxLength, covariateText.length);
     });
   });
@@ -202,9 +203,10 @@ function createPlateSheet(
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
             cell.font = { bold: true };
           } else {
-            // Row 3: Covariate values
+            // Row 3: Covariate values. Each plate cell shows one sample, so this is a per-sample
+            // view: show the raw typed value (a blank cell shows blank), not the folded N/A label.
             const covariateText = exportCovariates
-              .map(cov => `${cov}: ${sample.metadata[cov] || 'N/A'}`)
+              .map(cov => `${cov}: ${sample.metadata[cov] ?? ''}`)
               .join('\n');
             cell.value = covariateText;
             cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
@@ -263,7 +265,8 @@ function createLegendSheet(
   covariateColors: { [key: string]: CovariateColorInfo },
   treatmentCovariates: string[],
   randomizedPlates: (SearchData | undefined)[][][],
-  qcColumn?: string
+  qcColumn?: string,
+  naPolicy: NaPolicy = DEFAULT_NA_POLICY
 ): void {
   const sheet = workbook.addWorksheet('Legend');
 
@@ -331,7 +334,8 @@ function createLegendSheet(
     // A missing value falls back to "N/A", matching the Plate Details modal.
     // A present "na" shows as-is.
     const representative = representativeByKey.get(combination);
-    const covCell = (cov: string): string => representative?.metadata[cov] || 'N/A';
+    // Legend is a per-group rollup: a folded group shows N/A, a kept-distinct blank group shows blank.
+    const covCell = (cov: string): string => effectiveDisplayValue(representative?.metadata[cov] ?? '', naPolicy);
 
     // Build display values aligned to legendCovHeaders.
     let displayValues: string[];

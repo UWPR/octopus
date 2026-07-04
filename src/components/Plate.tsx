@@ -55,18 +55,26 @@ const createTooltipText = (
   rowIndex: number,
   columnIndex: number,
   selectedCovariates: string[],
-  subjectColumn?: string
+  subjectColumn?: string,
+  qcColumn?: string
 ): string => {
   const position = `${getRowLabel(rowIndex)}${columnIndex + 1}`;
   const subjectInfo = subjectColumn && search.metadata[subjectColumn]
     ? `\n${subjectColumn}: ${search.metadata[subjectColumn]}`
     : '';
+  // A QC sample's QC value is part of its identity but is not a covariate, so it would otherwise
+  // not appear. Show it here, unless the QC column is already one of the selected covariates.
+  const qcInfo = qcColumn && search.isQC && !selectedCovariates.includes(qcColumn)
+    ? `\n${qcColumn}: ${search.metadata[qcColumn] ?? ''}`
+    : '';
+  // Per-sample view: show the raw typed value. A blank cell shows blank, so a genuinely-missing
+  // value is not mislabeled as N/A (which now means a folded "not applicable" group).
   const covariateInfo = selectedCovariates.length > 0
     ? '\n' + selectedCovariates
-      .map(cov => `${cov}: ${search.metadata[cov] || 'N/A'}`)
+      .map(cov => `${cov}: ${search.metadata[cov] ?? ''}`)
       .join(', ')
     : '';
-  return `${search.name} (${position})${subjectInfo}${covariateInfo}`;
+  return `${search.name} (${position})${subjectInfo}${qcInfo}${covariateInfo}`;
 };
 
 interface PlateProps {
@@ -84,6 +92,7 @@ interface PlateProps {
   plateQuality?: PlateQualityScore;
   onReRandomizePlate?: (plateIndex: number) => void;
   subjectColumn?: string;
+  qcColumn?: string;
   numPlates?: number;
 }
 
@@ -102,6 +111,7 @@ const Plate: React.FC<PlateProps> = ({
   plateQuality,
   onReRandomizePlate,
   subjectColumn,
+  qcColumn,
   numPlates = 1
 }) => {
 
@@ -227,17 +237,23 @@ const Plate: React.FC<PlateProps> = ({
               {`${subjectColumn}: ${search.metadata[subjectColumn]}`}
             </div>
           )}
-          {selectedCovariates.map((covariate: string) =>
-            search.metadata[covariate] ? (
-              <div key={covariate} style={currentStyles.searchMetadata}>
-                {`${covariate}: ${search.metadata[covariate]}`}
-              </div>
-            ) : null
+          {qcColumn && search.isQC && !selectedCovariates.includes(qcColumn) && (
+            // A QC sample's QC value is part of its identity but is not a covariate; show it here.
+            <div key="qc-value" style={currentStyles.searchMetadata}>
+              {`${qcColumn}: ${search.metadata[qcColumn] ?? ''}`}
+            </div>
           )}
+          {selectedCovariates.map((covariate: string) => (
+            // Per-sample view: always show the covariate row, with the raw typed value. A blank
+            // cell shows "Covariate:" with no value, matching the compact-view tooltip.
+            <div key={covariate} style={currentStyles.searchMetadata}>
+              {`${covariate}: ${search.metadata[covariate] ?? ''}`}
+            </div>
+          ))}
         </div>
       </div>
     );
-  }, [covariateColors, selectedCovariates, currentStyles, onDragStart, compact, subjectColumn]);
+  }, [covariateColors, selectedCovariates, currentStyles, onDragStart, compact, subjectColumn, qcColumn]);
 
   // Unified cell renderer
   const renderSearchCell = useCallback((search: SearchData, isHighlighted: boolean) => {
@@ -354,7 +370,7 @@ const Plate: React.FC<PlateProps> = ({
                   onDrop={(event) => handleDrop(event, rowIndex, columnIndex)}
                   title={
                     compact && search
-                      ? createTooltipText(search, rowIndex, columnIndex, selectedCovariates, subjectColumn)
+                      ? createTooltipText(search, rowIndex, columnIndex, selectedCovariates, subjectColumn, qcColumn)
                       : undefined
                   }
                 >

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { SearchData, SummaryItem, CovariateColorInfo } from '../utils/types';
-import { getTextColorForBackground, sortCombinationsByCountAndName, getCovariateKey } from '../utils/utils';
+import { SearchData, SummaryItem, CovariateColorInfo, NaPolicy, DEFAULT_NA_POLICY } from '../utils/types';
+import { getTextColorForBackground, sortCombinationsByCountAndName, getCovariateKey, effectiveDisplayValue } from '../utils/utils';
 import { BRIGHT_COLOR_PALETTE, QC_COLOR_PALETTE } from '../utils/configs';
 
 /**
@@ -93,7 +93,8 @@ export function useCovariateColors() {
     searches: SearchData[],
     selectedCovariates: string[],
     qcColumn?: string,
-    selectedQcValues?: string[]
+    selectedQcValues?: string[],
+    naPolicy: NaPolicy = DEFAULT_NA_POLICY
   ) => {
     if (selectedCovariates.length > 0 && searches.length > 0) {
       // Group searches by their covariate combinations using getCovariateKey
@@ -106,7 +107,8 @@ export function useCovariateColors() {
       searches.forEach((search) => {
         const covariateValues: { [key: string]: string } = {};
         selectedCovariates.forEach((covariate) => {
-          covariateValues[covariate] = search.metadata[covariate] || 'N/A';
+          // Summary is a per-group rollup: a folded group shows N/A, a kept-distinct blank shows blank.
+          covariateValues[covariate] = effectiveDisplayValue(search.metadata[covariate] ?? '', naPolicy);
         });
 
         // covariateKey should always be set

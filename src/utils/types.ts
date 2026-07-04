@@ -13,10 +13,30 @@ export interface SearchData {
   isQC?: boolean;  // Whether this sample is a QC/Reference sample
 }
 
+/**
+ * The single global choice for how N/A-type covariate values are grouped. It applies to
+ * every column, not per column.
+ * - foldBlank: fold a genuinely-blank cell into the canonical N/A group.
+ * - foldSpellings: the exact (case-sensitive) N/A-type spellings that fold into N/A.
+ * The literal 'N/A' always folds and is never listed here.
+ */
+export interface NaPolicy {
+  foldBlank: boolean;
+  foldSpellings: string[];
+}
+
+/**
+ * Policy used when the N/A values setting is not shown (no column mixes spellings).
+ * A blank cell stays distinct via the missing marker and every N/A-type spelling stays its
+ * own literal value. The literal 'N/A' still folds (handled in effectiveValue).
+ */
+export const DEFAULT_NA_POLICY: NaPolicy = { foldBlank: false, foldSpellings: [] };
+
 export interface CovariateConfig {
   selectedCovariates: string[];  // Treatment covariate column names
   qcColumn?: string;  // QC/Reference column name
   selectedQcValues?: string[];  // QC/Reference values
+  naPolicy?: NaPolicy;  // Global N/A grouping choice; defaults to DEFAULT_NA_POLICY
 }
 
 export type RandomizationAlgorithm = keyof typeof ALGORITHM_CONFIG;

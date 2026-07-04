@@ -1,7 +1,7 @@
 import React from 'react';
-import { SearchData, CovariateColorInfo, PlateQualityScore } from '../utils/types';
+import { SearchData, CovariateColorInfo, PlateQualityScore, NaPolicy, DEFAULT_NA_POLICY } from '../utils/types';
 import { QUALITY_DISPLAY_CONFIG } from '../utils/configs';
-import { getCovariateKey, getQualityColor, getCompactQualityLevel, formatScore } from '../utils/utils';
+import { getCovariateKey, getQualityColor, getCompactQualityLevel, formatScore, effectiveDisplayValue } from '../utils/utils';
 
 interface PlateDetailsModalProps {
   show: boolean;
@@ -20,6 +20,7 @@ interface PlateDetailsModalProps {
   plateQuality?: PlateQualityScore;
   randomizedPlates?: (SearchData | undefined)[][][];
   numPlates?: number;
+  naPolicy?: NaPolicy;
 }
 
 const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
@@ -39,6 +40,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
   plateQuality,
   randomizedPlates,
   numPlates = 1,
+  naPolicy = DEFAULT_NA_POLICY,
 }) => {
 
 
@@ -297,8 +299,9 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                                   {selectedCovariates.map((cov) => {
                                     // Read each covariate from the sample's metadata,
                                     // so a value containing '|' stays in its own row.
+                                    // Per-group rollup: a folded group shows N/A, a kept-distinct blank shows blank.
                                     const representative = representativeByKey.get(combination);
-                                    const value = representative ? (representative.metadata[cov] || 'N/A') : 'N/A';
+                                    const value = effectiveDisplayValue(representative?.metadata[cov] ?? '', naPolicy);
                                     return (
                                       <div key={cov} style={styles.covariateItem}>
                                         <strong>{cov}:</strong> {value}

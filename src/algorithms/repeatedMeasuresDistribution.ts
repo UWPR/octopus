@@ -1,4 +1,4 @@
-import { SearchData, SubjectGroup, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig, BlockType } from '../utils/types';
+import { SearchData, SubjectGroup, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig, BlockType, NaPolicy, DEFAULT_NA_POLICY } from '../utils/types';
 import { shuffleArray, groupByCovariates, buildCovariateKey } from '../utils/utils';
 import { greedyPlaceInRow } from './greedySpatialPlacement';
 import { distributeToBlocks, calculateExpectedMinimums } from './balancedRandomization';
@@ -1165,7 +1165,8 @@ export function groupAwareRandomization(
   repeatedMeasuresConfig: RepeatedMeasuresConfig,
   keepEmptyInLastPlate: boolean,
   numRows: number,
-  numColumns: number
+  numColumns: number,
+  naPolicy: NaPolicy = DEFAULT_NA_POLICY
 ): {
   plates: (SearchData | undefined)[][][];
   plateAssignments?: Map<number, SearchData[]>;
@@ -1188,7 +1189,7 @@ export function groupAwareRandomization(
   // Use the single key builder so escaping can't drift from buildProcessedSearches.
   for (const sample of experimentalSamples) {
     if (!sample.covariateKey && selectedCovariates.length > 0) {
-      sample.covariateKey = buildCovariateKey(sample, { selectedCovariates });
+      sample.covariateKey = buildCovariateKey(sample, { selectedCovariates, naPolicy });
     }
   }
 

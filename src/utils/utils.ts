@@ -1,4 +1,4 @@
-import { SearchData, RandomizationAlgorithm, CovariateConfig, RepeatedMeasuresConfig } from './types';
+import { SearchData, RandomizationAlgorithm, CovariateConfig, RepeatedMeasuresConfig, NaPolicy, DEFAULT_NA_POLICY } from './types';
 import { QualityLevel, QUALITY_LEVEL_CONFIG } from './configs';
 import Papa from 'papaparse';
 import { balancedBlockRandomization } from '../algorithms/balancedRandomization';
@@ -40,27 +40,136 @@ function escapeCovariateValue(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
 }
 
+/**
+ * Reserved key part for a genuinely-missing (blank) cell kept distinct from a literal N/A.
+ * A single backslash. escapeCovariateValue doubles backslashes and escapes pipes, so it can
+ * never emit a lone backslash. This marker is therefore unreachable by escaping any real value,
+ * and cannot collide with the folded N/A part either, so the covariate key stays injective.
+ */
+export const MISSING_MARKER = '\\';
+
+/** True when a value is empty or whitespace-only. */
+function isBlank(value: string): boolean {
+  return value.trim().length === 0;
+}
+
+/**
+ * True when a value is a candidate for the N/A bucket: blank/whitespace-only, or any case
+ * spelling of NA or N/A. Nothing else (None, null, -) counts.
+ */
+export function isNaType(value: string): boolean {
+  if (isBlank(value)) return true;
+  const lower = value.toLowerCase();
+  return lower === 'na' || lower === 'n/a';
+}
+
+/**
+ * What a raw covariate value means for grouping and display under the global policy:
+ * - value: an ordinary value, or an N/A-type spelling the user chose to keep distinct.
+ * - na: folds into the canonical N/A group.
+ * - missing: a genuinely-blank cell kept distinct from N/A (uses the missing marker).
+ */
+export type EffectiveValue =
+  | { kind: 'value'; value: string }
+  | { kind: 'na' }
+  | { kind: 'missing' };
+
+/**
+ * Decide, for one raw covariate value under the global policy, what it means. Grouping (the key)
+ * and display both go through this one function so they cannot drift. See the na-value-handling
+ * design. The literal 'N/A' always folds, regardless of the policy.
+ */
+export function effectiveValue(raw: string, policy: NaPolicy = DEFAULT_NA_POLICY): EffectiveValue {
+  if (!isNaType(raw)) return { kind: 'value', value: raw };
+  if (isBlank(raw)) return policy.foldBlank ? { kind: 'na' } : { kind: 'missing' };
+  if (raw === 'N/A') return { kind: 'na' };
+  return policy.foldSpellings.includes(raw) ? { kind: 'na' } : { kind: 'value', value: raw };
+}
+
+/** The key part for an effective value. The missing marker is emitted raw, never escaped. */
+function effectiveKeyPart(ev: EffectiveValue): string {
+  switch (ev.kind) {
+    case 'value': return escapeCovariateValue(ev.value);
+    case 'na': return escapeCovariateValue('N/A');
+    case 'missing': return MISSING_MARKER;
+  }
+}
+
+/**
+ * The display text for a raw covariate value under the policy. A folded group shows 'N/A', a
+ * kept-distinct missing (blank) group shows blank, and an ordinary value shows itself. Group
+ * rollups (legend, summary, modal, Excel legend) use this so their labels match the grouping.
+ */
+export function effectiveDisplayValue(raw: string, policy: NaPolicy = DEFAULT_NA_POLICY): string {
+  const ev = effectiveValue(raw, policy);
+  switch (ev.kind) {
+    case 'value': return ev.value;
+    case 'na': return 'N/A';
+    case 'missing': return '';
+  }
+}
+
+export interface NaDetectionResult {
+  /**
+   * For each column that holds at least one N/A-type value, the distinct spellings found. A
+   * blank or whitespace-only cell is recorded as the empty string ''. A non-blank spelling is
+   * recorded with its exact text (for example 'na', 'NA', 'N/A'), since grouping is case-exact.
+   */
+  byColumn: Map<string, Set<string>>;
+  /** Union of the distinct N/A-type spellings across all columns, with blank recorded as ''. */
+  spellings: Set<string>;
+  /** True when at least one column holds two or more distinct N/A-type spellings. */
+  hasAmbiguousColumn: boolean;
+}
+
+/**
+ * Scan every given column across all samples for N/A-type values (blank/whitespace-only, or any
+ * case spelling of NA or N/A). Records the distinct spellings per column, their union, and whether
+ * any single column mixes two or more. A mixing column is what makes the data ambiguous and
+ * surfaces the "N/A values" setting. Runs at upload, before covariate/QC selection, so it treats
+ * all columns uniformly. Whitespace-only cells all collapse to the one blank token ''.
+ */
+export function detectNaTypeValues(samples: SearchData[], columns: string[]): NaDetectionResult {
+  const byColumn = new Map<string, Set<string>>();
+  const spellings = new Set<string>();
+  for (const col of columns) {
+    const found = new Set<string>();
+    for (const sample of samples) {
+      const raw = sample.metadata[col] ?? '';
+      if (!isNaType(raw)) continue;
+      found.add(isBlank(raw) ? '' : raw);
+    }
+    if (found.size > 0) {
+      byColumn.set(col, found);
+      found.forEach(token => spellings.add(token));
+    }
+  }
+  const hasAmbiguousColumn = Array.from(byColumn.values()).some(set => set.size >= 2);
+  return { byColumn, spellings, hasAmbiguousColumn };
+}
+
 export function buildCovariateKey(
   search: SearchData,
   config: CovariateConfig
 ): string {
-  const { selectedCovariates, qcColumn: qcColumn, selectedQcValues: selectedQcValues } = config;
+  const { selectedCovariates, qcColumn, selectedQcValues, naPolicy = DEFAULT_NA_POLICY } = config;
 
-  // Build the base covariate key
+  // Build the base covariate key. Each value passes through the policy so a blank cell, a
+  // literal N/A, and folded spellings all resolve to the right key part.
   const baseKey = selectedCovariates
-    .map(cov => escapeCovariateValue(search.metadata[cov] || 'N/A'))
+    .map(cov => effectiveKeyPart(effectiveValue(search.metadata[cov] ?? '', naPolicy)))
     .join('|');
 
-// Check if this sample is a QC sample and QC column is not in covariates
+  // Check if this sample is a QC sample and QC column is not in covariates
   if (qcColumn && selectedQcValues && selectedQcValues.length > 0
-    && !selectedCovariates.includes(qcColumn))
-   {
+    && !selectedCovariates.includes(qcColumn)) {
     const sampleValue = search.metadata[qcColumn];
     const isQC = sampleValue && selectedQcValues.includes(sampleValue);
 
-    // Prepend QC value if sample is QC and QC column is not a covariate
+    // Prepend QC value if sample is QC and QC column is not a covariate. The prepended value
+    // goes through the same policy so it can't drift from the covariate parts.
     if (isQC) {
-      return `${escapeCovariateValue(sampleValue)}|${baseKey}`;
+      return `${effectiveKeyPart(effectiveValue(sampleValue, naPolicy))}|${baseKey}`;
     }
   }
 
@@ -138,7 +247,8 @@ export function randomizeSearches(
   keepEmptyInLastPlate: boolean = true,
   numRows: number = 8,
   numColumns: number = 12,
-  repeatedMeasuresConfig?: RepeatedMeasuresConfig
+  repeatedMeasuresConfig?: RepeatedMeasuresConfig,
+  naPolicy: NaPolicy = DEFAULT_NA_POLICY
 ): {
   plates: (SearchData | undefined)[][][];
   plateAssignments?: Map<number, SearchData[]>;
@@ -151,7 +261,8 @@ export function randomizeSearches(
       repeatedMeasuresConfig,
       keepEmptyInLastPlate,
       numRows,
-      numColumns
+      numColumns,
+      naPolicy
     );
   }
 
@@ -176,7 +287,7 @@ export function buildProcessedSearches(
   searches: SearchData[],
   config: CovariateConfig
 ): void {
-  const { selectedCovariates, qcColumn, selectedQcValues } = config;
+  const { selectedCovariates, qcColumn, selectedQcValues, naPolicy } = config;
   searches.forEach(search => {
     let isQC = false;
     if (qcColumn && selectedQcValues && selectedQcValues.length > 0) {
@@ -190,6 +301,7 @@ export function buildProcessedSearches(
       selectedCovariates,
       qcColumn,
       selectedQcValues,
+      naPolicy,
     });
   });
 }
