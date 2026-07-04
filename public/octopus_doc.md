@@ -92,6 +92,18 @@ If you select Treatment + Time + Dose, the keys are:
 
 These groupings drive plate-level and row-level expected minimum calculations and distribution.
 
+#### N/A Values (shown only when needed)
+Sometimes a covariate column mixes different spellings of "not applicable" (for example `na`, `NA`, `n/a`, `N/A`) or leaves some cells blank. When Octopus detects that a column uses more than one such spelling, it shows an **N/A values** checklist in the configuration options.
+
+![Configuration - N/A Values](images/octopus_na-values-options.png)
+
+- Every detected spelling, plus a `(blank)` entry for empty cells, is listed and **checked by default**. A checked value folds into a single canonical `N/A` group.
+- **Uncheck** a value to keep it as its own distinct group instead of folding it into `N/A`. For example, if `na` and `NA` mean different things in your data, uncheck both so each forms its own group.
+- **Uncheck (blank)** to keep genuinely empty cells separate from cells that literally say `N/A`.
+- The literal `N/A` is always folded and cannot be unchecked.
+
+This choice applies to every covariate column, and it is saved with your layout so a reloaded layout groups exactly the same way. If none of your columns mix spellings, the setting does not appear and grouping is unchanged.
+
 #### Set QC/Reference Samples (Optional)
 Select a column that identifies quality control or reference samples, then check the values that represent QC/reference samples.
 
