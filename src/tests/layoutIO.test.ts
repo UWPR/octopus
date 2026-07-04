@@ -57,6 +57,7 @@ const SETTINGS: LayoutSettings = {
   subjectColumn: '',
   groupingConstraint: 'none',
   metadataColumns: ['Treatment', 'Dose'],
+  naPolicy: { foldBlank: false, foldSpellings: [] },
 };
 
 // Every color key matches a covariate combination the samples actually produce, so the
@@ -121,10 +122,11 @@ describe('serializeLayout', () => {
     expect(parseLayout(fullFile()).appVersion).toBeNull();
   });
 
-  it('omits covariateColors when the color map is empty', () => {
-    const text = serializeLayout({ searches: SEARCHES, randomizedPlates: PLATES, settings: SETTINGS, covariateColors: {} });
-    expect('covariateColors' in (JSON.parse(text) as object)).toBe(false);
-    expect(parseLayout(text).covariateColors).toBeNull();
+  it('refuses to save a layout with no covariate colors', () => {
+    // A layout must record a color for every covariate group, so saving without colors is refused.
+    expect(() =>
+      serializeLayout({ searches: SEARCHES, randomizedPlates: PLATES, settings: SETTINGS, covariateColors: {} })
+    ).toThrow(/covariate colors/i);
   });
 
   it('throws when a sample is not on any plate instead of emitting an invalid plate', () => {
@@ -215,6 +217,7 @@ describe('settings round-trip (one field varied at a time)', () => {
     { name: 'reversed covariate order', settings: { ...SETTINGS, selectedCovariates: ['Dose', 'Treatment'] } },
     { name: 'subject column + same-row grouping', settings: { ...SETTINGS, subjectColumn: 'Dose', groupingConstraint: 'same-row' } },
     { name: 'subject column + same-plate grouping', settings: { ...SETTINGS, subjectColumn: 'Dose', groupingConstraint: 'same-plate' } },
+    { name: 'naPolicy folds blank and a spelling', settings: { ...SETTINGS, naPolicy: { foldBlank: true, foldSpellings: ['na'] } } },
   ];
 
   it.each(variants)('preserves: $name', ({ settings }) => {
@@ -228,6 +231,30 @@ describe('settings round-trip (one field varied at a time)', () => {
     expect(parsed.hasMarker).toBe(true);
     expect(parsed.structuralErrors).toEqual([]);
     expect(parsed.settings).toEqual(settings);
+  });
+
+  it('validates covariate-color keys derived under the saved naPolicy', () => {
+    // Samples carry an N/A-type spelling. A layout saved with a policy that folds 'na' into N/A
+    // must store the folded color key 'N/A' and reload cleanly, since validateLayout re-derives
+    // keys through the saved policy. With the default policy the same file would instead expect
+    // the literal 'na' key, so this proves the policy actually drives the re-derivation.
+    const naSamples = [makeSample('N1', 'na', '0'), makeSample('N2', 'Drug', '0')];
+    const naPlates: (SearchData | undefined)[][][] = [[[naSamples[0], naSamples[1], undefined], [undefined, undefined, undefined]]];
+    const foldSettings: LayoutSettings = {
+      ...SETTINGS,
+      qcColumn: '',
+      selectedQcValues: [],
+      naPolicy: { foldBlank: false, foldSpellings: ['na'] },
+    };
+    // Under this policy 'na' folds to N/A, so the group key for N1 is 'N/A|0'.
+    const foldColors: CovariateColorMap = {
+      'N/A|0': { color: '#111111', useOutline: false, useStripes: false, textColor: '#fff' },
+      'Drug|0': { color: '#222222', useOutline: false, useStripes: false, textColor: '#fff' },
+    };
+    const text = serializeLayout({ searches: naSamples, randomizedPlates: naPlates, settings: foldSettings, covariateColors: foldColors });
+    const parsed = parseLayout(text);
+    expect(parsed.settings!.naPolicy).toEqual({ foldBlank: false, foldSpellings: ['na'] });
+    expect(validateLayout(parsed)).toEqual([]);
   });
 });
 
@@ -293,11 +320,15 @@ describe('per-cell placement', () => {
       ],
     ];
     const settings: LayoutSettings = { ...SETTINGS, qcColumn: '', selectedQcValues: [] };
+    // The one sample forms the group "Drug, high|10 mg"; colors are required, so give it one.
+    const trickyColors: CovariateColorMap = {
+      'Drug, high|10 mg': { color: '#111111', useOutline: false, useStripes: false, textColor: '#fff' },
+    };
     const text = serializeLayout({
       searches: [tricky],
       randomizedPlates: trickyPlates,
       settings,
-      covariateColors: {},
+      covariateColors: trickyColors,
     });
     const { samples } = buildPlatesFromRows(parseLayout(text).rows, settings);
     expect(samples).toHaveLength(1);
@@ -418,6 +449,9 @@ describe('parseLayout strict structural validation', () => {
     ['unknown groupingConstraint', (d: any) => { d.settings.groupingConstraint = 'same-galaxy'; }],
     ['covariates not an array', (d: any) => { d.settings.covariates = 'Treatment'; }],
     ['idColumn not a string', (d: any) => { d.settings.idColumn = 5; }],
+    ['naPolicy missing', (d: any) => { delete d.settings.naPolicy; }],
+    ['naPolicy.foldBlank not a boolean', (d: any) => { d.settings.naPolicy.foldBlank = 'yes'; }],
+    ['naPolicy.foldSpellings not a string array', (d: any) => { d.settings.naPolicy.foldSpellings = 'na'; }],
   ])('flags bad settings: %s', (_label, mutate) => {
     const d = doc();
     mutate(d);
@@ -429,6 +463,8 @@ describe('parseLayout strict structural validation', () => {
   it.each([
     ['bad color hex', (d: any) => { d.covariateColors['Drug|0'].color = 'red'; }],
     ['bad fill token', (d: any) => { d.covariateColors['Drug|0'].fill = 'zebra'; }],
+    ['covariateColors missing', (d: any) => { delete d.covariateColors; }],
+    ['covariateColors empty', (d: any) => { d.covariateColors = {}; }],
   ])('flags bad covariateColors: %s', (_label, mutate) => {
     const d = doc();
     mutate(d);

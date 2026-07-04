@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SearchData, RandomizationAlgorithm, RepeatedMeasuresConfig } from '../utils/types';
+import { SearchData, RandomizationAlgorithm, RepeatedMeasuresConfig, NaPolicy, DEFAULT_NA_POLICY } from '../utils/types';
 import { randomizeSearches } from '../utils/utils';
 import { greedyPlaceInRow } from '../algorithms/greedySpatialPlacement';
 import { groupAwareRandomization } from '../algorithms/repeatedMeasuresDistribution';
@@ -17,7 +17,8 @@ export function useRandomization() {
     keepEmptyInLastPlate: boolean,
     plateRows: number,
     plateColumns: number,
-    repeatedMeasuresConfig?: RepeatedMeasuresConfig
+    repeatedMeasuresConfig?: RepeatedMeasuresConfig,
+    naPolicy: NaPolicy = DEFAULT_NA_POLICY
   ) => {
     if (searches.length > 0 && selectedCovariates.length > 0) {
       const result = randomizeSearches(
@@ -27,7 +28,8 @@ export function useRandomization() {
         keepEmptyInLastPlate,
         plateRows,
         plateColumns,
-        repeatedMeasuresConfig
+        repeatedMeasuresConfig,
+        naPolicy
       );
       setRandomizedPlates(result.plates);
       setPlateAssignments(result.plateAssignments);
@@ -44,7 +46,8 @@ export function useRandomization() {
     keepEmptyInLastPlate: boolean,
     plateRows: number,
     plateColumns: number,
-    repeatedMeasuresConfig?: RepeatedMeasuresConfig
+    repeatedMeasuresConfig?: RepeatedMeasuresConfig,
+    naPolicy: NaPolicy = DEFAULT_NA_POLICY
   ) => {
     if (searches.length > 0 && selectedCovariates.length > 0) {
       const result = randomizeSearches(
@@ -54,7 +57,8 @@ export function useRandomization() {
         keepEmptyInLastPlate,
         plateRows,
         plateColumns,
-        repeatedMeasuresConfig
+        repeatedMeasuresConfig,
+        naPolicy
       );
       setRandomizedPlates(result.plates);
       setPlateAssignments(result.plateAssignments);
@@ -149,7 +153,8 @@ export function useRandomization() {
     keepEmptyInLastPlate: boolean,
     plateRows: number,
     plateColumns: number,
-    repeatedMeasuresConfig?: RepeatedMeasuresConfig
+    repeatedMeasuresConfig?: RepeatedMeasuresConfig,
+    naPolicy: NaPolicy = DEFAULT_NA_POLICY
   ) => {
     if (!plateAssignments) return false;
 
@@ -172,7 +177,8 @@ export function useRandomization() {
           repeatedMeasuresConfig,
           false, // Don't keep empty in last plate for single-plate re-randomization
           plateRows,
-          plateColumns
+          plateColumns,
+          naPolicy
         );
 
         // The result should produce exactly 1 plate since we're passing just this plate's samples

@@ -3,14 +3,16 @@
  *
  * The legend must read covariate values from structured metadata (not by
  * splitting the key), classify QC by the sample's real QC status (not by the
- * key's part count), and render a missing covariate value as "N/A" (matching the
- * Plate Details modal), while a present "na" is rendered literally.
+ * key's part count), and render each group's value through the N/A policy
+ * (matching the Plate Details modal): under the default policy a genuinely
+ * missing value renders blank and a present "na" is literal, while a policy that
+ * folds blank or a spelling renders those groups as "N/A".
  */
 
 import ExcelJS from 'exceljs';
 import { buildLayoutWorkbook } from '../utils/excelExport';
 import { buildProcessedSearches } from '../utils/utils';
-import { SearchData, CovariateColorInfo, CovariateConfig } from '../utils/types';
+import { SearchData, CovariateColorInfo, CovariateConfig, NaPolicy, DEFAULT_NA_POLICY } from '../utils/types';
 
 const TREATMENT_COVARIATES = ['Treatment', 'Dose'];
 const QC_COLUMN = 'QC';
@@ -25,11 +27,12 @@ const color = (): CovariateColorInfo => ({
 
 const mk = (metadata: { [k: string]: string }): SearchData => ({ name: 'sample', metadata });
 
-function buildLegendSheet(samples: SearchData[]): ExcelJS.Worksheet {
+function buildLegendSheet(samples: SearchData[], naPolicy: NaPolicy = DEFAULT_NA_POLICY): ExcelJS.Worksheet {
   const config: CovariateConfig = {
     selectedCovariates: TREATMENT_COVARIATES,
     qcColumn: QC_COLUMN,
     selectedQcValues: SELECTED_QC_VALUES,
+    naPolicy,
   };
   // Sets covariateKey (escape-encoded) and isQC on each sample, as the app does.
   buildProcessedSearches(samples, config);
@@ -47,6 +50,7 @@ function buildLegendSheet(samples: SearchData[]): ExcelJS.Worksheet {
     numRows: 1,
     numColumns: samples.length,
     qcColumn: QC_COLUMN,
+    naPolicy,
   });
   return workbook.getWorksheet('Legend')!;
 }
@@ -86,7 +90,7 @@ function readLegendRows(sheet: ExcelJS.Worksheet): Array<{ [header: string]: str
 }
 
 describe('Excel legend structured decode and flag-based QC', () => {
-  it('reads values from metadata, classifies QC by status, and renders missing as N/A', () => {
+  it('reads values from metadata, classifies QC by status, and renders a missing value as blank by default', () => {
     const withPipe = mk({ Treatment: 'Drug|Hi', Dose: '10', QC: '' }); // non-QC, value has delimiter
     const qcNa = mk({ Treatment: 'na', Dose: '5', QC: 'Ref' });        // real QC, present 'na' value
     const missing = mk({ Treatment: 'Ctrl', Dose: '', QC: '' });       // non-QC, genuinely missing Dose
@@ -100,18 +104,30 @@ describe('Excel legend structured decode and flag-based QC', () => {
     expect(a!['Treatment']).toBe('Drug|Hi');
     expect(a!['QC']).toBe('');
 
-    // A real QC sample is placed under the QC column; a present 'na' is literal.
+    // A real QC sample is placed under the QC column; a present 'na' is literal under the default policy.
     const b = rows.find(r => r['Dose'] === '5');
     expect(b).toBeDefined();
     expect(b!['QC']).toBe('Ref');
     expect(b!['Treatment']).toBe('na');
 
-    // A genuinely missing covariate value renders as 'N/A', matching the modal.
-    // The QC column stays blank for a non-QC sample.
+    // Under the default policy a genuinely missing value is a distinct group that renders blank
+    // (not 'N/A', which now means a folded "not applicable" group). The QC column stays blank.
     const c = rows.find(r => r['Treatment'] === 'Ctrl');
     expect(c).toBeDefined();
-    expect(c!['Dose']).toBe('N/A');
+    expect(c!['Dose']).toBe('');
     expect(c!['QC']).toBe('');
+  });
+
+  it('renders a folded spelling and a folded blank as N/A when the policy folds them', () => {
+    const na = mk({ Treatment: 'Ctrl', Dose: 'na', QC: '' });     // 'na' folded into N/A
+    const blank = mk({ Treatment: 'Ctrl', Dose: '', QC: '' });    // blank folded into N/A
+    // Fold both 'na' and blank: their Dose groups collapse to the same N/A group.
+    const sheet = buildLegendSheet([na, blank], { foldBlank: true, foldSpellings: ['na'] });
+    const rows = readLegendRows(sheet);
+
+    const doseCells = rows.filter(r => r['Treatment'] === 'Ctrl').map(r => r['Dose']);
+    // Both fold to one N/A group, so there is a single 'Ctrl' legend row with Dose 'N/A'.
+    expect(doseCells).toEqual(['N/A']);
   });
 
   it('keeps a QC value containing "|" intact and under the QC column', () => {

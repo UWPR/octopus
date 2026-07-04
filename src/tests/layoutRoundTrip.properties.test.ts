@@ -153,6 +153,7 @@ function buildScenario(input: ScenarioInput): BuiltScenario {
     subjectColumn: base.subjectColumn,
     groupingConstraint: base.groupingConstraint,
     metadataColumns: base.metadataColumns,
+    naPolicy: { foldBlank: false, foldSpellings: [] },
   };
 
   const colors: CovariateColorMap = {};

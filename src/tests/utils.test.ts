@@ -1,4 +1,4 @@
-import { formatTimestampForFilename, withTimestamp, buildLayoutFileName, buildCovariateKey } from '../utils/utils';
+import { formatTimestampForFilename, withTimestamp, buildLayoutFileName, buildCovariateKey, effectiveValue, effectiveDisplayValue } from '../utils/utils';
 import { SearchData, CovariateConfig } from '../utils/types';
 
 const mkSample = (metadata: { [key: string]: string }): SearchData => ({ name: 'sample', metadata });
@@ -102,9 +102,11 @@ describe('buildCovariateKey injectivity (escape encoding)', () => {
     expect(buildCovariateKey(clean, config)).toBe('Training|108|FA1');
   });
 
-  it('keeps the N/A fallback for a genuinely missing value (B-min)', () => {
+  it('represents a genuinely-missing value with the missing marker by default', () => {
+    // Under na-value-handling the default policy keeps a blank cell distinct from a literal
+    // N/A: it becomes the lone-backslash missing marker, not the string N/A.
     const missing = mkSample({ Treatment: 'Training', Dose: '', Site: 'FA1' });
-    expect(buildCovariateKey(missing, config)).toBe('Training|N/A|FA1');
+    expect(buildCovariateKey(missing, config)).toBe('Training|\\|FA1');
   });
 
   it('preserves the QC prefix for clean data', () => {
@@ -115,5 +117,85 @@ describe('buildCovariateKey injectivity (escape encoding)', () => {
     };
     const qc = mkSample({ Condition: 'BatchQC', Dose: '108', Site: 'FA1' });
     expect(buildCovariateKey(qc, qcConfig)).toBe('BatchQC|108|FA1');
+  });
+});
+
+// na-value-handling: a blank cell can stay distinct from a literal N/A, folded spellings
+// collapse into N/A, and na/NA stay distinct unless folded. These are the green side of the
+// red-green flip captured pre-policy in the covariate-key-fragility residual.
+describe('buildCovariateKey under NaPolicy', () => {
+  const cols = ['Treatment', 'Dose', 'Site'];
+  const blank = mkSample({ Treatment: 'Training', Dose: '', Site: 'FA1' });
+  const literalNA = mkSample({ Treatment: 'Training', Dose: 'N/A', Site: 'FA1' });
+
+  it('keeps a blank cell distinct from a literal N/A by default', () => {
+    const config: CovariateConfig = { selectedCovariates: cols };
+    expect(buildCovariateKey(blank, config)).toBe('Training|\\|FA1');
+    expect(buildCovariateKey(literalNA, config)).toBe('Training|N/A|FA1');
+    expect(buildCovariateKey(blank, config)).not.toBe(buildCovariateKey(literalNA, config));
+  });
+
+  it('folds a blank cell into N/A when the policy folds blank', () => {
+    const config: CovariateConfig = {
+      selectedCovariates: cols,
+      naPolicy: { foldBlank: true, foldSpellings: [] },
+    };
+    expect(buildCovariateKey(blank, config)).toBe('Training|N/A|FA1');
+    expect(buildCovariateKey(blank, config)).toBe(buildCovariateKey(literalNA, config));
+  });
+
+  it('folds a listed spelling into N/A while a literal N/A always folds', () => {
+    const config: CovariateConfig = {
+      selectedCovariates: cols,
+      naPolicy: { foldBlank: false, foldSpellings: ['na'] },
+    };
+    const na = mkSample({ Treatment: 'Training', Dose: 'na', Site: 'FA1' });
+    expect(buildCovariateKey(na, config)).toBe('Training|N/A|FA1');
+    expect(buildCovariateKey(na, config)).toBe(buildCovariateKey(literalNA, config));
+  });
+
+  it('keeps na and NA distinct when only na is folded (grouping is by exact text)', () => {
+    const config: CovariateConfig = {
+      selectedCovariates: cols,
+      naPolicy: { foldBlank: false, foldSpellings: ['na'] },
+    };
+    const na = mkSample({ Treatment: 'Training', Dose: 'na', Site: 'FA1' });
+    const NA = mkSample({ Treatment: 'Training', Dose: 'NA', Site: 'FA1' });
+    expect(buildCovariateKey(na, config)).toBe('Training|N/A|FA1');
+    expect(buildCovariateKey(NA, config)).toBe('Training|NA|FA1');
+    expect(buildCovariateKey(na, config)).not.toBe(buildCovariateKey(NA, config));
+  });
+
+  it('leaves na and NA as their own literal groups under the default policy', () => {
+    const config: CovariateConfig = { selectedCovariates: cols };
+    const na = mkSample({ Treatment: 'Training', Dose: 'na', Site: 'FA1' });
+    const NA = mkSample({ Treatment: 'Training', Dose: 'NA', Site: 'FA1' });
+    expect(buildCovariateKey(na, config)).toBe('Training|na|FA1');
+    expect(buildCovariateKey(NA, config)).toBe('Training|NA|FA1');
+  });
+});
+
+describe('effectiveValue and effectiveDisplayValue', () => {
+  it('classifies raw values under the default policy', () => {
+    expect(effectiveValue('Drug')).toEqual({ kind: 'value', value: 'Drug' });
+    expect(effectiveValue('')).toEqual({ kind: 'missing' });
+    expect(effectiveValue('   ')).toEqual({ kind: 'missing' });
+    expect(effectiveValue('N/A')).toEqual({ kind: 'na' });
+    expect(effectiveValue('na')).toEqual({ kind: 'value', value: 'na' });
+  });
+
+  it('folds blank and listed spellings when the policy says so', () => {
+    const policy = { foldBlank: true, foldSpellings: ['na', 'n/a'] };
+    expect(effectiveValue('', policy)).toEqual({ kind: 'na' });
+    expect(effectiveValue('na', policy)).toEqual({ kind: 'na' });
+    expect(effectiveValue('NA', policy)).toEqual({ kind: 'value', value: 'NA' });
+  });
+
+  it('maps effective values to display text: folded -> N/A, missing -> blank, value -> itself', () => {
+    expect(effectiveDisplayValue('Drug')).toBe('Drug');
+    expect(effectiveDisplayValue('N/A')).toBe('N/A');
+    expect(effectiveDisplayValue('')).toBe(''); // missing renders blank by default
+    expect(effectiveDisplayValue('', { foldBlank: true, foldSpellings: [] })).toBe('N/A');
+    expect(effectiveDisplayValue('na', { foldBlank: false, foldSpellings: ['na'] })).toBe('N/A');
   });
 });

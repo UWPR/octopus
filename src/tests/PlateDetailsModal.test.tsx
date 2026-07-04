@@ -88,4 +88,42 @@ describe('PlateDetailsModal covariate decode', () => {
     expectCovariateRow('Dose', '5');
     expectCovariateRow('Site', 'S2');
   });
+
+  it('renders a folded spelling as N/A when the policy folds it', () => {
+    const naPolicy = { foldBlank: false, foldSpellings: ['na'] };
+    const sample: SearchData = { name: 'na-sample', metadata: { Treatment: 'Ctrl', Dose: 'na', Site: 'S1' } };
+    sample.covariateKey = buildCovariateKey(sample, { selectedCovariates: COVS, naPolicy });
+
+    render(
+      <PlateDetailsModal
+        {...baseProps}
+        plateAssignments={new Map([[0, [sample]]])}
+        searches={[sample]}
+        selectedCovariates={COVS}
+        naPolicy={naPolicy}
+      />
+    );
+
+    // The folded Dose group shows the canonical N/A label.
+    expectCovariateRow('Dose', 'N/A');
+    expectCovariateRow('Treatment', 'Ctrl');
+  });
+
+  it('renders a genuinely-missing value as blank (not N/A) under the default policy', () => {
+    const sample = makeSample('blank-sample', { Treatment: 'Ctrl', Dose: '', Site: 'S1' });
+
+    render(
+      <PlateDetailsModal
+        {...baseProps}
+        plateAssignments={new Map([[0, [sample]]])}
+        searches={[sample]}
+        selectedCovariates={COVS}
+      />
+    );
+
+    // A missing group renders blank, so the label 'N/A' must not appear anywhere.
+    expect(screen.queryByText('N/A')).not.toBeInTheDocument();
+    expectCovariateRow('Treatment', 'Ctrl');
+    expectCovariateRow('Site', 'S1');
+  });
 });

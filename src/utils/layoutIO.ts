@@ -3,6 +3,7 @@ import {
   RandomizationAlgorithm,
   GroupingConstraint,
   CovariateColorInfo,
+  NaPolicy,
   getAllAlgorithms,
 } from './types';
 import {
@@ -22,7 +23,7 @@ import {
  *     "appVersion": "1.4.0",        // optional, provenance only
  *     "plateCount": 3,              // number of plates, enforced on load
  *     "settings": { ... },          // the user-chosen configuration (LayoutSettings)
- *     "covariateColors": { ... },   // optional; key -> { color, fill }
+ *     "covariateColors": { ... },   // required; key -> { color, fill }, one per covariate group
  *     "samples": [ { id, plate, well, metadata } ]
  *   }
  *
@@ -62,6 +63,8 @@ export interface LayoutSettings {
   groupingConstraint: GroupingConstraint;
   /** Metadata column names in display order, so re-exports keep stable column order. */
   metadataColumns: string[];
+  /** Global N/A grouping choice, so a reloaded layout re-derives the same covariate groups. */
+  naPolicy: NaPolicy;
 }
 
 export type CovariateColorMap = { [key: string]: CovariateColorInfo };
@@ -89,7 +92,7 @@ export interface ParsedLayout {
   plateCount: number | null;
   /** Settings from the file, or null when the settings object is missing/invalid. */
   settings: LayoutSettings | null;
-  /** Colors from the file, or null when none are present. */
+  /** Colors from the file (required), or null when the covariateColors object is missing/invalid. */
   covariateColors: CovariateColorMap | null;
   /** Placement rows parsed from `samples` (empty when samples are missing/invalid). */
   rows: LayoutRow[];
@@ -190,6 +193,7 @@ function settingsToJson(s: LayoutSettings) {
     subjectColumn: s.subjectColumn,
     groupingConstraint: s.groupingConstraint,
     metadataColumns: s.metadataColumns,
+    naPolicy: { foldBlank: s.naPolicy.foldBlank, foldSpellings: s.naPolicy.foldSpellings },
   };
 }
 
@@ -218,13 +222,15 @@ export function serializeLayout(options: {
 }): string {
   const { searches, randomizedPlates, settings, covariateColors, appVersion } = options;
 
+  // A layout must record a color for every covariate group, so grouping reloads exactly and the
+  // load-time color check has something to verify against. Refuse to save without colors.
   const colorEntries = Object.entries(covariateColors);
-  const covariateColorsJson =
-    colorEntries.length > 0
-      ? Object.fromEntries(
-          colorEntries.map(([key, info]) => [key, { color: info.color, fill: fillToken(info) }])
-        )
-      : undefined;
+  if (colorEntries.length === 0) {
+    throw new Error('Cannot save layout: a layout must include the covariate colors, but none were provided.');
+  }
+  const covariateColorsJson = Object.fromEntries(
+    colorEntries.map(([key, info]) => [key, { color: info.color, fill: fillToken(info) }])
+  );
 
   const doc = {
     format: LAYOUT_FORMAT,
@@ -232,7 +238,7 @@ export function serializeLayout(options: {
     ...(appVersion ? { appVersion } : {}),
     plateCount: randomizedPlates.length,
     settings: settingsToJson(settings),
-    ...(covariateColorsJson ? { covariateColors: covariateColorsJson } : {}),
+    covariateColors: covariateColorsJson,
     samples: searches.map((search) => {
       // getPlateNumber/getWell return '' when the sample is not on the grid. That must never be
       // written (plate has to be a positive integer), so fail the save rather than emit a file the
@@ -284,8 +290,14 @@ function parseSettings(raw: unknown): { value: LayoutSettings | null; errors: La
     `settings.groupingConstraint must be one of: ${GROUPING_CONSTRAINTS.join(', ')}.`
   );
   need(isStringArray(r.metadataColumns), 'settings.metadataColumns must be an array of strings.');
+  const naPolicy = r.naPolicy;
+  need(
+    isRecord(naPolicy) && typeof naPolicy.foldBlank === 'boolean' && isStringArray(naPolicy.foldSpellings),
+    'settings.naPolicy must be an object with a boolean foldBlank and a string-array foldSpellings.'
+  );
 
   if (errors.length) return { value: null, errors };
+  const validNaPolicy = naPolicy as { foldBlank: boolean; foldSpellings: string[] };
   return {
     value: {
       selectedIdColumn: r.idColumn as string,
@@ -299,6 +311,7 @@ function parseSettings(raw: unknown): { value: LayoutSettings | null; errors: La
       subjectColumn: r.subjectColumn as string,
       groupingConstraint: r.groupingConstraint as GroupingConstraint,
       metadataColumns: r.metadataColumns as string[],
+      naPolicy: { foldBlank: validNaPolicy.foldBlank, foldSpellings: validNaPolicy.foldSpellings },
     },
     errors: [],
   };
@@ -433,10 +446,17 @@ export function parseLayout(fileText: string): ParsedLayout {
   if (settingsResult.errors.length) errors.push(...settingsResult.errors);
   else base.settings = settingsResult.value;
 
-  if (root.covariateColors !== undefined) {
+  // covariateColors is required: a saved layout always records a color for every covariate group.
+  if (root.covariateColors === undefined) {
+    errors.push(fatal('The layout file is missing its "covariateColors" object.'));
+  } else {
     const colorsResult = parseColors(root.covariateColors);
     if (colorsResult.errors.length) errors.push(...colorsResult.errors);
-    else base.covariateColors = Object.keys(colorsResult.value).length > 0 ? colorsResult.value : null;
+    else if (Object.keys(colorsResult.value).length === 0) {
+      errors.push(fatal('The layout file records no covariate colors; a layout must color every covariate group.'));
+    } else {
+      base.covariateColors = colorsResult.value;
+    }
   }
 
   const samplesResult = parseSamples(root.samples);
@@ -612,21 +632,37 @@ export function validateLayout(parsed: ParsedLayout): LayoutValidationError[] {
     );
   }
 
-  // Covariate-color consistency: every stored color must key a covariate combination that the
-  // samples actually produce under the selected covariates.
+  // Covariate-color consistency: the stored colors must correspond exactly to the covariate
+  // groups the samples produce under the selected covariates and the saved N/A policy. Both
+  // directions are enforced so a reloaded layout reproduces the file's grouping exactly:
+  //   - every stored color must key a real group (no orphan colors), and
+  //   - every produced group must have a stored color (no uncolored groups rendered gray).
   if (parsed.covariateColors) {
+    const colors = parsed.covariateColors;
     const samples: SearchData[] = parsed.rows.map((r) => ({ name: r.name, metadata: r.metadata }));
     buildProcessedSearches(samples, {
       selectedCovariates: s.selectedCovariates,
       qcColumn: s.qcColumn,
       selectedQcValues: s.selectedQcValues,
+      naPolicy: s.naPolicy,
     });
-    const derivedKeys = new Set(samples.map((x) => x.covariateKey));
-    Object.keys(parsed.covariateColors).forEach((key) => {
+    const derivedKeys = new Set(samples.map((x) => x.covariateKey as string));
+    const colorKeys = Object.keys(colors);
+    colorKeys.forEach((key) => {
       if (!derivedKeys.has(key)) {
         errors.push(
           fatal(
             `The layout has a color for "${key}", which no sample produces under the selected covariates.`
+          )
+        );
+      }
+    });
+    derivedKeys.forEach((key) => {
+      if (!(key in colors)) {
+        errors.push(
+          fatal(
+            `The layout produces the covariate group "${key}" but stores no color for it ` +
+              `(the samples form ${derivedKeys.size} groups but the file records ${colorKeys.length} colors).`
           )
         );
       }

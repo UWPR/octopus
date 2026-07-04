@@ -8,8 +8,8 @@ import PlatesGrid from './components/PlatesGrid';
 import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
 import SubjectPlacementPanel from './components/SubjectPlacementPanel';
-import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig } from './utils/types';
-import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp, buildLayoutFileName } from './utils/utils';
+import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig, NaPolicy, DEFAULT_NA_POLICY } from './utils/types';
+import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp, buildLayoutFileName, detectNaTypeValues } from './utils/utils';
 import { exportToExcel } from './utils/excelExport';
 import {
   serializeLayout,
@@ -115,6 +115,9 @@ const App: React.FC = () => {
   const [qcColumn, setQcColumn] = useState<string>('');
   const [qcColumnValues, setQcColumnValues] = useState<string[]>([]);
   const [selectedQcValues, setSelectedQcValues] = useState<string[]>([]);
+  // Global N/A grouping choice. Set from the "N/A values" checklist when the data mixes
+  // spellings; the default folds nothing extra (blank stays distinct, spellings stay literal).
+  const [naPolicy, setNaPolicy] = useState<NaPolicy>(DEFAULT_NA_POLICY);
 
   // Algorithm selection
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<RandomizationAlgorithm>(defaultAlgorithm);
@@ -217,6 +220,9 @@ const App: React.FC = () => {
     setGroupingConstraint('none');
     setGroupValidation(null);
 
+    // N/A grouping (re-derived from the new data by the upload effect)
+    setNaPolicy(DEFAULT_NA_POLICY);
+
     // Algorithm and plate dimensions (back to defaults)
     setSelectedAlgorithm(defaultAlgorithm);
     setKeepEmptyInLastPlate(false);
@@ -254,6 +260,16 @@ const App: React.FC = () => {
     // IDs blank) still replaces the previous design instead of leaving it on screen.
     if (selectedFileName) {
       clearConfigAndLayout();
+      // Initialize the N/A policy from the new data. When a column mixes spellings, default to
+      // folding every detected spelling (all checklist boxes checked); otherwise fold nothing.
+      setNaPolicy(
+        naDetection.hasAmbiguousColumn
+          ? {
+              foldBlank: naDetection.spellings.has(''),
+              foldSpellings: Array.from(naDetection.spellings).filter(t => t !== '' && t !== 'N/A'),
+            }
+          : DEFAULT_NA_POLICY
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFileName, searches.length]);
@@ -290,6 +306,31 @@ const App: React.FC = () => {
     setSelectedCombination(null);
     setSelectedSubject(null);
     setShowSubjectPlacements(false);
+  };
+
+  // Scan every metadata column of the uploaded data for N/A-type spellings. Drives the "N/A
+  // values" checklist and, at upload, the default policy. The ID column is not metadata, so it
+  // is excluded automatically.
+  const naDetection = useMemo(
+    () => detectNaTypeValues(searches, availableColumns.filter(col => col !== selectedIdColumn)),
+    [searches, availableColumns, selectedIdColumn]
+  );
+
+  // Toggle one entry of the "N/A values" checklist. Blank uses the empty-string token. The
+  // literal N/A is always folded (its box is disabled), so it never reaches here. Changing the
+  // policy invalidates the current layout, matching a covariate change, so the user re-Generates.
+  const handleNaPolicyToggle = (token: string) => {
+    setNaPolicy(prev => {
+      if (token === '') return { ...prev, foldBlank: !prev.foldBlank };
+      const folded = prev.foldSpellings.includes(token);
+      return {
+        ...prev,
+        foldSpellings: folded
+          ? prev.foldSpellings.filter(s => s !== token)
+          : [...prev.foldSpellings, token],
+      };
+    });
+    resetCovariateState();
   };
 
   // Derive the available QC values for the chosen QC column. This only recomputes the
@@ -422,6 +463,7 @@ const App: React.FC = () => {
       selectedCovariates,
       qcColumn,
       selectedQcValues,
+      naPolicy,
     });
   };
 
@@ -447,7 +489,8 @@ const App: React.FC = () => {
           keepEmptyInLastPlate,
           plateRows,
           plateColumns,
-          repeatedMeasuresConfig
+          repeatedMeasuresConfig,
+          naPolicy
         );
 
         if (success) {
@@ -465,7 +508,8 @@ const App: React.FC = () => {
             searches,
             selectedCovariates,
             qcColumn,
-            selectedQcValues
+            selectedQcValues,
+            naPolicy
           );
         }
       } catch (err: any) {
@@ -495,6 +539,7 @@ const App: React.FC = () => {
     groupingConstraint,
     // Metadata columns in display order (every column except the ID column).
     metadataColumns: availableColumns.filter(col => col !== selectedIdColumn),
+    naPolicy,
   });
 
   // Save layout handler - export the layout together with the settings that produced it.
@@ -511,7 +556,8 @@ const App: React.FC = () => {
         appVersion: packageJson.version,
       });
     } catch (e) {
-      // serializeLayout throws if a sample is not on the grid. Show it instead of downloading.
+      // serializeLayout throws if a sample is not on the grid, or if there are no covariate
+      // colors to save. Show the message instead of downloading.
       setLoadWarning((e as Error).message);
       return;
     }
@@ -557,6 +603,7 @@ const App: React.FC = () => {
     setPlateColumns(settings.plateColumns);
     setSubjectColumn(settings.subjectColumn);
     setGroupingConstraint(settings.groupingConstraint);
+    setNaPolicy(settings.naPolicy);
 
     // Restore the plates directly (no re-randomization).
     restoreLayout(plates, plateAssignmentsToRestore);
@@ -579,7 +626,8 @@ const App: React.FC = () => {
       loadedSearches,
       settings.selectedCovariates,
       settings.qcColumn,
-      settings.selectedQcValues
+      settings.selectedQcValues,
+      settings.naPolicy
     );
 
     // Clear any stale highlight/error.
@@ -619,11 +667,13 @@ const App: React.FC = () => {
         samples: loadedSearches,
       } = buildPlatesFromRows(parsed.rows, settings);
 
-      // Recompute covariate keys / QC flags (shared references update the plates too).
+      // Recompute covariate keys / QC flags (shared references update the plates too). Use the
+      // saved N/A policy so the derived keys match the stored covariate colors.
       buildProcessedSearches(loadedSearches, {
         selectedCovariates: settings.selectedCovariates,
         qcColumn: settings.qcColumn,
         selectedQcValues: settings.selectedQcValues,
+        naPolicy: settings.naPolicy,
       });
 
       applyLoadedLayout(
@@ -746,7 +796,8 @@ const App: React.FC = () => {
       numRows: plateRows,
       numColumns: plateColumns,
       inputFileName: selectedFileName,
-      qcColumn: qcColumn || undefined
+      qcColumn: qcColumn || undefined,
+      naPolicy
     });
   };
 
@@ -772,7 +823,8 @@ const App: React.FC = () => {
         keepEmptyInLastPlate,
         plateRows,
         plateColumns,
-        repeatedMeasuresConfig
+        repeatedMeasuresConfig,
+        naPolicy
       );
     }
   };
@@ -799,7 +851,8 @@ const App: React.FC = () => {
         keepEmptyInLastPlate,
         plateRows,
         plateColumns,
-        repeatedMeasuresConfig
+        repeatedMeasuresConfig,
+        naPolicy
       );
       // Quality metrics will be recalculated automatically via useEffect
     }
@@ -947,6 +1000,9 @@ const App: React.FC = () => {
           qcColumnValues={qcColumnValues}
           selectedQcValues={selectedQcValues}
           onQcValueToggle={handleQcValueToggle}
+          naDetection={naDetection}
+          naPolicy={naPolicy}
+          onNaPolicyToggle={handleNaPolicyToggle}
           selectedAlgorithm={selectedAlgorithm}
           onAlgorithmChange={handleAlgorithmChange}
           keepEmptyInLastPlate={keepEmptyInLastPlate}
@@ -1097,6 +1153,7 @@ const App: React.FC = () => {
                 onReRandomizePlate={handleReRandomizePlate}
                 qualityMetrics={metrics ?? undefined}
                 subjectColumn={subjectColumn || undefined}
+                qcColumn={qcColumn || undefined}
               />
             </>
           )}
@@ -1120,6 +1177,7 @@ const App: React.FC = () => {
           plateQuality={selectedPlateIndex !== null ? metrics?.plateDiversity.plateScores.find(score => score.plateIndex === selectedPlateIndex) : undefined}
           randomizedPlates={randomizedPlates}
           numPlates={randomizedPlates.length}
+          naPolicy={naPolicy}
         />
 
         {/* Quality Assessment Modal */}

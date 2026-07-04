@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { RandomizationAlgorithm, getAlgorithmName, getAlgorithmDescription, getAlgorithmsInDisplayOrder, GroupingConstraint, GroupValidationResult, SubjectGroup } from '../utils/types';
+import { RandomizationAlgorithm, getAlgorithmName, getAlgorithmDescription, getAlgorithmsInDisplayOrder, GroupingConstraint, GroupValidationResult, SubjectGroup, NaPolicy } from '../utils/types';
+import { NaDetectionResult } from '../utils/utils';
 
 interface ConfigurationFormProps {
   availableColumns: string[];
@@ -15,6 +16,9 @@ interface ConfigurationFormProps {
   qcColumnValues: string[];
   selectedQcValues: string[];
   onQcValueToggle: (value: string) => void;
+  naDetection: NaDetectionResult;
+  naPolicy: NaPolicy;
+  onNaPolicyToggle: (token: string) => void;
   selectedAlgorithm: RandomizationAlgorithm;
   onAlgorithmChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
   keepEmptyInLastPlate: boolean;
@@ -46,6 +50,9 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   qcColumnValues: qcColumnValues,
   selectedQcValues: selectedQcValues,
   onQcValueToggle: onQcValueToggle,
+  naDetection,
+  naPolicy,
+  onNaPolicyToggle,
   selectedAlgorithm,
   onAlgorithmChange,
   keepEmptyInLastPlate,
@@ -122,6 +129,16 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   };
 
   const groupSummary = subjectColumn ? buildGroupSummary() : null;
+
+  // "N/A values" checklist: shown only when some column mixes two or more N/A-type spellings.
+  // The union of spellings is listed with the literal N/A first, then blank, then the rest
+  // alphabetically.
+  const showNaValues = naDetection.hasAmbiguousColumn;
+  const naTokenRank = (token: string) => (token === 'N/A' ? 0 : token === '' ? 1 : 2);
+  const naTokens = Array.from(naDetection.spellings).sort((a, b) => {
+    const rankDiff = naTokenRank(a) - naTokenRank(b);
+    return rankDiff !== 0 ? rankDiff : a.localeCompare(b);
+  });
 
   return (
     <div style={styles.compactFormContainer}>
@@ -424,6 +441,46 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
         )}
       </div>
 
+      {/* N/A values: one global choice shown only when the data mixes not-applicable spellings */}
+      {showNaValues && (
+        <div style={styles.compactRow}>
+          <div style={styles.fullWidthColumn}>
+            <div style={styles.naValuesContainer}>
+              <label style={styles.compactLabel}>N/A values:</label>
+              <small style={styles.compactHint}>
+                The input contains the following values that could be interpreted as N/A. Checked
+                values will be grouped as N/A. Uncheck any that should be kept separate.
+              </small>
+              <div style={styles.naCheckboxGroup}>
+                {naTokens.map((token) => {
+                  const isBlank = token === '';
+                  const isLiteralNa = token === 'N/A';
+                  const label = isBlank ? '(blank)' : token;
+                  const checked = isLiteralNa
+                    ? true
+                    : isBlank
+                      ? naPolicy.foldBlank
+                      : naPolicy.foldSpellings.includes(token);
+                  return (
+                    <label key={label} style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={isLiteralNa}
+                        onChange={() => onNaPolicyToggle(token)}
+                        style={styles.checkbox}
+                        aria-label={`Treat ${label} as N/A`}
+                      />
+                      {label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Non-greedy Algorithm Options */}
       {selectedAlgorithm !== 'greedy' && (
         <div style={styles.compactRow}>
@@ -658,6 +715,18 @@ const styles = {
     backgroundColor: '#fff',
     borderRadius: '4px',
     border: '1px solid #ddd',
+  },
+  naValuesContainer: {
+    padding: '12px 15px',
+    backgroundColor: '#fff',
+    borderRadius: '6px',
+    border: '1px solid #ddd',
+  },
+  naCheckboxGroup: {
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: '16px',
+    marginTop: '8px',
   },
   checkboxGroup: {
     display: 'flex',
