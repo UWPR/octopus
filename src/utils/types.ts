@@ -28,7 +28,8 @@ export interface NaPolicy {
 /**
  * Policy used when the N/A values setting is not shown (no column mixes spellings).
  * A blank cell stays distinct via the missing marker and every N/A-type spelling stays its
- * own literal value. The literal 'N/A' still folds (handled in effectiveValue).
+ * own literal value. A cell whose exact text is 'N/A' always maps to the canonical N/A group,
+ * regardless of policy (see effectiveValue).
  */
 export const DEFAULT_NA_POLICY: NaPolicy = { foldBlank: false, foldSpellings: [] };
 

@@ -41,12 +41,14 @@ function escapeCovariateValue(value: string): string {
 }
 
 /**
- * Reserved key part for a genuinely-missing (blank) cell kept distinct from a literal N/A.
- * A single backslash. escapeCovariateValue doubles backslashes and escapes pipes, so it can
- * never emit a lone backslash. This marker is therefore unreachable by escaping any real value,
- * and cannot collide with the folded N/A part either, so the covariate key stays injective.
+ * Key part for a blank cell, kept distinct from a cell that literally says N/A.
+ * The marker is a single backslash, which is safe because:
+ * - We emit it raw, never through escapeCovariateValue, so it stays a lone backslash.
+ * - Escaping a real value doubles every backslash, so a real value never becomes a lone one.
+ * - It is not 'N/A', so it also cannot match a folded N/A cell.
+ * A lone backslash in a key therefore always means the cell was blank.
  */
-export const MISSING_MARKER = '\\';
+export const MISSING_MARKER = '\\'; // '\\' is a JS string literal for one backslash character
 
 /** True when a value is empty or whitespace-only. */
 function isBlank(value: string): boolean {
