@@ -149,6 +149,19 @@ test.describe('Choose File validation', () => {
     await expect(page.locator('#idColumn option')).toHaveCount(0);
   });
 
+  test('rejects a duplicate header even when the file starts with blank lines', async ({ page }) => {
+    // Leading blank lines are skipped, so the duplicate check must still read the real header row.
+    const csv = '\n\nSample ID,Dose,Dose\nS1,10,20\nS2,5,7\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'leading-blank-dup.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more than one column named "Dose"/)).toBeVisible();
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
   test('rejects a .csv with headers that differ only by whitespace', async ({ page }) => {
     // "Dose" and "Dose " look distinct to Papa but collapse when metadata keys are trimmed, which
     // would silently drop a column. Reject that too.

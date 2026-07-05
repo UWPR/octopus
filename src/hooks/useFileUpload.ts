@@ -83,7 +83,9 @@ export function useFileUpload() {
     // which invents a covariate the user never created, or collapsed when metadata keys are
     // trimmed downstream, which drops a column's values. Compare trimmed names on the raw header
     // row, because Papa has already renamed exact repeats in meta.fields by the time we see them.
-    const rawHeader = (Papa.parse<string[]>(text, { header: false, preview: 1 }).data[0]) || [];
+    // Skip empty lines so the header row is the same one the main parse used, even when the file
+    // starts with blank lines.
+    const rawHeader = (Papa.parse<string[]>(text, { header: false, skipEmptyLines: 'greedy' }).data[0]) || [];
     const seenHeaderNames = new Set<string>();
     let duplicateHeader: string | undefined;
     for (const cell of rawHeader) {
