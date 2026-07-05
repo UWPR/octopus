@@ -1,12 +1,12 @@
 import {
-  computeCovariateAdvisory,
+  computeGroupDistributionWarnings,
   aggregateObservedGroupBalance,
   computeQcRowCoverage,
   POOR_BALANCE_THRESHOLD,
-} from '../utils/covariateAdvisory';
+} from '../utils/groupDistributionWarnings';
 import { SummaryItem, QualityMetrics, PlateQualityScore, SearchData } from '../utils/types';
 
-/** Build a SummaryItem with only the fields the advisory reads. */
+/** Build a SummaryItem with only the fields the warnings logic reads. */
 function makeItem(
   combination: string,
   count: number,
@@ -69,14 +69,14 @@ function makeMetrics(scoresByPlate: Array<Record<string, number>>): QualityMetri
   };
 }
 
-describe('computeCovariateAdvisory', () => {
+describe('computeGroupDistributionWarnings', () => {
   it('threshold constant is the Fair floor (70)', () => {
     expect(POOR_BALANCE_THRESHOLD).toBe(70);
   });
 
-  it('P == 1: suppresses treatment coverage and balance advisories', () => {
-    const result = computeCovariateAdvisory([makeItem('A', 1), makeItem('B', 0)], 1);
-    expect(result.sparseCount).toBe(0);
+  it('P == 1: suppresses treatment coverage and balance warnings', () => {
+    const result = computeGroupDistributionWarnings([makeItem('A', 1), makeItem('B', 0)], 1);
+    expect(result.warningCount).toBe(0);
     expect(result.byCombination.size).toBe(0);
     expect(result.summaries).toEqual([]);
     expect(result.totalGroups).toBe(2);
@@ -84,49 +84,49 @@ describe('computeCovariateAdvisory', () => {
   });
 
   it('c_g < P: coverage error naming c_g, P, and P - c_g', () => {
-    const result = computeCovariateAdvisory([makeItem('A', 2)], 3);
-    const advisory = result.byCombination.get('A')!;
-    expect(advisory.severity).toBe('error');
-    expect(advisory.count).toBe(2);
-    expect(advisory.isQc).toBe(false);
-    expect(advisory.reason).toBe(
+    const result = computeGroupDistributionWarnings([makeItem('A', 2)], 3);
+    const warning = result.byCombination.get('A')!;
+    expect(warning.severity).toBe('error');
+    expect(warning.count).toBe(2);
+    expect(warning.isQc).toBe(false);
+    expect(warning.reason).toBe(
       'Only 2 samples for 3 plates. At least 1 plate will have 0 samples of this group.'
     );
-    expect(result.sparseCount).toBe(1);
+    expect(result.warningCount).toBe(1);
   });
 
   it('c_g == 1 < P: singular sample wording, plural plates', () => {
-    const result = computeCovariateAdvisory([makeItem('A', 1)], 3);
+    const result = computeGroupDistributionWarnings([makeItem('A', 1)], 3);
     expect(result.byCombination.get('A')!.reason).toBe(
       'Only 1 sample for 3 plates. At least 2 plates will have 0 samples of this group.'
     );
   });
 
-  it('c_g == P: coverable, no advisory when no observed balance', () => {
-    const result = computeCovariateAdvisory([makeItem('A', 3)], 3);
+  it('c_g == P: coverable, no warning when no observed balance', () => {
+    const result = computeGroupDistributionWarnings([makeItem('A', 3)], 3);
     expect(result.byCombination.size).toBe(0);
     expect(result.summaries).toEqual([]);
   });
 
-  it('well-covered, well-balanced group: no advisory', () => {
+  it('well-covered, well-balanced group: no warning', () => {
     const observed = new Map([['A', 95]]);
-    const result = computeCovariateAdvisory([makeItem('A', 90)], 3, { observedGroupBalance: observed });
+    const result = computeGroupDistributionWarnings([makeItem('A', 90)], 3, { observedGroupBalance: observed });
     expect(result.byCombination.size).toBe(0);
   });
 
   it('observed mode: coverable group below threshold becomes a warning', () => {
     const observed = new Map([['A', 60]]);
-    const result = computeCovariateAdvisory([makeItem('A', 30)], 3, { observedGroupBalance: observed });
-    const advisory = result.byCombination.get('A')!;
-    expect(advisory.severity).toBe('warning');
-    expect(advisory.reason).toBe(
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, { observedGroupBalance: observed });
+    const warning = result.byCombination.get('A')!;
+    expect(warning.severity).toBe('warning');
+    expect(warning.reason).toBe(
       'Balance score 60 (Poor or Bad). This group is spread unevenly across the 3 plates.'
     );
   });
 
   it('observed mode: a group exactly at the threshold is clean', () => {
     const observed = new Map([['A', 70]]);
-    const result = computeCovariateAdvisory([makeItem('A', 30)], 3, { observedGroupBalance: observed });
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, { observedGroupBalance: observed });
     expect(result.byCombination.size).toBe(0);
   });
 
@@ -134,7 +134,7 @@ describe('computeCovariateAdvisory', () => {
     // 2 samples across 3 plates would fail the treatment per-plate rule, but a QC
     // group is not flagged on count. With full row coverage it is clean.
     const rowCoverage = new Map([['BatchRef|na|na', { usedRows: 10, uncoveredRows: 0 }]]);
-    const result = computeCovariateAdvisory([makeItem('BatchRef|na|na', 2, 'BatchRef')], 3, {
+    const result = computeGroupDistributionWarnings([makeItem('BatchRef|na|na', 2, 'BatchRef')], 3, {
       selectedQcValues: ['BatchQC', 'BatchRef'],
       qcRowCoverage: rowCoverage,
     });
@@ -144,14 +144,14 @@ describe('computeCovariateAdvisory', () => {
   it('QC group with too few samples: error, isQc true, "add more" reason', () => {
     // count 2 < usedRows 10, so it can never cover every row.
     const rowCoverage = new Map([['BatchRef|na|na', { usedRows: 10, uncoveredRows: 4 }]]);
-    const result = computeCovariateAdvisory([makeItem('BatchRef|na|na', 2, 'BatchRef')], 3, {
+    const result = computeGroupDistributionWarnings([makeItem('BatchRef|na|na', 2, 'BatchRef')], 3, {
       selectedQcValues: ['BatchQC', 'BatchRef'],
       qcRowCoverage: rowCoverage,
     });
-    const advisory = result.byCombination.get('BatchRef|na|na')!;
-    expect(advisory.severity).toBe('error');
-    expect(advisory.isQc).toBe(true);
-    expect(advisory.reason).toBe(
+    const warning = result.byCombination.get('BatchRef|na|na')!;
+    expect(warning.severity).toBe('error');
+    expect(warning.isQc).toBe(true);
+    expect(warning.reason).toBe(
       'This QC/reference group is missing from 4 of 10 used rows. It has only 2 samples for 10 used rows, so add more QC/reference samples.'
     );
   });
@@ -159,7 +159,7 @@ describe('computeCovariateAdvisory', () => {
   it('QC group with enough samples but a placement gap: "move" reason', () => {
     // count 30 >= usedRows 24, so moving samples can close the gap.
     const rowCoverage = new Map([['BatchQC|na|na', { usedRows: 24, uncoveredRows: 3 }]]);
-    const result = computeCovariateAdvisory([makeItem('BatchQC|na|na', 30, 'BatchQC')], 3, {
+    const result = computeGroupDistributionWarnings([makeItem('BatchQC|na|na', 30, 'BatchQC')], 3, {
       selectedQcValues: ['BatchQC'],
       qcRowCoverage: rowCoverage,
     });
@@ -170,7 +170,7 @@ describe('computeCovariateAdvisory', () => {
 
   it('QC row coverage fires even on a single plate (P == 1)', () => {
     const rowCoverage = new Map([['BatchRef|na|na', { usedRows: 8, uncoveredRows: 1 }]]);
-    const result = computeCovariateAdvisory([makeItem('BatchRef|na|na', 6, 'BatchRef')], 1, {
+    const result = computeGroupDistributionWarnings([makeItem('BatchRef|na|na', 6, 'BatchRef')], 1, {
       selectedQcValues: ['BatchRef'],
       qcRowCoverage: rowCoverage,
     });
@@ -183,18 +183,18 @@ describe('computeCovariateAdvisory', () => {
   it('QC group with full row coverage still gets the balance warning', () => {
     const rowCoverage = new Map([['BatchQC|na|na', { usedRows: 10, uncoveredRows: 0 }]]);
     const observed = new Map([['BatchQC|na|na', 55]]);
-    const result = computeCovariateAdvisory([makeItem('BatchQC|na|na', 30, 'BatchQC')], 3, {
+    const result = computeGroupDistributionWarnings([makeItem('BatchQC|na|na', 30, 'BatchQC')], 3, {
       selectedQcValues: ['BatchQC'],
       qcRowCoverage: rowCoverage,
       observedGroupBalance: observed,
     });
-    const advisory = result.byCombination.get('BatchQC|na|na')!;
-    expect(advisory.severity).toBe('warning');
-    expect(advisory.isQc).toBe(true);
+    const warning = result.byCombination.get('BatchQC|na|na')!;
+    expect(warning.severity).toBe('warning');
+    expect(warning.isQc).toBe(true);
   });
 
   it('QC group without supplied row coverage is not flagged on coverage', () => {
-    const result = computeCovariateAdvisory([makeItem('BatchRef|na|na', 2, 'BatchRef')], 3, {
+    const result = computeGroupDistributionWarnings([makeItem('BatchRef|na|na', 2, 'BatchRef')], 3, {
       selectedQcValues: ['BatchRef'],
     });
     expect(result.byCombination.size).toBe(0);
@@ -204,17 +204,17 @@ describe('computeCovariateAdvisory', () => {
     // qcColumnValue is set on every group when a QC column is configured, but
     // only selected QC values mark a group as QC. A non-selected value falls under
     // the per-plate treatment rule.
-    const result = computeCovariateAdvisory([makeItem('A', 2, 'Study')], 3, {
+    const result = computeGroupDistributionWarnings([makeItem('A', 2, 'Study')], 3, {
       selectedQcValues: ['BatchQC', 'BatchRef'],
     });
-    const advisory = result.byCombination.get('A')!;
-    expect(advisory.isQc).toBe(false);
-    expect(advisory.severity).toBe('error');
+    const warning = result.byCombination.get('A')!;
+    expect(warning.isQc).toBe(false);
+    expect(warning.severity).toBe('error');
   });
 
   it('precedence: a group that is both uncoverable and poorly balanced is reported once as error', () => {
     const observed = new Map([['A', 10]]);
-    const result = computeCovariateAdvisory([makeItem('A', 2)], 3, { observedGroupBalance: observed });
+    const result = computeGroupDistributionWarnings([makeItem('A', 2)], 3, { observedGroupBalance: observed });
     expect(result.byCombination.size).toBe(1);
     expect(result.byCombination.get('A')!.severity).toBe('error');
   });
@@ -227,8 +227,8 @@ describe('computeCovariateAdvisory', () => {
       makeItem('small1', 2),
       makeItem('small2', 1),
     ];
-    const result = computeCovariateAdvisory(items, 3);
-    expect(result.sparseCount).toBe(2);
+    const result = computeGroupDistributionWarnings(items, 3);
+    expect(result.warningCount).toBe(2);
     expect(result.summaries).toEqual([
       '2 of the treatment covariate groups are not represented on every plate. ' +
         'Ideally, each plate should have at least one sample from every treatment ' +
@@ -238,7 +238,7 @@ describe('computeCovariateAdvisory', () => {
 
   it('run summary: singular treatment wording keeps the plural noun', () => {
     const items = [makeItem('big', 90), makeItem('small', 2), makeItem('mid', 30)];
-    const result = computeCovariateAdvisory(items, 3);
+    const result = computeGroupDistributionWarnings(items, 3);
     expect(result.summaries).toEqual([
       '1 of the treatment covariate groups is not represented on every plate. ' +
         'Ideally, each plate should have at least one sample from every treatment ' +
@@ -256,7 +256,7 @@ describe('computeCovariateAdvisory', () => {
       makeItem('BatchRef|na|na', 2, 'BatchRef'), // QC coverage error
       makeItem('BatchQC|na|na', 8, 'BatchQC'), // QC coverage error
     ];
-    const result = computeCovariateAdvisory(items, 3, {
+    const result = computeGroupDistributionWarnings(items, 3, {
       selectedQcValues: ['BatchQC', 'BatchRef'],
       qcRowCoverage: rowCoverage,
     });
@@ -270,7 +270,7 @@ describe('computeCovariateAdvisory', () => {
   });
 
   it('run summary: balance line appears when a covered group is unevenly placed', () => {
-    const result = computeCovariateAdvisory([makeItem('A', 30)], 3, {
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, {
       observedGroupBalance: new Map([['A', 55]]),
     });
     expect(result.summaries).toEqual([
@@ -278,11 +278,11 @@ describe('computeCovariateAdvisory', () => {
     ]);
   });
 
-  it('no sparse groups: empty summaries, empty map', () => {
-    const result = computeCovariateAdvisory([makeItem('A', 30), makeItem('B', 30)], 3);
+  it('no flagged groups: empty summaries, empty map', () => {
+    const result = computeGroupDistributionWarnings([makeItem('A', 30), makeItem('B', 30)], 3);
     expect(result.summaries).toEqual([]);
     expect(result.byCombination.size).toBe(0);
-    expect(result.sparseCount).toBe(0);
+    expect(result.warningCount).toBe(0);
   });
 });
 
@@ -297,11 +297,11 @@ describe('aggregateObservedGroupBalance', () => {
     expect(means.get('B')).toBe(95);
   });
 
-  it('feeds computeCovariateAdvisory: mean below threshold flips severity', () => {
+  it('feeds computeGroupDistributionWarnings: mean below threshold flips severity', () => {
     // Group A averages (80 + 40 + 30) / 3 = 50, below 70 -> warning.
     const metrics = makeMetrics([{ A: 80 }, { A: 40 }, { A: 30 }]);
     const observed = aggregateObservedGroupBalance(metrics);
-    const result = computeCovariateAdvisory([makeItem('A', 30)], 3, { observedGroupBalance: observed });
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, { observedGroupBalance: observed });
     expect(result.byCombination.get('A')!.severity).toBe('warning');
     expect(result.byCombination.get('A')!.reason).toContain('Balance score 50');
   });

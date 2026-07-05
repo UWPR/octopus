@@ -24,7 +24,7 @@ import { useRandomization } from './hooks/useRandomization';
 import { useCovariateColors } from './hooks/useCovariateColors';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useQualityMetrics } from './hooks/useQualityMetrics';
-import { computeCovariateAdvisory, aggregateObservedGroupBalance, computeQcRowCoverage } from './utils/covariateAdvisory';
+import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, computeQcRowCoverage } from './utils/groupDistributionWarnings';
 import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
@@ -128,7 +128,7 @@ const App: React.FC = () => {
   const [plateRows, setPlateRows] = useState<number>(8);
   const [plateColumns, setPlateColumns] = useState<number>(12);
 
-  // Covariate sparsity advisory (non-blocking diagnostic). Reads existing state only:
+  // Group distribution warnings (non-blocking diagnostic). Reads existing state only:
   // it never disables Generate and never changes the layout, colors, or scores.
   // The Covariate Summary is shown only after generation, so plate count, the
   // observed per-group balance, and the layout row coverage are all available here.
@@ -151,9 +151,9 @@ const App: React.FC = () => {
     if (qcCombinations.size === 0) return undefined;
     return computeQcRowCoverage(randomizedPlates, qcCombinations, getCovariateKey);
   }, [randomizedPlates, summaryData, qcColumn, selectedQcValues]);
-  const covariateAdvisory = useMemo(
+  const distributionWarnings = useMemo(
     () =>
-      computeCovariateAdvisory(summaryData, plateCount, {
+      computeGroupDistributionWarnings(summaryData, plateCount, {
         observedGroupBalance,
         selectedQcValues,
         qcRowCoverage,
@@ -162,9 +162,9 @@ const App: React.FC = () => {
   );
   // Color the collapsed indicator red when any group fails coverage, amber when the
   // only issues are balance (UNEVEN) warnings.
-  const advisoryHasError = useMemo(
-    () => Array.from(covariateAdvisory.byCombination.values()).some(a => a.severity === 'error'),
-    [covariateAdvisory]
+  const warningsHaveError = useMemo(
+    () => Array.from(distributionWarnings.byCombination.values()).some(w => w.severity === 'error'),
+    [distributionWarnings]
   );
 
   // UI states
@@ -1122,22 +1122,22 @@ const App: React.FC = () => {
                     style={styles.summaryToggle}
                   >
                     {showSummary ? '▼ Hide' : '▶ Show'} Covariate Summary ({summaryData.length} combinations)
-                    {covariateAdvisory.sparseCount > 0 && (
+                    {distributionWarnings.warningCount > 0 && (
                       <span
-                        data-testid="sparse-indicator"
+                        data-testid="distribution-warning-indicator"
                         style={{
-                          ...styles.summarySparseIndicator,
-                          color: advisoryHasError ? '#dc3545' : '#ff9800',
+                          ...styles.summaryWarningIndicator,
+                          color: warningsHaveError ? '#dc3545' : '#ff9800',
                         }}
-                        title={covariateAdvisory.summaries.join(' ')}
-                        aria-label={`${covariateAdvisory.sparseCount} covariate group(s) flagged`}
+                        title={distributionWarnings.summaries.join(' ')}
+                        aria-label={`${distributionWarnings.warningCount} covariate group(s) flagged`}
                       >
                         <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style={{ display: 'block' }}>
                           <path fill="currentColor" d="M12 2 L22 20 L2 20 Z" />
                           <rect x="11" y="9" width="2" height="6" fill="#fff" />
                           <rect x="11" y="16.5" width="2" height="2" fill="#fff" />
                         </svg>
-                        {covariateAdvisory.sparseCount}
+                        {distributionWarnings.warningCount}
                       </span>
                     )}
                   </button>
@@ -1185,7 +1185,7 @@ const App: React.FC = () => {
                 selectedQcValues={selectedQcValues}
                 selectedCovariates={selectedCovariates}
                 onUpdateColor={updateCovariateColor}
-                advisory={covariateAdvisory}
+                warnings={distributionWarnings}
               />
 
               <SubjectPlacementPanel
@@ -1448,7 +1448,7 @@ const styles = {
     color: '#495057',
     transition: 'all 0.2s ease',
   },
-  summarySparseIndicator: {
+  summaryWarningIndicator: {
     marginLeft: '8px',
     display: 'inline-flex',
     alignItems: 'center',

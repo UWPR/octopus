@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SummaryItem } from '../utils/types';
-import { AdvisoryResult, AdvisorySeverity } from '../utils/covariateAdvisory';
+import { GroupDistributionWarnings, WarningSeverity } from '../utils/groupDistributionWarnings';
 
 type FillStyle = 'solid' | 'outline' | 'diagonal';
 
@@ -14,13 +14,13 @@ interface SummaryPanelProps {
   selectedQcValues?: string[];
   selectedCovariates?: string[];
   onUpdateColor?: (combination: string, updates: { color?: string; useOutline?: boolean; useStripes?: boolean }) => void;
-  // Non-blocking sparsity advisory. When present, drives the warning banner and
-  // the per-card severity labels.
-  advisory?: AdvisoryResult;
+  // Non-blocking group distribution warnings. When present, drive the warning
+  // banner and the per-card severity labels.
+  warnings?: GroupDistributionWarnings;
 }
 
 // Short badge label per severity. The tooltip carries the full reason text.
-const SEVERITY_LABEL: Record<AdvisorySeverity, string> = {
+const SEVERITY_LABEL: Record<WarningSeverity, string> = {
   error: 'SPARSE',
   warning: 'UNEVEN',
 };
@@ -49,7 +49,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
   selectedQcValues = [],
   selectedCovariates = [],
   onUpdateColor,
-  advisory,
+  warnings,
 }) => {
   const [editingCombination, setEditingCombination] = useState<string | null>(null);
 
@@ -105,11 +105,11 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
             </div>
           )}
         </div>
-        {advisory && advisory.summaries.length > 0 && (
-          <div style={styles.advisoryBanner} role="alert" data-testid="advisory-banner">
-            <span style={styles.advisoryBannerIcon}>!</span>
-            <div style={styles.advisoryBannerText}>
-              {advisory.summaries.map((line, i) => (
+        {warnings && warnings.summaries.length > 0 && (
+          <div style={styles.warningBanner} role="alert" data-testid="distribution-warning-banner">
+            <span style={styles.warningBannerIcon}>!</span>
+            <div style={styles.warningBannerText}>
+              {warnings.summaries.map((line, i) => (
                 <div key={i}>{line}</div>
               ))}
             </div>
@@ -120,7 +120,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
             const isQC = item.qcColumnValue !== undefined &&
                              selectedQcValues.includes(item.qcColumnValue);
             const isEditing = editingCombination === item.combination;
-            const groupAdvisory = advisory?.byCombination.get(item.combination);
+            const groupWarning = warnings?.byCombination.get(item.combination);
 
             return (
               <div
@@ -161,18 +161,18 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
                   <span style={styles.summaryCount}>
                     {item.count}
                   </span>
-                  {groupAdvisory && (
+                  {groupWarning && (
                     <span
-                      data-testid={`advisory-label-${index}`}
+                      data-testid={`distribution-warning-label-${index}`}
                       style={{
-                        ...styles.advisoryLabel,
-                        ...(groupAdvisory.severity === 'error'
-                          ? styles.advisoryLabelError
-                          : styles.advisoryLabelWarning),
+                        ...styles.warningLabel,
+                        ...(groupWarning.severity === 'error'
+                          ? styles.warningLabelError
+                          : styles.warningLabelWarning),
                       }}
-                      title={groupAdvisory.reason}
+                      title={groupWarning.reason}
                     >
-                      {SEVERITY_LABEL[groupAdvisory.severity]}
+                      {SEVERITY_LABEL[groupWarning.severity]}
                     </span>
                   )}
                   {isQC && (
@@ -306,7 +306,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '1px 4px',
     marginLeft: 'auto',
   },
-  advisoryBanner: {
+  warningBanner: {
     display: 'flex',
     alignItems: 'flex-start',
     gap: '8px',
@@ -320,12 +320,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '12px',
     lineHeight: '1.4',
   },
-  advisoryBannerText: {
+  warningBannerText: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
   },
-  advisoryBannerIcon: {
+  warningBannerIcon: {
     flexShrink: 0,
     width: '18px',
     height: '18px',
@@ -340,7 +340,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   // Filled pill in the card header. Solid color contrasts with the white,
   // red-outlined QC badge so the two read as different things.
-  advisoryLabel: {
+  warningLabel: {
     fontSize: '9px',
     fontWeight: '700',
     color: '#fff',
@@ -348,10 +348,10 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '1px 4px',
     letterSpacing: '0.3px',
   },
-  advisoryLabelError: {
+  warningLabelError: {
     backgroundColor: '#dc3545',
   },
-  advisoryLabelWarning: {
+  warningLabelWarning: {
     backgroundColor: '#ff9800',
   },
   colorIndicator: {

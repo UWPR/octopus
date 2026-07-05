@@ -2,11 +2,11 @@ import { SummaryItem, QualityMetrics, SearchData } from './types';
 import { QUALITY_LEVEL_CONFIG } from './configs';
 
 /**
- * Covariate sparsity advisory.
+ * Group distribution warnings.
  *
- * A non-blocking diagnostic that flags covariate groups that have become too
- * sparse to balance. It never disables Generate and never changes randomization,
- * colors, or scores. It only reads existing state.
+ * A non-blocking diagnostic that flags covariate groups that are poorly
+ * distributed across plates or rows. It never disables Generate and never
+ * changes randomization, colors, or scores. It only reads existing state.
  *
  * A group is flagged when one of these holds:
  * - Treatment coverage error: with more than one plate, the group has fewer
@@ -23,19 +23,19 @@ import { QUALITY_LEVEL_CONFIG } from './configs';
  * reported once, as an error.
  */
 
-export type AdvisorySeverity = 'error' | 'warning';
+export type WarningSeverity = 'error' | 'warning';
 
-export interface GroupAdvisory {
+export interface GroupWarning {
   combination: string; // covariate-key, matches SummaryItem.combination
-  severity: AdvisorySeverity;
+  severity: WarningSeverity;
   reason: string; // human-readable, names the counts involved
   count: number; // samples in the group across the whole dataset
   isQc: boolean;
 }
 
-export interface AdvisoryResult {
-  byCombination: Map<string, GroupAdvisory>;
-  sparseCount: number; // groups flagged error or warning
+export interface GroupDistributionWarnings {
+  byCombination: Map<string, GroupWarning>;
+  warningCount: number; // groups flagged error or warning
   totalGroups: number;
   plateCount: number;
   // Run-level lines, one per category that has a flagged group (treatment
@@ -51,7 +51,7 @@ export interface GroupRowCoverage {
   uncoveredRows: number;
 }
 
-export interface AdvisoryOptions {
+export interface WarningOptions {
   // Mean observed balance per group, present after a layout is generated.
   observedGroupBalance?: Map<string, number>;
   // QC/reference values the user selected, used to tag QC groups.
@@ -71,7 +71,7 @@ export const POOR_BALANCE_THRESHOLD = QUALITY_LEVEL_CONFIG.fair.lowScore; // 70
  * Average the per-plate group balance into one score per group.
  *
  * Walks every plate's covariateGroupBalance and returns the mean balanceScore
- * for each covariate combination, so the advisory reflects the layout on screen.
+ * for each covariate combination, so the warning reflects the layout on screen.
  */
 export function aggregateObservedGroupBalance(metrics: QualityMetrics): Map<string, number> {
   const totals = new Map<string, { sum: number; plates: number }>();
@@ -190,13 +190,13 @@ function balanceSummary(count: number): string {
 }
 
 // One line per category that has a flagged group.
-function buildSummaries(advisories: GroupAdvisory[]): string[] {
+function buildSummaries(warnings: GroupWarning[]): string[] {
   let treatmentCoverage = 0;
   let qcCoverage = 0;
   let balance = 0;
-  advisories.forEach((advisory) => {
-    if (advisory.severity === 'warning') balance += 1;
-    else if (advisory.isQc) qcCoverage += 1;
+  warnings.forEach((warning) => {
+    if (warning.severity === 'warning') balance += 1;
+    else if (warning.isQc) qcCoverage += 1;
     else treatmentCoverage += 1;
   });
 
@@ -208,7 +208,7 @@ function buildSummaries(advisories: GroupAdvisory[]): string[] {
 }
 
 /**
- * Compute the advisory for a set of covariate groups.
+ * Compute the group distribution warnings for a set of covariate groups.
  *
  * Pure. No React, no side effects. Depends only on its inputs.
  *
@@ -217,13 +217,13 @@ function buildSummaries(advisories: GroupAdvisory[]): string[] {
  * @param options - observed balance, selected QC values, and per-QC-group row
  *   coverage. All optional; each tier is skipped when its input is absent.
  */
-export function computeCovariateAdvisory(
+export function computeGroupDistributionWarnings(
   summaryData: SummaryItem[],
   plateCount: number,
-  options: AdvisoryOptions = {}
-): AdvisoryResult {
+  options: WarningOptions = {}
+): GroupDistributionWarnings {
   const { observedGroupBalance, selectedQcValues = [], qcRowCoverage } = options;
-  const byCombination = new Map<string, GroupAdvisory>();
+  const byCombination = new Map<string, GroupWarning>();
   const totalGroups = summaryData.length;
 
   // Nothing to evaluate before a layout exists.
@@ -278,8 +278,8 @@ export function computeCovariateAdvisory(
     });
   }
 
-  const sparseCount = byCombination.size;
+  const warningCount = byCombination.size;
   const summaries = buildSummaries(Array.from(byCombination.values()));
 
-  return { byCombination, sparseCount, totalGroups, plateCount, summaries };
+  return { byCombination, warningCount, totalGroups, plateCount, summaries };
 }

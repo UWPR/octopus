@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import path from 'path';
 
 /**
- * Covariate sparsity advisory end-to-end.
+ * Group distribution warnings end-to-end.
  *
  * Loads a 200-sample file that, at the default 96-well plate (P = 3), produces:
  * - Four small study groups with fewer than 3 samples once Treatment + Timepoint
@@ -17,19 +17,19 @@ import path from 'path';
  * deterministic labels, matched by their reason text.
  */
 
-const DEMO = path.join(__dirname, '../../../test-data/advisory-sparsity-demo.csv');
+const DEMO = path.join(__dirname, '../../../test-data/group-distribution-demo.csv');
 
 // Vehicle|T0|A, Vehicle|T24|B, Drug|T24|B, Placebo|T0|A all fall below 3 samples.
 const EXPECTED_TREATMENT_ERRORS = 4;
 
-test.describe('covariate sparsity advisory', () => {
+test.describe('group distribution warnings', () => {
   test.beforeEach(async ({ page }) => {
     page.on('dialog', dialog => dialog.accept());
     await page.goto('http://localhost:3000');
     await expect(page.getByRole('heading', { name: 'Octopus' })).toBeVisible();
   });
 
-  test('flags sparse groups with a banner, card labels, and a collapsed indicator', async ({ page }) => {
+  test('flags poorly distributed groups with a banner, card labels, and a collapsed indicator', async ({ page }) => {
     await page.locator('#file-upload').setInputFiles(DEMO);
     await page.locator('#qcColumn').selectOption('SampleType');
     await page.getByRole('checkbox', { name: 'QC', exact: true }).check();
@@ -46,20 +46,20 @@ test.describe('covariate sparsity advisory', () => {
     await expect(toggle).toBeVisible();
 
     // Collapsed indicator: a warning icon with the flagged-group count.
-    await expect(page.getByTestId('sparse-indicator')).toBeVisible();
+    await expect(page.getByTestId('distribution-warning-indicator')).toBeVisible();
 
     // Expand the Covariate Summary.
     await toggle.click();
 
     // Run-level banner: separate lines for treatment and QC coverage.
-    const banner = page.getByTestId('advisory-banner');
+    const banner = page.getByTestId('distribution-warning-banner');
     await expect(banner).toBeVisible();
     await expect(banner).toContainText('treatment covariate groups are not represented on every plate');
     await expect(banner).toContainText('at least one sample from every QC/Reference group');
 
     // Exactly four treatment groups fail per-plate coverage (deterministic).
     const treatmentErrors = page.locator(
-      '[data-testid^="advisory-label-"][title*="will have 0 samples of this group"]'
+      '[data-testid^="distribution-warning-label-"][title*="will have 0 samples of this group"]'
     );
     await expect(treatmentErrors).toHaveCount(EXPECTED_TREATMENT_ERRORS);
 
@@ -68,7 +68,7 @@ test.describe('covariate sparsity advisory', () => {
     // guaranteed; the QC group may or may not also be flagged depending on
     // placement, so assert at least one rather than an exact count.
     const rowCoverageErrors = page.locator(
-      '[data-testid^="advisory-label-"][title*="used row"]'
+      '[data-testid^="distribution-warning-label-"][title*="used row"]'
     );
     expect(await rowCoverageErrors.count()).toBeGreaterThanOrEqual(1);
   });

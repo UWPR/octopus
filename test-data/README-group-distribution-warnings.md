@@ -1,9 +1,10 @@
-# Covariate Sparsity Advisory - Manual Test File
+# Group Distribution Warnings - Manual Test File
 
-`advisory-sparsity-demo.csv` is built to exercise the covariate sparsity advisory:
-the non-blocking diagnostic that flags covariate groups too sparse to balance.
+`group-distribution-demo.csv` is built to exercise the group distribution warnings:
+the non-blocking diagnostic that flags covariate groups poorly distributed across
+plates or rows.
 
-It is sized so it produces sparse groups at the **default 96-well plate (8 rows x
+It is sized so it produces flagged groups at the **default 96-well plate (8 rows x
 12 columns) with no configuration changes**. 200 samples give
 `P = ceil(200 / 96) = 3` plates.
 
