@@ -79,6 +79,30 @@ export function useFileUpload() {
       };
     }
 
+    // Reject duplicate column headers. A repeated name is either renamed by Papa to "Name_1",
+    // which invents a covariate the user never created, or collapsed when metadata keys are
+    // trimmed downstream, which drops a column's values. Compare trimmed names on the raw header
+    // row, because Papa has already renamed exact repeats in meta.fields by the time we see them.
+    const rawHeader = (Papa.parse<string[]>(text, { header: false, preview: 1 }).data[0]) || [];
+    const seenHeaderNames = new Set<string>();
+    let duplicateHeader: string | undefined;
+    for (const cell of rawHeader) {
+      const name = String(cell ?? '').trim();
+      if (name === '') continue; // blank header cells are handled by the checks above
+      if (seenHeaderNames.has(name)) {
+        duplicateHeader = name;
+        break;
+      }
+      seenHeaderNames.add(name);
+    }
+    if (duplicateHeader !== undefined) {
+      resetFileState();
+      return {
+        ok: false,
+        error: `"${fileName}" has more than one column named "${duplicateHeader}", so a column's values could be lost. Please choose a .csv where every column header is unique.`,
+      };
+    }
+
     // No row may carry a value beyond the named header columns. This covers:
     //  - a row with more cells than the header, whose surplus Papa collects in __parsed_extra, and
     //  - a value under a tolerated trailing blank column, which must stay empty in every row.

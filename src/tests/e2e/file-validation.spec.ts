@@ -135,6 +135,34 @@ test.describe('Choose File validation', () => {
     await expect(page.locator('#idColumn option')).toHaveCount(0);
   });
 
+  test('rejects a .csv with a duplicate column header', async ({ page }) => {
+    // Two columns named "Dose". Papa would rename the second to "Dose_1", inventing a covariate,
+    // so the file is turned away instead.
+    const csv = 'Sample ID,Dose,Dose\nS1,10,20\nS2,5,7\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'dup-header.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more than one column named "Dose"/)).toBeVisible();
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
+  test('rejects a .csv with headers that differ only by whitespace', async ({ page }) => {
+    // "Dose" and "Dose " look distinct to Papa but collapse when metadata keys are trimmed, which
+    // would silently drop a column. Reject that too.
+    const csv = 'Sample ID,Dose,Dose \nS1,10,20\nS2,5,7\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'ws-dup-header.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more than one column named "Dose"/)).toBeVisible();
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
   test('rejects a .csv with a row that has more values than the header', async ({ page }) => {
     // Row 2 has an extra value, so it does not line up with the two-column header.
     const csv = 'Sample ID,Condition\nS1,A\nS2,A,EXTRA\nS3,B\n';
