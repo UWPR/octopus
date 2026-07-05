@@ -54,10 +54,15 @@ GitHub Pages.
 The app is hosted on GitHub Pages at https://uwpr.github.io/octopus. Tagged versions
 are on the [Releases](https://github.com/UWPR/octopus/releases) page.
 
+Each release also includes a single-file offline build, `octopus-<version>.html`. You
+can download that one file and open it in any modern browser with no installation and
+no network connection.
+
 ## Available scripts
 
 - `npm start` runs the dev server at http://localhost:3000.
 - `npm run build` creates the production build in `build/`.
+- `npm run build:singlefile` creates a single self-contained `build/octopus-<version>.html` that runs offline from a local file, with all JavaScript, CSS, icons, and the logo inlined.
 
 Octopus is a Create React App, so the standard `npm test` (test runner) and
 `npm run eject` (one-way config ejection, not recommended) are also available but not

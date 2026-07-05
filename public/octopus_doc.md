@@ -1,5 +1,7 @@
 # Octopus
 
+*Version {{APP_VERSION}}*
+
 ## What is Octopus?
 
 Octopus is a web application for distributing experimental samples across multiple plates (e.g., 96-well plates) in a balanced and randomized manner, helping researchers minimize bias and maintain statistical validity in their experiments.

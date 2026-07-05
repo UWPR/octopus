@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faRectangleList, faFileLines } from '@fortawesome/free-regular-svg-icons';
 import { RandomizationAlgorithm, getAlgorithmName, getAlgorithmDescription, getAlgorithmsInDisplayOrder, GroupingConstraint, GroupValidationResult, SubjectGroup, NaPolicy } from '../utils/types';
 import { NaDetectionResult } from '../utils/utils';
 
@@ -145,11 +147,11 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
       {/* Uploaded file name, shown above the configuration options */}
       {selectedFileName && (
         <div style={styles.uploadedFileBanner}>
-          <i
-            className={isLayoutFile ? 'fa-regular fa-rectangle-list' : 'fa-regular fa-file-lines'}
+          <FontAwesomeIcon
+            icon={isLayoutFile ? faRectangleList : faFileLines}
             style={styles.uploadedFileIcon}
             aria-hidden="true"
-          ></i>
+          />
           <span style={styles.uploadedFileName}>{selectedFileName}</span>
           {isLayoutFile && (
             <span style={styles.layoutBadge}>Layout file</span>

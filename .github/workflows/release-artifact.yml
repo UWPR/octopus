@@ -1,0 +1,50 @@
+name: Release artifact
+
+# When a release is published in the GitHub UI, this builds the app from the
+# released commit, deploys it to GitHub Pages, and attaches a self-contained
+# single-file offline copy (octopus-<version>.html) to the release.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the released commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # CI=false so pre-existing lint warnings do not fail the build, matching the
+      # behavior of a local `npm run build`.
+      - name: Build the hosted site
+        run: npm run build
+        env:
+          CI: false
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build
+
+      - name: Build the single-file offline app
+        run: npm run build:singlefile
+        env:
+          CI: false
+
+      - name: Attach the single-file app to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/octopus-*.html

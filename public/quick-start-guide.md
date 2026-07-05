@@ -1,5 +1,7 @@
 # How to Use Octopus with Test Data
 
+*Version {{APP_VERSION}}*
+
 This guide shows you how to use Octopus with the provided test files from a published mouse radiation proteomics study.
 
 ## About the Test Data

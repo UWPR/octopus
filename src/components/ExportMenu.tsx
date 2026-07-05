@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 
 interface ExportMenuProps {
   onDownloadCsv: () => void;
@@ -142,11 +144,11 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
         aria-expanded={open}
       >
         <span>Export</span>
-        <i
-          className={`fa-solid ${open ? 'fa-chevron-up' : 'fa-chevron-down'}`}
+        <FontAwesomeIcon
+          icon={open ? faChevronUp : faChevronDown}
           style={styles.triggerIcon}
           aria-hidden="true"
-        ></i>
+        />
       </button>
 
       {open && (

@@ -29,6 +29,10 @@ import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
 import ExportMenu from './components/ExportMenu';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBook } from '@fortawesome/free-solid-svg-icons';
+import { faCircleDown, faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
+import { ReactComponent as OctopusLogo } from './assets/octopus-logo.svg';
 import packageJson from '../package.json';
 
 
@@ -36,6 +40,10 @@ import packageJson from '../package.json';
 // Shown when the user picks a new file or layout while a plate design is already displayed.
 const REPLACE_DESIGN_MESSAGE =
   'This will replace the current plate design and settings. Continue?';
+
+// The single-file offline build has no sibling files to link to, so the help links
+// (documentation, quick start, and sample downloads) are all hidden there.
+const IS_SINGLE_FILE = process.env.REACT_APP_SINGLEFILE === '1';
 
 const App: React.FC = () => {
 
@@ -1003,11 +1011,7 @@ const App: React.FC = () => {
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-        <img
-          src={`${process.env.PUBLIC_URL}/images/octopus-logo.svg`}
-          alt="Octopus logo"
-          style={styles.logo}
-        />
+        <OctopusLogo role="img" aria-label="Octopus logo" style={styles.logo} />
         <h1 style={styles.heading}>
           Octopus
           {isDeveloperMode() && (
@@ -1278,38 +1282,40 @@ const App: React.FC = () => {
 
         {/* Help Section */}
         <div style={styles.helpSection}>
-          <div style={styles.helpLinks}>
-            <a
-              href={`${process.env.PUBLIC_URL}/octopus_doc.html`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={styles.helpLink}
-            >
-              <i className="fa-solid fa-book" style={{marginRight: '4px'}}></i> Documentation
-            </a>
-            <a
-              href={`${process.env.PUBLIC_URL}/octopus_test_dataset_small.csv`}
-              download="octopus_test_dataset_small.csv"
-              style={styles.helpLink}
-            >
-              <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i> Example Input File (Small)
-            </a>
-            <a
-              href={`${process.env.PUBLIC_URL}/octopus_test_dataset.csv`}
-              download="octopus_test_dataset.csv"
-              style={styles.helpLink}
-            >
-              <i className="fa-regular fa-circle-down" style={{marginRight: '4px'}}></i> Example Input File (Full)
-            </a>
-            <a
-              href={`${process.env.PUBLIC_URL}/quick-start-guide.html`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={styles.helpLink}
-            >
-              <i className="fa-regular fa-circle-question" style={{marginRight: '4px'}}></i> Quick Start Guide
-            </a>
-          </div>
+          {!IS_SINGLE_FILE && (
+            <div style={styles.helpLinks}>
+              <a
+                href={`${process.env.PUBLIC_URL}/octopus_doc.html`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.helpLink}
+              >
+                <FontAwesomeIcon icon={faBook} style={{marginRight: '4px'}} /> Documentation
+              </a>
+              <a
+                href={`${process.env.PUBLIC_URL}/octopus_test_dataset_small.csv`}
+                download="octopus_test_dataset_small.csv"
+                style={styles.helpLink}
+              >
+                <FontAwesomeIcon icon={faCircleDown} style={{marginRight: '4px'}} /> Example Input File (Small)
+              </a>
+              <a
+                href={`${process.env.PUBLIC_URL}/octopus_test_dataset.csv`}
+                download="octopus_test_dataset.csv"
+                style={styles.helpLink}
+              >
+                <FontAwesomeIcon icon={faCircleDown} style={{marginRight: '4px'}} /> Example Input File (Full)
+              </a>
+              <a
+                href={`${process.env.PUBLIC_URL}/quick-start-guide.html`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.helpLink}
+              >
+                <FontAwesomeIcon icon={faCircleQuestion} style={{marginRight: '4px'}} /> Quick Start Guide
+              </a>
+            </div>
+          )}
           <div style={styles.versionText}>Octopus v{packageJson.version}</div>
         </div>
 
