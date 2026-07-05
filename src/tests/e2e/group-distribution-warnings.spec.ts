@@ -37,7 +37,6 @@ test.describe('group distribution warnings', () => {
     await page.locator('#covariates').selectOption(['Treatment', 'Timepoint', 'Site']);
 
     await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
-    await page.waitForTimeout(1000);
 
     // 10 study groups + QC + Ref = 12 covariate groups.
     const toggle = page.getByRole('button', {
@@ -54,6 +53,8 @@ test.describe('group distribution warnings', () => {
     // Run-level banner: separate lines for treatment and QC coverage.
     const banner = page.getByTestId('distribution-warning-banner');
     await expect(banner).toBeVisible();
+    // Coverage errors present, so the banner carries the error (red) severity.
+    await expect(banner).toHaveAttribute('data-severity', 'error');
     await expect(banner).toContainText('treatment covariate groups are not represented on every plate');
     await expect(banner).toContainText('at least one sample from every QC/Reference group');
 

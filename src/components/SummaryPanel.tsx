@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SummaryItem } from '../utils/types';
-import { GroupDistributionWarnings, WarningSeverity } from '../utils/groupDistributionWarnings';
+import { GroupDistributionWarnings, WarningSeverity, hasCoverageError } from '../utils/groupDistributionWarnings';
 
 type FillStyle = 'solid' | 'outline' | 'diagonal';
 
@@ -104,16 +104,30 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
             </div>
           )}
         </div>
-        {warnings && warnings.summaries.length > 0 && (
-          <div style={styles.warningBanner} role="alert" data-testid="distribution-warning-banner">
-            <span style={styles.warningBannerIcon}>!</span>
-            <div style={styles.warningBannerText}>
-              {warnings.summaries.map((line, i) => (
-                <div key={i}>{line}</div>
-              ))}
+        {warnings && warnings.summaries.length > 0 && (() => {
+          // Red accent for a coverage error, amber when the only issues are
+          // balance (UNEVEN) warnings, matching the collapsed indicator.
+          const bannerHasError = hasCoverageError(warnings);
+          const accent = bannerHasError ? '#dc3545' : '#ff9800';
+          return (
+            // Polite live region, not role="alert": these warnings update as the
+            // user drags samples, so they should not interrupt a screen reader.
+            <div
+              style={{ ...styles.warningBanner, borderLeftColor: accent }}
+              role="status"
+              aria-live="polite"
+              data-testid="distribution-warning-banner"
+              data-severity={bannerHasError ? 'error' : 'warning'}
+            >
+              <span style={{ ...styles.warningBannerIcon, backgroundColor: accent }} aria-hidden="true">!</span>
+              <div style={styles.warningBannerText}>
+                {warnings.summaries.map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         <div style={styles.summaryGrid}>
           {summaryData.map((item, index) => {
             const isQC = item.qcColumnValue !== undefined &&

@@ -285,3 +285,12 @@ export function computeGroupDistributionWarnings(
 
   return { byCombination, warningCount, totalGroups, plateCount, summaries };
 }
+
+/**
+ * Whether any flagged group is a coverage error rather than a balance-only
+ * warning. Drives the red-versus-amber accent on both the collapsed indicator
+ * and the warning banner, so the two never disagree.
+ */
+export function hasCoverageError(warnings: GroupDistributionWarnings): boolean {
+  return Array.from(warnings.byCombination.values()).some((w) => w.severity === 'error');
+}

@@ -2,6 +2,7 @@ import {
   computeGroupDistributionWarnings,
   aggregateObservedGroupBalance,
   computeQcRowCoverage,
+  hasCoverageError,
   POOR_BALANCE_THRESHOLD,
 } from '../utils/groupDistributionWarnings';
 import { SummaryItem, QualityMetrics, PlateQualityScore, SearchData } from '../utils/types';
@@ -333,6 +334,28 @@ describe('computeGroupDistributionWarnings', () => {
     const warning = result.byCombination.get('N/A')!;
     expect(warning.severity).toBe('error');
     expect(warning.isQc).toBe(false);
+  });
+});
+
+describe('hasCoverageError', () => {
+  it('is true when any flagged group is a coverage error', () => {
+    // A treatment group with too few samples is a coverage error.
+    const result = computeGroupDistributionWarnings([makeItem('A', 2), makeItem('B', 90)], 3);
+    expect(hasCoverageError(result)).toBe(true);
+  });
+
+  it('is false when the only flagged groups are balance (UNEVEN) warnings', () => {
+    // Covered group, poor balance: a warning, not a coverage error.
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, {
+      observedGroupBalance: new Map([['A', 55]]),
+    });
+    expect(result.byCombination.get('A')!.severity).toBe('warning');
+    expect(hasCoverageError(result)).toBe(false);
+  });
+
+  it('is false when nothing is flagged', () => {
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3);
+    expect(hasCoverageError(result)).toBe(false);
   });
 });
 

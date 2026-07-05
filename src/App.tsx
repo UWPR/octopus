@@ -24,7 +24,7 @@ import { useRandomization } from './hooks/useRandomization';
 import { useCovariateColors } from './hooks/useCovariateColors';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useQualityMetrics } from './hooks/useQualityMetrics';
-import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, computeQcRowCoverage } from './utils/groupDistributionWarnings';
+import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, computeQcRowCoverage, hasCoverageError } from './utils/groupDistributionWarnings';
 import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
@@ -163,7 +163,7 @@ const App: React.FC = () => {
   // Color the collapsed indicator red when any group fails coverage, amber when the
   // only issues are balance (UNEVEN) warnings.
   const warningsHaveError = useMemo(
-    () => Array.from(distributionWarnings.byCombination.values()).some(w => w.severity === 'error'),
+    () => hasCoverageError(distributionWarnings),
     [distributionWarnings]
   );
 
