@@ -85,8 +85,27 @@ test.describe('Choose File validation', () => {
     await expect(page.locator('#idColumn option')).toHaveCount(0);
   });
 
+  test('rejects an old CSV layout file instead of loading it as sample data', async ({ page }) => {
+    // The superseded CSV layout format has a two-column "Octopus Layout" header followed by wide
+    // placement rows. Those rows have more values than the header, so it is not a simple table.
+    const csv =
+      'Octopus Layout,1\n' +
+      'idColumn,Sample ID\n' +
+      'p0r0c0,BatchQC,s001,Training,108,FA1,extra,more,cols,here,now,last\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'trx-phase1b-full_octopus_layout.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more values than there are column headers/)).toBeVisible();
+    // The rejected file is not loaded: the ID-column selector has no columns.
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
   test('tolerates a single trailing comma in the header row and still loads', async ({ page }) => {
-    // A stray trailing comma yields one trailing blank header; that is allowed.
+    // A stray trailing comma yields one trailing blank header; that is allowed when every row
+    // leaves that column empty.
     const csv = 'Sample ID,Condition,\nS1,A\nS2,B\n';
     await page.locator('#file-upload').setInputFiles({
       name: 'trailing-comma.csv',
@@ -94,9 +113,39 @@ test.describe('Choose File validation', () => {
       buffer: Buffer.from(csv),
     });
 
-    await expect(page.getByText(/has empty column headings/)).not.toBeVisible();
-    // It loaded: the two real columns are offered, the blank trailing one is dropped.
+    // It loaded cleanly: the two real columns are offered, the blank trailing one is dropped,
+    // and no structural error or partial-row warning is shown.
     await expect(page.locator('#idColumn option')).toHaveCount(2);
+    await expect(page.getByText(/has empty column headings/)).not.toBeVisible();
+    await expect(page.getByText(/more values than there are column headers/)).not.toBeVisible();
+    await expect(page.getByText(/fewer values than the header/)).not.toBeVisible();
+  });
+
+  test('rejects a .csv whose trailing-comma column contains a value in any row', async ({ page }) => {
+    // The header has a trailing blank column, but a data row puts a value under it. That is a
+    // value with no column header, so the file is not a simple table.
+    const csv = 'Sample ID,Condition,\nS1,A\nS2,B,X\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'trailing-column-with-data.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more values than there are column headers/)).toBeVisible();
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
+  test('rejects a .csv with a row that has more values than the header', async ({ page }) => {
+    // Row 2 has an extra value, so it does not line up with the two-column header.
+    const csv = 'Sample ID,Condition\nS1,A\nS2,A,EXTRA\nS3,B\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'wide-row.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more values than there are column headers/)).toBeVisible();
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
   });
 
   test('blocks Generate when the selected ID column has duplicate values', async ({ page }) => {
@@ -132,16 +181,17 @@ test.describe('Choose File validation', () => {
     await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeDisabled();
   });
 
-  test('warns about a CSV with formatting problems but still loads it', async ({ page }) => {
-    // Row 2 has an extra column, so Papa reports a field-count mismatch.
-    const csv = 'Sample ID,Condition\nS1,A\nS2,A,EXTRA\nS3,B\n';
+  test('warns about a CSV with a partial row (fewer values than the header) but still loads it', async ({ page }) => {
+    // Row 2 has fewer values than the header, so it is missing a column. That is allowed but
+    // warned about, since some values may not have loaded.
+    const csv = 'Sample ID,Condition\nS1,A\nS2\nS3,B\n';
     await page.locator('#file-upload').setInputFiles({
-      name: 'ragged.csv',
+      name: 'partial-row.csv',
       mimeType: 'text/csv',
       buffer: Buffer.from(csv),
     });
 
-    await expect(page.getByText(/formatting problems/)).toBeVisible();
+    await expect(page.getByText(/fewer values than the header/)).toBeVisible();
     // It still loaded: the ID column is populated.
     await expect(page.locator('#idColumn option')).toHaveCount(2);
   });
