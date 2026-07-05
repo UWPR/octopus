@@ -79,9 +79,13 @@ Expect:
 
 To see how adding covariates fragments the treatment groups, generate twice:
 
-- Covariates = `Treatment` only: `Vehicle` has 4 samples across both
-  timepoints/sites, so it covers all 3 plates and is not flagged. Only the QC and
-  Ref groups are flagged (still judged per used row).
+- Covariates = `Treatment` only: all treatments have enough samples to place at
+  least one sample on every plate, so the layout gets no `SPARSE` coverage errors for treatment groups.
+  The QC and Ref groups are flagged for row coverage as before. 
+  The `Vehicle` group (4 samples) does get an amber `UNEVEN` balance warning,
+  though, since 4 samples cannot spread evenly across 3 plates (the best split is
+  2/1/1).
+
 - Covariates = `Treatment` + `Timepoint` + `Site`: `Vehicle` and the two singletons
   split out, so four treatment groups now fail per-plate coverage on top of the two
   QC groups. Same 200 samples, more covariates, more over-blocking.
