@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SummaryItem } from '../utils/types';
+import { GroupDistributionWarnings, WarningSeverity, hasCoverageError } from '../utils/groupDistributionWarnings';
 
 type FillStyle = 'solid' | 'outline' | 'diagonal';
 
@@ -13,7 +14,15 @@ interface SummaryPanelProps {
   selectedQcValues?: string[];
   selectedCovariates?: string[];
   onUpdateColor?: (combination: string, updates: { color?: string; useOutline?: boolean; useStripes?: boolean }) => void;
+  // Non-blocking group distribution warnings. When present, drive the warning banner and the per-card severity labels.
+  warnings?: GroupDistributionWarnings;
 }
+
+// Short badge label per severity. The tooltip carries the full reason text.
+const SEVERITY_LABEL: Record<WarningSeverity, string> = {
+  error: 'SPARSE',
+  warning: 'UNEVEN',
+};
 
 function getFillStyle(item: SummaryItem): FillStyle {
   if (item.useStripes) return 'diagonal';
@@ -39,6 +48,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
   selectedQcValues = [],
   selectedCovariates = [],
   onUpdateColor,
+  warnings,
 }) => {
   const [editingCombination, setEditingCombination] = useState<string | null>(null);
 
@@ -94,11 +104,36 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
             </div>
           )}
         </div>
+        {warnings && warnings.summaries.length > 0 && (() => {
+          // Red accent for a coverage error, amber when the only issues are
+          // balance (UNEVEN) warnings, matching the collapsed indicator.
+          const bannerHasError = hasCoverageError(warnings);
+          const accent = bannerHasError ? '#dc3545' : '#ff9800';
+          return (
+            // Polite live region, not role="alert": these warnings update as the
+            // user drags samples, so they should not interrupt a screen reader.
+            <div
+              style={{ ...styles.warningBanner, borderLeftColor: accent }}
+              role="status"
+              aria-live="polite"
+              data-testid="distribution-warning-banner"
+              data-severity={bannerHasError ? 'error' : 'warning'}
+            >
+              <span style={{ ...styles.warningBannerIcon, backgroundColor: accent }} aria-hidden="true">!</span>
+              <div style={styles.warningBannerText}>
+                {warnings.summaries.map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
         <div style={styles.summaryGrid}>
           {summaryData.map((item, index) => {
             const isQC = item.qcColumnValue !== undefined &&
                              selectedQcValues.includes(item.qcColumnValue);
             const isEditing = editingCombination === item.combination;
+            const groupWarning = warnings?.byCombination.get(item.combination);
 
             return (
               <div
@@ -139,6 +174,20 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
                   <span style={styles.summaryCount}>
                     {item.count}
                   </span>
+                  {groupWarning && (
+                    <span
+                      data-testid={`distribution-warning-label-${index}`}
+                      style={{
+                        ...styles.warningLabel,
+                        ...(groupWarning.severity === 'error'
+                          ? styles.warningLabelError
+                          : styles.warningLabelWarning),
+                      }}
+                      title={groupWarning.reason}
+                    >
+                      {SEVERITY_LABEL[groupWarning.severity]}
+                    </span>
+                  )}
                   {isQC && (
                     <span style={styles.qcBadge}>QC</span>
                   )}
@@ -269,6 +318,54 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '3px',
     padding: '1px 4px',
     marginLeft: 'auto',
+  },
+  warningBanner: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '8px',
+    padding: '8px 10px',
+    marginBottom: '12px',
+    backgroundColor: '#fff3cd',
+    border: '1px solid #ffc107',
+    borderLeft: '4px solid #dc3545',
+    borderRadius: '4px',
+    color: '#663c00',
+    fontSize: '12px',
+    lineHeight: '1.4',
+  },
+  warningBannerText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  warningBannerIcon: {
+    flexShrink: 0,
+    width: '18px',
+    height: '18px',
+    borderRadius: '50%',
+    backgroundColor: '#dc3545',
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: '12px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Filled pill in the card header. Solid color contrasts with the white,
+  // red-outlined QC badge so the two read as different things.
+  warningLabel: {
+    fontSize: '9px',
+    fontWeight: '700',
+    color: '#fff',
+    borderRadius: '3px',
+    padding: '1px 4px',
+    letterSpacing: '0.3px',
+  },
+  warningLabelError: {
+    backgroundColor: '#dc3545',
+  },
+  warningLabelWarning: {
+    backgroundColor: '#ff9800',
   },
   colorIndicator: {
     width: '14px',
