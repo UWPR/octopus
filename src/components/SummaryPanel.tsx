@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SummaryItem } from '../utils/types';
+import { AdvisoryResult, AdvisorySeverity } from '../utils/covariateAdvisory';
 
 type FillStyle = 'solid' | 'outline' | 'diagonal';
 
@@ -13,7 +14,16 @@ interface SummaryPanelProps {
   selectedQcValues?: string[];
   selectedCovariates?: string[];
   onUpdateColor?: (combination: string, updates: { color?: string; useOutline?: boolean; useStripes?: boolean }) => void;
+  // Non-blocking sparsity advisory. When present, drives the warning banner and
+  // the per-card severity labels.
+  advisory?: AdvisoryResult;
 }
+
+// Short badge label per severity. The tooltip carries the full reason text.
+const SEVERITY_LABEL: Record<AdvisorySeverity, string> = {
+  error: 'SPARSE',
+  warning: 'UNEVEN',
+};
 
 function getFillStyle(item: SummaryItem): FillStyle {
   if (item.useStripes) return 'diagonal';
@@ -39,6 +49,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
   selectedQcValues = [],
   selectedCovariates = [],
   onUpdateColor,
+  advisory,
 }) => {
   const [editingCombination, setEditingCombination] = useState<string | null>(null);
 
@@ -94,11 +105,22 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
             </div>
           )}
         </div>
+        {advisory && advisory.summaries.length > 0 && (
+          <div style={styles.advisoryBanner} role="alert" data-testid="advisory-banner">
+            <span style={styles.advisoryBannerIcon}>!</span>
+            <div style={styles.advisoryBannerText}>
+              {advisory.summaries.map((line, i) => (
+                <div key={i}>{line}</div>
+              ))}
+            </div>
+          </div>
+        )}
         <div style={styles.summaryGrid}>
           {summaryData.map((item, index) => {
             const isQC = item.qcColumnValue !== undefined &&
                              selectedQcValues.includes(item.qcColumnValue);
             const isEditing = editingCombination === item.combination;
+            const groupAdvisory = advisory?.byCombination.get(item.combination);
 
             return (
               <div
@@ -139,6 +161,20 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
                   <span style={styles.summaryCount}>
                     {item.count}
                   </span>
+                  {groupAdvisory && (
+                    <span
+                      data-testid={`advisory-label-${index}`}
+                      style={{
+                        ...styles.advisoryLabel,
+                        ...(groupAdvisory.severity === 'error'
+                          ? styles.advisoryLabelError
+                          : styles.advisoryLabelWarning),
+                      }}
+                      title={groupAdvisory.reason}
+                    >
+                      {SEVERITY_LABEL[groupAdvisory.severity]}
+                    </span>
+                  )}
                   {isQC && (
                     <span style={styles.qcBadge}>QC</span>
                   )}
@@ -269,6 +305,54 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '3px',
     padding: '1px 4px',
     marginLeft: 'auto',
+  },
+  advisoryBanner: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '8px',
+    padding: '8px 10px',
+    marginBottom: '12px',
+    backgroundColor: '#fff3cd',
+    border: '1px solid #ffc107',
+    borderLeft: '4px solid #dc3545',
+    borderRadius: '4px',
+    color: '#663c00',
+    fontSize: '12px',
+    lineHeight: '1.4',
+  },
+  advisoryBannerText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  advisoryBannerIcon: {
+    flexShrink: 0,
+    width: '18px',
+    height: '18px',
+    borderRadius: '50%',
+    backgroundColor: '#dc3545',
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: '12px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Filled pill in the card header. Solid color contrasts with the white,
+  // red-outlined QC badge so the two read as different things.
+  advisoryLabel: {
+    fontSize: '9px',
+    fontWeight: '700',
+    color: '#fff',
+    borderRadius: '3px',
+    padding: '1px 4px',
+    letterSpacing: '0.3px',
+  },
+  advisoryLabelError: {
+    backgroundColor: '#dc3545',
+  },
+  advisoryLabelWarning: {
+    backgroundColor: '#ff9800',
   },
   colorIndicator: {
     width: '14px',

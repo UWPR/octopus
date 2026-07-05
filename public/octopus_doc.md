@@ -205,6 +205,18 @@ Click **"Show/Hide Covariate Summary"** to display:
 
 ![Compact Plates Selected Covariate Highlighted](images/octopus_compact-plates-covariate-highlighted.png)
 
+#### Sparsity Advisory
+
+After you generate a layout, Octopus flags covariate groups that are too sparse to balance well. Flagged covariate group cards in the Covariate Summary panel carry a **SPARSE** label (red) or an **UNEVEN** label (amber), a banner at the top of the panel reports how many groups are affected. The collapsed toggle shows a sparse count. Hover a label to read the full reason. The advisory is informational only and never blocks plate generation.
+
+- **Treatment groups** are flagged when a group has fewer samples than there are plates, so it is not possible to place at least one sample on every plate.
+
+![Sparse treatment group flagged in the Covariate Summary](images/octopus_advisory-sparse-treatment.png)
+
+- **QC/Reference groups** are flagged when the group is missing from any used row. Ideally, QC/reference samples should be placed in every row, not just on every plate.
+
+![Sparse QC/reference group flagged in the Covariate Summary](images/octopus_advisory-sparse-qc.png)
+
 #### Subject Placement Panel
 
 When a Subject ID Column is configured, a **"Show/Hide Subject Placements"** button is displayed after plates are generated. 
