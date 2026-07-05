@@ -70,6 +70,35 @@ test.describe('Choose File validation', () => {
     await expect(page.locator('#idColumn option')).toHaveCount(0);
   });
 
+  test('rejects a .csv whose first row is not a header (empty column headings)', async ({ page }) => {
+    // An injection-sequence export starts with a "Bracket Type=4,,,," directive, so the first
+    // row has one named column and several blank ones. It must not be read as a sample list.
+    const csv = 'Bracket Type=4,,,,\nFile Name,Path,Instrument Method,Position,Inj Vol\nrowA,D:\\Data,D:\\Meth,Y:A1,3\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'trx-phase1b-full_injection-sequence.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/has empty column headings/)).toBeVisible();
+    // The rejected file is not loaded: the ID-column selector has no columns.
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
+  test('tolerates a single trailing comma in the header row and still loads', async ({ page }) => {
+    // A stray trailing comma yields one trailing blank header; that is allowed.
+    const csv = 'Sample ID,Condition,\nS1,A\nS2,B\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'trailing-comma.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/has empty column headings/)).not.toBeVisible();
+    // It loaded: the two real columns are offered, the blank trailing one is dropped.
+    await expect(page.locator('#idColumn option')).toHaveCount(2);
+  });
+
   test('blocks Generate when the selected ID column has duplicate values', async ({ page }) => {
     // 'Sample ID' repeats S1; 'Well' is unique.
     const csv = 'Sample ID,Well,Condition\nS1,W1,A\nS1,W2,B\nS2,W3,A\n';
