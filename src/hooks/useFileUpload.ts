@@ -119,14 +119,24 @@ export function useFileUpload() {
     setSelectedIdColumn(defaultColumn);
     setSearches(processSearchData(results.data, defaultColumn));
 
-    // Warn, without blocking the load, about rows that are missing one or more named columns, so
-    // partial rows do not load silently. A row that only omits a tolerated trailing blank is not
-    // partial, so a clean trailing comma does not warn.
+    // Warn, without blocking the load, about content that may not have loaded correctly:
+    //  - a row missing one or more named columns (fewer values than the header), and
+    //  - a serious parse problem such as an unbalanced quote, which can silently swallow rows.
+    // A row that only omits a tolerated trailing blank is not partial, so a clean trailing comma
+    // does not warn. Field-count mismatches are ignored here because rows wider than the header
+    // are already rejected above, and an undetectable delimiter is expected for a single column.
     const partialRows = results.data.filter(row => headers.some(h => !(h in row))).length;
-    const warning = partialRows > 0
-      ? `"${fileName}" had ${partialRows} row(s) with fewer values than the header. ` +
-        'Some values may not have loaded correctly.'
-      : undefined;
+    const hasParseProblem = results.errors.some(
+      e => e.type !== 'FieldMismatch' && e.type !== 'Delimiter'
+    );
+    let warning: string | undefined;
+    if (partialRows > 0) {
+      warning = `"${fileName}" had ${partialRows} row(s) with fewer values than the header. ` +
+        'Some values may not have loaded correctly.';
+    } else if (hasParseProblem) {
+      warning = `"${fileName}" had formatting problems while being read. ` +
+        'Some values may not have loaded correctly.';
+    }
     return { ok: true, warning };
   };
 

@@ -196,6 +196,21 @@ test.describe('Choose File validation', () => {
     await expect(page.locator('#idColumn option')).toHaveCount(2);
   });
 
+  test('warns about a CSV with a parse problem (unbalanced quote) but still loads it', async ({ page }) => {
+    // The unterminated quote on row 2 swallows the rest of the file into one value, so S3 is lost.
+    // The rows still line up with the header, so it loads, but the parse problem must be warned.
+    const csv = 'Sample ID,Condition\nS1,A\nS2,"oops,B\nS3,C\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'bad-quote.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/formatting problems while being read/)).toBeVisible();
+    // It still loaded: the ID column is populated.
+    await expect(page.locator('#idColumn option')).toHaveCount(2);
+  });
+
   test('a CSV with valid headers but no samples still replaces a shown design', async ({ page }) => {
     await uploadConfigureAndRandomize(page);
     await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
