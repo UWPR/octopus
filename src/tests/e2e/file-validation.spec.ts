@@ -70,6 +70,125 @@ test.describe('Choose File validation', () => {
     await expect(page.locator('#idColumn option')).toHaveCount(0);
   });
 
+  test('rejects a .csv whose first row is not a header (empty column headings)', async ({ page }) => {
+    // An injection-sequence export starts with a "Bracket Type=4,,,," directive, so the first
+    // row has one named column and several blank ones. It must not be read as a sample list.
+    const csv = 'Bracket Type=4,,,,\nFile Name,Path,Instrument Method,Position,Inj Vol\nrowA,D:\\Data,D:\\Meth,Y:A1,3\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'trx-phase1b-full_injection-sequence.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/has empty column headings/)).toBeVisible();
+    // The rejected file is not loaded: the ID-column selector has no columns.
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
+  test('rejects an old CSV layout file instead of loading it as sample data', async ({ page }) => {
+    // The superseded CSV layout format has a two-column "Octopus Layout" header followed by wide
+    // placement rows. Those rows have more values than the header, so it is not a simple table.
+    const csv =
+      'Octopus Layout,1\n' +
+      'idColumn,Sample ID\n' +
+      'p0r0c0,BatchQC,s001,Training,108,FA1,extra,more,cols,here,now,last\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'trx-phase1b-full_octopus_layout.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more values than there are column headers/)).toBeVisible();
+    // The rejected file is not loaded: the ID-column selector has no columns.
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
+  test('tolerates a single trailing comma in the header row and still loads', async ({ page }) => {
+    // A stray trailing comma yields one trailing blank header; that is allowed when every row
+    // leaves that column empty.
+    const csv = 'Sample ID,Condition,\nS1,A\nS2,B\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'trailing-comma.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    // It loaded cleanly: the two real columns are offered, the blank trailing one is dropped,
+    // and no structural error or partial-row warning is shown.
+    await expect(page.locator('#idColumn option')).toHaveCount(2);
+    await expect(page.getByText(/has empty column headings/)).not.toBeVisible();
+    await expect(page.getByText(/more values than there are column headers/)).not.toBeVisible();
+    await expect(page.getByText(/fewer values than the header/)).not.toBeVisible();
+  });
+
+  test('rejects a .csv whose trailing-comma column contains a value in any row', async ({ page }) => {
+    // The header has a trailing blank column, but a data row puts a value under it. That is a
+    // value with no column header, so the file is not a simple table.
+    const csv = 'Sample ID,Condition,\nS1,A\nS2,B,X\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'trailing-column-with-data.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more values than there are column headers/)).toBeVisible();
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
+  test('rejects a .csv with a duplicate column header', async ({ page }) => {
+    // Two columns named "Dose". Papa would rename the second to "Dose_1", inventing a covariate,
+    // so the file is turned away instead.
+    const csv = 'Sample ID,Dose,Dose\nS1,10,20\nS2,5,7\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'dup-header.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more than one column named "Dose"/)).toBeVisible();
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
+  test('rejects a duplicate header even when the file starts with blank lines', async ({ page }) => {
+    // Leading blank lines are skipped, so the duplicate check must still read the real header row.
+    const csv = '\n\nSample ID,Dose,Dose\nS1,10,20\nS2,5,7\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'leading-blank-dup.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more than one column named "Dose"/)).toBeVisible();
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
+  test('rejects a .csv with headers that differ only by whitespace', async ({ page }) => {
+    // "Dose" and "Dose " look distinct to Papa but collapse when metadata keys are trimmed, which
+    // would silently drop a column. Reject that too.
+    const csv = 'Sample ID,Dose,Dose \nS1,10,20\nS2,5,7\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'ws-dup-header.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more than one column named "Dose"/)).toBeVisible();
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
+  test('rejects a .csv with a row that has more values than the header', async ({ page }) => {
+    // Row 2 has an extra value, so it does not line up with the two-column header.
+    const csv = 'Sample ID,Condition\nS1,A\nS2,A,EXTRA\nS3,B\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'wide-row.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/more values than there are column headers/)).toBeVisible();
+    await expect(page.locator('#idColumn option')).toHaveCount(0);
+  });
+
   test('blocks Generate when the selected ID column has duplicate values', async ({ page }) => {
     // 'Sample ID' repeats S1; 'Well' is unique.
     const csv = 'Sample ID,Well,Condition\nS1,W1,A\nS1,W2,B\nS2,W3,A\n';
@@ -103,16 +222,32 @@ test.describe('Choose File validation', () => {
     await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeDisabled();
   });
 
-  test('warns about a CSV with formatting problems but still loads it', async ({ page }) => {
-    // Row 2 has an extra column, so Papa reports a field-count mismatch.
-    const csv = 'Sample ID,Condition\nS1,A\nS2,A,EXTRA\nS3,B\n';
+  test('warns about a CSV with a partial row (fewer values than the header) but still loads it', async ({ page }) => {
+    // Row 2 has fewer values than the header, so it is missing a column. That is allowed but
+    // warned about, since some values may not have loaded.
+    const csv = 'Sample ID,Condition\nS1,A\nS2\nS3,B\n';
     await page.locator('#file-upload').setInputFiles({
-      name: 'ragged.csv',
+      name: 'partial-row.csv',
       mimeType: 'text/csv',
       buffer: Buffer.from(csv),
     });
 
-    await expect(page.getByText(/formatting problems/)).toBeVisible();
+    await expect(page.getByText(/fewer values than the header/)).toBeVisible();
+    // It still loaded: the ID column is populated.
+    await expect(page.locator('#idColumn option')).toHaveCount(2);
+  });
+
+  test('warns about a CSV with a parse problem (unbalanced quote) but still loads it', async ({ page }) => {
+    // The unterminated quote on row 2 swallows the rest of the file into one value, so S3 is lost.
+    // The rows still line up with the header, so it loads, but the parse problem must be warned.
+    const csv = 'Sample ID,Condition\nS1,A\nS2,"oops,B\nS3,C\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'bad-quote.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    await expect(page.getByText(/formatting problems while being read/)).toBeVisible();
     // It still loaded: the ID column is populated.
     await expect(page.locator('#idColumn option')).toHaveCount(2);
   });
