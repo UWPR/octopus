@@ -10,10 +10,10 @@ import { QUALITY_LEVEL_CONFIG } from './configs';
  *
  * A group is flagged when one of these holds:
  * - Treatment coverage error: with more than one plate, the group has fewer
- *   samples than there are plates, so at least one plate must contain none of it.
+ *   samples than there are plates, so at least one plate will have no samples from it.
  * - QC row-coverage error: a selected QC/reference group is absent from at least
  *   one used row of the generated layout. QC samples are meant to be interspersed
- *   through the run, so one per plate is not enough; every used row should have
+ *   through the run, so one per plate is not enough. Every used row should have
  *   one. This is layout-based and only available after generation.
  * - Balance warning: the group is covered but its measured balance score is Poor
  *   or Bad. Balance is only known after a layout is generated, so this tier is
@@ -43,9 +43,9 @@ export interface GroupDistributionWarnings {
   summaries: string[];
 }
 
-// Per-group row-coverage counts from a generated layout. usedRows is the same for
-// every group (rows that hold any sample); uncoveredRows is how many of those the
-// group is absent from.
+// Per-group row-coverage counts from a generated layout. usedRows counts the rows
+// that hold any sample and is the same for every group. uncoveredRows is how many
+// of those rows lack the group.
 export interface GroupRowCoverage {
   usedRows: number;
   uncoveredRows: number;

@@ -14,8 +14,7 @@ interface SummaryPanelProps {
   selectedQcValues?: string[];
   selectedCovariates?: string[];
   onUpdateColor?: (combination: string, updates: { color?: string; useOutline?: boolean; useStripes?: boolean }) => void;
-  // Non-blocking group distribution warnings. When present, drive the warning
-  // banner and the per-card severity labels.
+  // Non-blocking group distribution warnings. When present, drive the warning banner and the per-card severity labels.
   warnings?: GroupDistributionWarnings;
 }
 
