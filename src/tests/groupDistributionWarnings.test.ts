@@ -176,7 +176,7 @@ describe('computeGroupDistributionWarnings', () => {
     });
     expect(result.byCombination.get('BatchRef|na|na')!.severity).toBe('error');
     expect(result.byCombination.get('BatchRef|na|na')!.reason).toBe(
-      'This QC/reference group is missing from 1 of 8 used row. It has only 6 samples for 8 used rows, so add more QC/reference samples.'
+      'This QC/reference group is missing from 1 of 8 used rows. It has only 6 samples for 8 used rows, so add more QC/reference samples.'
     );
   });
 
@@ -373,7 +373,8 @@ describe('computeQcRowCoverage', () => {
   });
 
   it('scores each QC group independently against the same used-row set', () => {
-    // Row 0 has QC but not Ref; row 1 has neither. Ref is missing from both used rows.
+    // Row 0 has QC but not Ref; row 1 has Ref but not QC. Each group is missing
+    // from exactly one of the two used rows.
     const withRef: (SearchData | undefined)[][][] = [
       [
         [cell('QC'), cell('Drug')],

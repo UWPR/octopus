@@ -146,7 +146,7 @@ function coverageReason(count: number, plateCount: number): string {
 }
 
 function qcRowReason(uncoveredRows: number, usedRows: number, count: number): string {
-  const rowWord = uncoveredRows === 1 ? 'row' : 'rows';
+  const rowWord = usedRows === 1 ? 'row' : 'rows';
   const missing = `This QC/reference group is missing from ${uncoveredRows} of ${usedRows} used ${rowWord}. `;
   if (count < usedRows) {
     // Too few samples to reach every used row, so moving cannot fix it.
