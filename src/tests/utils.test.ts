@@ -118,6 +118,20 @@ describe('buildCovariateKey injectivity (escape encoding)', () => {
     const qc = mkSample({ Condition: 'BatchQC', Dose: '108', Site: 'FA1' });
     expect(buildCovariateKey(qc, qcConfig)).toBe('BatchQC|108|FA1');
   });
+
+  it('does not prepend the QC value when the QC column is also a selected covariate', () => {
+    // The prepend only fires when the QC column is not itself a covariate. Here
+    // Condition is both the QC column and a selected covariate, so its value already
+    // sits in the base key and must not be duplicated as a prefix.
+    const qcConfig: CovariateConfig = {
+      selectedCovariates: ['Condition', 'Dose', 'Site'],
+      qcColumn: 'Condition',
+      selectedQcValues: ['BatchQC'],
+    };
+    const qc = mkSample({ Condition: 'BatchQC', Dose: '108', Site: 'FA1' });
+    // Not the doubled 'BatchQC|BatchQC|108|FA1' that a stray prepend would produce.
+    expect(buildCovariateKey(qc, qcConfig)).toBe('BatchQC|108|FA1');
+  });
 });
 
 // na-value-handling: a blank cell can stay distinct from a literal N/A, folded spellings

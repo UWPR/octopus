@@ -269,7 +269,9 @@ export function computeGroupDistributionWarnings(
           byCombination.set(item.combination, {
             combination: item.combination,
             severity: 'warning',
-            reason: balanceReason(Math.round(observed), plateCount),
+            // Floor, not round, so a flagged group (observed < 70) can never
+            // display a score of 70 or above, which is the acceptable Fair floor.
+            reason: balanceReason(Math.floor(observed), plateCount),
             count: item.count,
             isQc,
           });

@@ -284,6 +284,56 @@ describe('computeGroupDistributionWarnings', () => {
     expect(result.byCombination.size).toBe(0);
     expect(result.warningCount).toBe(0);
   });
+
+  it('a flagged group never displays a balance score of 70 (floors the mean, not rounds)', () => {
+    // Mean (70 + 69) / 2 = 69.5 is below the 70 threshold, so the group is flagged.
+    // Rounding would show "70", which contradicts 70 being the acceptable Fair floor.
+    // Flooring shows 69.
+    const observed = aggregateObservedGroupBalance(makeMetrics([{ A: 70 }, { A: 69 }]));
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 2, { observedGroupBalance: observed });
+    const warning = result.byCombination.get('A')!;
+    expect(warning.severity).toBe('warning');
+    expect(warning.reason).toBe(
+      'Balance score 69 (Poor or Bad). This group is spread unevenly across the 2 plates.'
+    );
+  });
+
+  it('P == 0: the guard evaluates nothing, even with coverage gaps and bad balance supplied', () => {
+    const rowCoverage = new Map([['BatchRef|na|na', { usedRows: 4, uncoveredRows: 2 }]]);
+    const result = computeGroupDistributionWarnings(
+      [makeItem('A', 0), makeItem('BatchRef|na|na', 1, 'BatchRef')],
+      0,
+      {
+        selectedQcValues: ['BatchRef'],
+        qcRowCoverage: rowCoverage,
+        observedGroupBalance: new Map([['A', 10]]),
+      }
+    );
+    expect(result.byCombination.size).toBe(0);
+    expect(result.summaries).toEqual([]);
+    expect(result.plateCount).toBe(0);
+  });
+
+  it('treatment coverage activates at the P == 1 -> P == 2 transition', () => {
+    const item = [makeItem('A', 1)];
+    // Suppressed on a single plate, flagged as soon as there are two.
+    expect(computeGroupDistributionWarnings(item, 1).byCombination.size).toBe(0);
+    const atTwo = computeGroupDistributionWarnings(item, 2).byCombination.get('A')!;
+    expect(atTwo.severity).toBe('error');
+    expect(atTwo.reason).toBe(
+      'Only 1 sample for 2 plates. At least 1 plate will have 0 samples of this group.'
+    );
+  });
+
+  it('an N/A covariate group is flagged by the treatment count rule like any other group', () => {
+    // Current behavior: the folded N/A group is treated no differently from a real
+    // group. Whether N/A groups should be excluded from coverage is an open question
+    // left for later, so this pins today's behavior rather than endorsing it.
+    const result = computeGroupDistributionWarnings([makeItem('N/A', 1)], 3);
+    const warning = result.byCombination.get('N/A')!;
+    expect(warning.severity).toBe('error');
+    expect(warning.isQc).toBe(false);
+  });
 });
 
 describe('aggregateObservedGroupBalance', () => {
@@ -344,5 +394,21 @@ describe('computeQcRowCoverage', () => {
     ];
     const coverage = computeQcRowCoverage(covered, new Set(['QC']), keyOf);
     expect(coverage.get('QC')).toEqual({ usedRows: 2, uncoveredRows: 0 });
+  });
+
+  it('an empty layout yields zero used rows and no uncovered rows', () => {
+    const coverage = computeQcRowCoverage([], new Set(['QC']), keyOf);
+    expect(coverage.get('QC')).toEqual({ usedRows: 0, uncoveredRows: 0 });
+  });
+
+  it('a layout of only empty rows yields zero used rows and no uncovered rows', () => {
+    const allEmpty: (SearchData | undefined)[][][] = [
+      [
+        [undefined, undefined],
+        [undefined, undefined],
+      ],
+    ];
+    const coverage = computeQcRowCoverage(allEmpty, new Set(['QC']), keyOf);
+    expect(coverage.get('QC')).toEqual({ usedRows: 0, uncoveredRows: 0 });
   });
 });
