@@ -1,5 +1,7 @@
 # Octopus
 
+*Version 1.1.0*
+
 ## What is Octopus?
 
 Octopus is a web application for distributing experimental samples across multiple plates (e.g., 96-well plates) in a balanced and randomized manner, helping researchers minimize bias and maintain statistical validity in their experiments.
@@ -17,6 +19,8 @@ Octopus is a web application for distributing experimental samples across multip
 **Flexible Configuration**: Customizable plate dimensions allow you to adapt the randomization strategy to your specific experimental needs.
 
 **Injection Sequence Export**: Once plates are finalized, a guided wizard generates a Thermo Fisher Scientific-compatible CSV sequence — including experimental runs, optional system suitability injections, autosampler slot assignments, folder paths, instrument methods, and a configurable file-naming template — so the output can be loaded directly into the instrument software.
+
+**Reproducible Layout Record**: A finished layout can be saved together with the settings that produced it to a single file, then loaded back later to reproduce the exact same plate arrangement. This provides a durable record of a run for an audit trail.
 
 ---
 
@@ -61,6 +65,8 @@ Prepare a CSV file containing your sample metadata with:
 
 Click **Choose File** to select and import your CSV file.
 
+**Reproducing a saved layout instead:** If you previously saved a layout file (see **Export → Layout** in Step 6), click **Load Layout** rather than Choose File to read it back. This restores the exact plate arrangement along with every setting that produced it (covariates, QC selection, plate size, colors, and more), so you do not need to reconfigure or regenerate anything. See "Save and Reproduce a Layout" under Step 6 for details.
+
 ### Step 2: Configuration
 
 #### Select ID Column
@@ -87,6 +93,18 @@ If you select Treatment + Time + Dose, the keys are:
 `DrugA|0h|Low` (S1,S2), `DrugA|24h|Low` (S3), `DrugB|0h|High` (S4), `Control|n/a|n/a` (S5).
 
 These groupings drive plate-level and row-level expected minimum calculations and distribution.
+
+#### N/A Values (shown only when needed)
+Sometimes a covariate column mixes different spellings of "not applicable" (for example `na`, `NA`, `n/a`, `N/A`) or leaves some cells blank. When Octopus detects that a column uses more than one such spelling, it shows an **N/A values** checklist in the configuration options.
+
+![Configuration - N/A Values](images/octopus_na-values-options.png)
+
+- Every detected spelling, plus a `(blank)` entry for empty cells, is listed and **checked by default**. A checked value folds into a single canonical `N/A` group.
+- **Uncheck** a value to keep it as its own distinct group instead of folding it into `N/A`. For example, if `na` and `NA` mean different things in your data, uncheck both so each forms its own group.
+- **Uncheck (blank)** to keep genuinely empty cells separate from cells that literally say `N/A`.
+- The literal `N/A` is always folded and cannot be unchecked.
+
+This choice applies to every covariate column, and it is saved with your layout so a reloaded layout groups exactly the same way. If none of your columns mix spellings, the setting does not appear and grouping is unchanged.
 
 #### Set QC/Reference Samples (Optional)
 Select a column that identifies quality control or reference samples, then check the values that represent QC/reference samples.
@@ -189,6 +207,18 @@ Click **"Show/Hide Covariate Summary"** to display:
 
 ![Compact Plates Selected Covariate Highlighted](images/octopus_compact-plates-covariate-highlighted.png)
 
+#### Group Distribution Warnings
+
+After you generate a layout, Octopus flags covariate groups that are poorly distributed across plates or rows. Flagged covariate group cards in the Covariate Summary panel carry a **SPARSE** label (red) or an **UNEVEN** label (amber). A banner at the top of the panel reports how many groups are affected. The collapsed toggle shows a warning count. Hover a label to read the full reason. The warnings are informational only and never block plate generation.
+
+- **Treatment groups** are flagged when a group has fewer samples than there are plates, making it impossible to place at least one sample on every plate.
+
+![Treatment group flagged in the Covariate Summary](images/octopus_group-distribution-treatment.png)
+
+- **QC/Reference groups** are flagged when the group is missing from any used row. Ideally, QC/reference samples should be placed in every row, not just on every plate.
+
+![QC/reference group flagged in the Covariate Summary](images/octopus_group-distribution-qc.png)
+
 #### Subject Placement Panel
 
 When a Subject ID Column is configured, a **"Show/Hide Subject Placements"** button is displayed after plates are generated. 
@@ -251,7 +281,9 @@ You can drag samples between wells on the same plate or across plates to manuall
 
 ### Step 6: Export Your Results
 
-Once satisfied with the distribution, click **"Download CSV"** or **"Download Excel"** to save your plate assignments.
+The CSV, Excel, Layout, and Sequence actions are grouped under a single **Export** button above the plates. Open it and pick the option you want. Every exported file's name ends with a timestamp (`_YYYY-MM-DD_HH-mm-ss`).
+
+Once satisfied with the distribution, open the **Export** menu and choose **CSV** or **Excel** to save your plate assignments.
 
 **CSV Export**: Includes all original sample data plus assigned plate numbers and well positions.
 
@@ -262,9 +294,21 @@ Once satisfied with the distribution, click **"Download CSV"** or **"Download Ex
 - A Legend sheet mapping covariate groups to colors
 - A Sample Details sheet with all sample metadata and plate/well assignments
 
+#### Save and Reproduce a Layout
+
+The regular CSV export records where each sample was placed, but not the choices behind that placement. To keep a record you can reproduce exactly, open the **Export** menu and choose **Layout**. This saves the finished layout together with the settings that produced it, as a single file named `<input_file_name>_octopus_layout_<YYYY-MM-DD_HH-mm-ss>.json`. It is s durable record of the plate layout generation for an audit trail.
+
+The file is a single JSON document that captures everything needed to reproduce the plate layout:
+- The settings that produced the layout (ID column, covariates, QC column and values, plate size, subject column, and grouping constraint) and the covariate colors.
+- Every sample with its assigned plate and well.
+
+**Loading it back:** Click **"Load Layout"** (next to Choose File at the top of the page) and select a saved layout file. Octopus recreates the same plate arrangement directly from the recorded plate and well positions, so the result is identical every time. It does not re-run randomization. It also restores the full configuration and the assigned covariate colors. 
+
+The file is validated strictly when you load it. If it is not a valid Octopus layout, or has been changed into an inconsistent state (for example a well outside the plate, or covariate values that do not match the saved settings), Octopus refuses to load it and displays an error message. 
+
 ### Step 7: Export Injection Sequence (Optional)
 
-Once you are happy with your plate layouts, click **"Export Sequence"** to launch the Injection Sequence Export wizard. The wizard generates a CSV acquisition sequence in the Thermo Fisher Scientific format (`Bracket Type=4` header with columns *File Name, Path, Instrument Method, Position, Inj Vol*) that can be loaded directly into the instrument software.
+Once you are happy with your plate layouts, open the **Export** menu and choose **Sequence** to launch the Injection Sequence Export wizard. The wizard generates a CSV acquisition sequence in the Thermo Fisher Scientific format (`Bracket Type=4` header with columns *File Name, Path, Instrument Method, Position, Inj Vol*) that can be loaded directly into the instrument software.
 
 The wizard reads your finalized plate assignments and walks you through six steps.
 
@@ -431,6 +475,8 @@ When a grouping constraint (Same Row or Same Plate) is active, the quality asses
 6. **Verify Subject Grouping**: When using repeated measures, open the Subject Placement Panel and click individual subjects to confirm all their samples are on the same row (or same plate, depending on your constraint).
 
 7. **Choose the Right Subject Grouping Constraint**: The grouping constraint is typically determined by the experimental design — use Same Row when samples must be processed together in the same row, and Same Plate when they just need to be on the same plate. If your design allows either, Same Plate gives the algorithm more flexibility to optimize covariate balance across multiple plates.
+
+8. **Save a Layout for Your Records**: Once you are happy with a layout, use **Export → Layout** to keep a single file that captures both the plate arrangement and the settings behind it. You can load it back at any time to reproduce the run exactly, which makes it a reliable record for an audit trail.
 
 ---
 
