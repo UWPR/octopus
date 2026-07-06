@@ -29,7 +29,7 @@ From a sample sheet (CSV), Octopus:
 
 ## Running locally
 
-Prerequisites: Node.js 18 or newer and npm.
+Prerequisites: Node.js 20 or newer and npm.
 
 ```
 git clone https://github.com/UWPR/octopus.git
