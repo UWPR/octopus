@@ -1,0 +1,36 @@
+name: CI
+
+# Runs the type check and the unit tests on every pull request and on every push to main.
+# The Playwright end-to-end tests are not run here.
+on:
+  # Merges and direct pushes to main.
+  push:
+    branches: [main]
+  # A pull request is checked when it is opened or reopened and on every push to
+  # its branch, so a push trigger on other branches would only run the job twice.
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:ci

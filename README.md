@@ -58,11 +58,20 @@ Each release also includes a single-file offline build, `octopus-<version>.html`
 can download that one file and open it in any modern browser with no installation and
 no network connection.
 
+The hosted site is updated by publishing a release on GitHub, which runs the tests
+and deploys the released commit. A pre-release gets its single-file build but does not
+update the hosted site. `npm run deploy:manual` is for emergencies only. It
+uploads whatever is in `build/` without building, and `npm run build:singlefile`
+writes its single-file build into the same folder. Run `npm run build` immediately
+before `npm run deploy:manual`, from a clean checkout of `main`.
+
 ## Available scripts
 
 - `npm start` runs the dev server at http://localhost:3000.
 - `npm run build` creates the production build in `build/`.
 - `npm run build:singlefile` creates a single self-contained `build/octopus-<version>.html` that runs offline from a local file, with all JavaScript, CSS, icons, and the logo inlined.
+- `npm run typecheck` runs the TypeScript type check.
+- `npm run test:ci` runs the unit tests once, without the Playwright end-to-end tests. CI and the release workflow run it.
 
 Octopus is a Create React App, so the standard `npm test` (test runner) and
 `npm run eject` (one-way config ejection, not recommended) are also available but not
