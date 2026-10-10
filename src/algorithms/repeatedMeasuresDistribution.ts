@@ -1086,34 +1086,42 @@ export function distributeGroupsToRows(
 
 
 /**
- * Distributes `count` items across `numBuckets` buckets proportionally.
- * Each bucket gets floor(count / numBuckets). Remainder is distributed
- * one-per-bucket to randomly selected buckets.
+ * Splits `count` items across buckets as evenly as possible, given the totals already in each
+ * bucket. Each bucket gets floor(count / numBuckets), and the remainder goes one each to the
+ * buckets with the lowest running totals, ties at random. Adds the result to `runningTotals`.
  *
- * @returns Array of length numBuckets with the count allocated to each.
+ * @returns Array of length runningTotals.length with the count allocated to each bucket.
  */
-function distributeProportionally(count: number, numBuckets: number): number[] {
+function distributeEvenly(count: number, runningTotals: number[]): number[] {
+  const numBuckets = runningTotals.length;
   const base = Math.floor(count / numBuckets);
   const remainder = count % numBuckets;
   const result = new Array(numBuckets).fill(base);
 
-  // Distribute remainder one-per-bucket to randomly selected buckets
-  const indices = shuffleArray(Array.from({ length: numBuckets }, (_, i) => i));
+  // Shuffle first so the stable sort breaks ties between equal totals at random
+  const leastFilled = shuffleArray(Array.from({ length: numBuckets }, (_, i) => i))
+    .sort((a, b) => runningTotals[a] - runningTotals[b]);
   for (let i = 0; i < remainder; i++) {
-    result[indices[i]] += 1;
+    result[leastFilled[i]] += 1;
   }
 
+  for (let i = 0; i < numBuckets; i++) {
+    runningTotals[i] += result[i];
+  }
   return result;
 }
 
 /**
- * Distributes QC samples proportionally by covariateKey across plates and rows.
+ * Distributes QC samples by covariateKey across plates and rows.
  *
  * For each QC covariate group:
- *   - Plate level: each plate gets floor(groupCount / numPlates), remainder
- *     distributed randomly (one extra per plate).
- *   - Row level: within each plate, each row gets floor(plateAlloc / numRows),
- *     remainder distributed randomly (one extra per row).
+ *   - Plate level: each plate gets floor(groupCount / numPlates). The remainder goes one per
+ *     plate to the plates holding the fewest QC samples so far, across all groups.
+ *   - Row level: within each plate, each row gets floor(plateAlloc / numRows). The remainder
+ *     goes one per row to the rows of that plate holding the fewest QC samples so far.
+ *
+ * Each group is spread evenly, and so is the QC total. Plate totals differ by at most one, as
+ * do the row totals within a plate. validateSubjectGroups relies on this.
  *
  * @param qcSamples - All QC samples (isQC === true), already shuffled
  * @param numPlates - Number of plates
@@ -1140,13 +1148,16 @@ export function distributeQcByCovariate(
     groups.get(key)!.push(sample);
   }
 
+  const plateTotals = new Array(numPlates).fill(0);
+  const rowTotals = Array.from({ length: numPlates }, () => new Array(numRows).fill(0));
+
   // For each covariate group, distribute across plates then rows
   groups.forEach((groupSamples) => {
-    const plateCounts = distributeProportionally(groupSamples.length, numPlates);
+    const plateCounts = distributeEvenly(groupSamples.length, plateTotals);
 
     let sampleIdx = 0;
     for (let p = 0; p < numPlates; p++) {
-      const rowCounts = distributeProportionally(plateCounts[p], numRows);
+      const rowCounts = distributeEvenly(plateCounts[p], rowTotals[p]);
       for (let r = 0; r < numRows; r++) {
         for (let q = 0; q < rowCounts[r]; q++) {
           result[p][r].push(groupSamples[sampleIdx++]);
