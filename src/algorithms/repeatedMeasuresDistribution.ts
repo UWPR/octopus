@@ -4,6 +4,19 @@ import { greedyPlaceInRow } from './greedySpatialPlacement';
 import { distributeToBlocks, calculateExpectedMinimums } from './balancedRandomization';
 
 /**
+ * Thrown when one run of the packing cannot fit the subject groups into the plates or rows.
+ * The packing is randomized, so another run on the same input can succeed.
+ */
+export class PackingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PackingError';
+    // Keeps instanceof working when the class is compiled to ES5
+    Object.setPrototypeOf(this, PackingError.prototype);
+  }
+}
+
+/**
  * Groups samples by the selected subject column value.
  * Samples with empty/missing subject column values become singletons (group size 1).
  * Returns an array of SubjectGroup objects.
@@ -316,7 +329,7 @@ export function distributeGroupsToPlates(
           );
         }
 
-        throw new Error(
+        throw new PackingError(
           `Unable to fit all subject groups into available plates. ` +
           `Remaining plate capacities: [${remainingCapacities.join(', ')}]. ` +
           shapeParts.join('; ') + '. ' +
@@ -374,7 +387,7 @@ export function distributeGroupsToPlates(
     }
 
     if (candidatePlates.length === 0) {
-      throw new Error(
+      throw new PackingError(
         `Unable to fit all samples into available plates. ` +
         `No remaining capacity for singleton sample after placing subject groups. ` +
         singletonRemedy
@@ -435,7 +448,7 @@ function validateGroupFeasibility(
 
   const oversizedGroup = multiGroups.find(g => g.size > maxRowCap);
   if (oversizedGroup) {
-    throw new Error(
+    throw new PackingError(
       `Subject ${oversizedGroup.subjectId} has ${oversizedGroup.size} samples, ` +
       `but the largest row only has ${maxRowCap} available slots (after QC allocation). ` +
       `Try increasing the plate dimensions or switching to Same Plate constraint.`
@@ -446,7 +459,7 @@ function validateGroupFeasibility(
   const totalCapacity = rowCapacities.reduce((sum, c) => sum + c, 0);
   const totalSamples = totalMultiGroupSamples + singletons.length;
   if (totalSamples > totalCapacity) {
-    throw new Error(
+    throw new PackingError(
       `Total samples (${totalSamples}) exceed total row capacity (${totalCapacity}). ` +
       `Try increasing the plate dimensions.`
     );
@@ -461,7 +474,7 @@ function validateGroupFeasibility(
   for (const [groupSize, groupCount] of Array.from(groupsBySize.entries())) {
     const totalSlots = rowCapacities.reduce((sum, cap) => sum + Math.floor(cap / groupSize), 0);
     if (groupCount > totalSlots) {
-      throw new Error(
+      throw new PackingError(
         `Cannot fit ${groupCount} subject groups of size ${groupSize} into the available rows. ` +
         `The rows can hold at most ${totalSlots} groups of this size (max ${Math.floor(maxRowCap / groupSize)} per row). ` +
         `Try increasing the plate dimensions or switching to Same Plate constraint.`
@@ -925,7 +938,7 @@ function greedyFFDPlacement(
         );
       }
 
-      throw new Error(
+      throw new PackingError(
         `Unable to fit all subject groups into available rows. ` +
         `Remaining row capacities: [${state.remainingCapacities.join(', ')}]. ` +
         shapeParts.join('; ') + '. ' +
@@ -999,7 +1012,7 @@ function distributeSingletons(
     }
 
     if (candidateRows.length === 0) {
-      throw new Error(
+      throw new PackingError(
         `Unable to fit all samples into available rows. ` +
         `No remaining capacity for singleton sample after placing subject groups. ` +
         `Try adjusting the plate dimensions or switching to Same Plate constraint.`
