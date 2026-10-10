@@ -2717,3 +2717,147 @@ describe('Edge case: plate-level packing failure (edge-case-plate-infeasible)', 
     expect(error!.message).toMatch(/Same Plate constraint/);
   });
 });
+
+
+// ─── Feasibility: validator, QC allocator and packing agree ─────────────────
+
+describe('Subject-grouping feasibility', () => {
+  const sameRow: RepeatedMeasuresConfig = { subjectColumn: 'SubjectID', groupingConstraint: 'same-row' };
+  const samePlate: RepeatedMeasuresConfig = { subjectColumn: 'SubjectID', groupingConstraint: 'same-plate' };
+
+  const makeSubject = (subjectId: string, count: number, treatment: string): SearchData[] =>
+    Array.from({ length: count }, (_, i) => ({
+      name: `${subjectId}_T${i}`,
+      metadata: { SubjectID: subjectId, Treatment: treatment },
+    }));
+
+  const makeQc = (key: string, count: number): SearchData[] =>
+    Array.from({ length: count }, (_, i) => ({
+      name: `${key}_${i}`,
+      metadata: { Treatment: key },
+      covariateKey: key,
+      isQC: true,
+    }));
+
+  // Runs the layout `runs` times and returns the message of every run that threw.
+  const collectFailures = (runs: number, generate: () => void): string[] => {
+    const failures: string[] = [];
+    for (let i = 0; i < runs; i++) {
+      try {
+        generate();
+      } catch (e) {
+        failures.push((e as Error).message);
+      }
+    }
+    return failures;
+  };
+
+  it('Same Plate with "keep empty spots in last plate" on generates 40 subjects of 5 on 8x12 plates', () => {
+    const samples: SearchData[] = [];
+    for (let s = 0; s < 40; s++) {
+      samples.push(...makeSubject(`P${String(s).padStart(3, '0')}`, 5, s % 2 === 0 ? 'Drug' : 'Placebo'));
+    }
+
+    const failures = collectFailures(20, () =>
+      groupAwareRandomization(samples, ['Treatment'], samePlate, true, 8, 12)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it('Same Plate with "keep empty spots in last plate" on generates groups of 6, 5 and 3 on two 2x4 plates', () => {
+    const samples = [
+      ...makeSubject('A', 6, 'Drug'),
+      ...makeSubject('B', 5, 'Placebo'),
+      ...makeSubject('C', 3, 'Drug'),
+    ];
+
+    const failures = collectFailures(50, () =>
+      groupAwareRandomization(samples, ['Treatment'], samePlate, true, 2, 4)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it('a Same Plate packing error does not suggest switching to Same Plate', () => {
+    // Three groups of 5 cannot share two plates of 8 wells, whichever plate takes the third group.
+    const samples = [
+      ...makeSubject('A', 5, 'Drug'),
+      ...makeSubject('B', 5, 'Placebo'),
+      ...makeSubject('C', 5, 'Drug'),
+    ];
+
+    expect(() => groupAwareRandomization(samples, ['Treatment'], samePlate, false, 2, 4)).toThrow(
+      new Error(
+        'Unable to fit all subject groups into available plates. Remaining plate capacities: [3, 3]. ' +
+        '1 group(s) of size 5 need plates with 5+ wells, but only 0 plate(s) qualify (0 slot(s)). ' +
+        'Try increasing the plate dimensions.'
+      )
+    );
+  });
+
+  it('Same Row validator accepts 3 subjects of 6 with 1 QC on one 4x6 plate', () => {
+    // The QC sample takes one well of one row, so three rows still hold 6 wells each.
+    const groups = [makeGroup('A', 6), makeGroup('B', 6), makeGroup('C', 6)];
+
+    const result = validateSubjectGroups(groups, 'same-row', 6, 24, 24, 4, 1);
+    expect(result).toEqual({ isValid: true, errors: [], warnings: [] });
+  });
+
+  it('Same Plate validator rejects a subject of 8 when each 2x4 plate holds 1 of 2 QC samples', () => {
+    const groups: SubjectGroup[] = [
+      makeGroup('A', 8),
+      ...Array.from({ length: 6 }, (_, i) => ({
+        subjectId: `__singleton_${i}`,
+        samples: [makeSingletonSample(`S${i}`)],
+        size: 1,
+      })),
+    ];
+
+    const result = validateSubjectGroups(groups, 'same-plate', 4, 8, 16, 2, 2);
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toEqual([
+      'Subject A has 8 samples, which exceeds the plate capacity of 7 after QC. Try increasing the plate dimensions.',
+    ]);
+  });
+
+  // 3 QC keys x 9 on 8 rows: each key puts 1 QC on every row and 1 extra on 1 of the rows.
+  const threeQcKeys = (): SearchData[] => [...makeQc('QC', 9), ...makeQc('Ref', 9), ...makeQc('Blind', 9)];
+
+  it('Same Row generates 8 subjects of 8 with 3 QC keys of 9 on one 8x12 plate every time', () => {
+    const samples: SearchData[] = [...threeQcKeys()];
+    for (let s = 0; s < 8; s++) {
+      samples.push(...makeSubject(`P${s}`, 8, s % 2 === 0 ? 'Drug' : 'Placebo'));
+    }
+
+    const validation = validateSubjectGroups(
+      buildSubjectGroups(samples.filter(s => !s.isQC), 'SubjectID'), 'same-row', 12, 96, 96, 8, 27
+    );
+    expect(validation).toEqual({ isValid: true, errors: [], warnings: [] });
+
+    const failures = collectFailures(200, () =>
+      groupAwareRandomization(samples, ['Treatment'], sameRow, false, 8, 12)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it('distributeQcByCovariate gives every row 3 or 4 of 27 QC samples in 3 keys', () => {
+    const qc = threeQcKeys();
+    const unevenRuns: string[] = [];
+    for (let i = 0; i < 200; i++) {
+      const perRow = distributeQcByCovariate(qc, 1, 8)[0].map(row => row.length).sort((a, b) => a - b);
+      if (perRow.join(',') !== '3,3,3,3,3,4,4,4') unevenRuns.push(perRow.join(','));
+    }
+    expect(unevenRuns).toEqual([]);
+  });
+
+  it('distributeQcByCovariate gives every plate 2 or 3 of 8 QC samples in 2 keys', () => {
+    const qc = [...makeQc('QC', 4), ...makeQc('Ref', 4)];
+    const unevenRuns: string[] = [];
+    for (let i = 0; i < 200; i++) {
+      const perPlate = distributeQcByCovariate(qc, 3, 2)
+        .map(plate => plate.reduce((sum, row) => sum + row.length, 0))
+        .sort((a, b) => a - b);
+      if (perPlate.join(',') !== '2,3,3') unevenRuns.push(perPlate.join(','));
+    }
+    expect(unevenRuns).toEqual([]);
+  });
+});
