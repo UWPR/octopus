@@ -142,7 +142,7 @@ For experiments where the same subject is measured multiple times (e.g., multipl
 
 **Validation:** The app validates whether the chosen constraint is feasible given the plate dimensions. For example, if a subject has 15 samples but the plate only has 12 columns, the Same Row constraint is infeasible and an error message will appear. The "Generate Randomized Plates" button is disabled until all validation errors are resolved.
 
-**Note:** The "Keep empty spots in last plate" option is hidden when a subject grouping constraint is active, as the subject-group-aware algorithm manages plate capacity differently.
+**Note:** The "Keep empty spots in last plate" option is hidden and has no effect when a subject grouping constraint is active, because whole subject groups cannot fill a plate exactly.
 
 #### Configure Plate Dimensions
 - **Rows**: Set from 1-16 (default: 8)
