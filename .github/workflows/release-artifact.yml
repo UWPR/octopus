@@ -3,13 +3,19 @@ name: Release artifact
 # When a release is published in the GitHub UI, this
 # - checks that the released commit is on main
 # - runs the type check and the unit tests
+# - builds a self-contained single-file offline copy (octopus-<version>.html)
+#   and attaches it to the release
 # - builds the app from the released commit and deploys it to GitHub Pages,
 #   except for a pre-release
-# - attaches a self-contained single-file offline copy (octopus-<version>.html)
-#   to the release
 on:
   release:
     types: [published]
+
+# Runs one release at a time, so two releases published close together do not
+# race their GitHub Pages deploys.
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -44,13 +50,29 @@ jobs:
 
       # The same checks as ci.yml.
       - name: Type check
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Unit tests
-        run: npx react-scripts test --watchAll=false --forceExit --testPathIgnorePatterns=e2e
+        run: npm run test:ci
 
-      # CI=false so pre-existing lint warnings do not fail the build, matching the
-      # behavior of a local `npm run build`.
+      # The single-file app is built and attached before the hosted site, so a
+      # failure here stops the release before the deploy. Both builds write to
+      # build/, so the single-file app is moved out before the hosted build.
+      # CI=false so pre-existing lint warnings do not fail either build, matching
+      # the behavior of a local build.
+      - name: Build the single-file offline app
+        run: |
+          npm run build:singlefile
+          mkdir release-asset
+          mv build/octopus-*.html release-asset/
+        env:
+          CI: false
+
+      - name: Attach the single-file app to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-asset/octopus-*.html
+
       - name: Build the hosted site
         run: npm run build
         env:
@@ -62,13 +84,3 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build
-
-      - name: Build the single-file offline app
-        run: npm run build:singlefile
-        env:
-          CI: false
-
-      - name: Attach the single-file app to the release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/octopus-*.html

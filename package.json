@@ -33,6 +33,8 @@
     "build:singlefile": "cross-env PUBLIC_URL=. REACT_APP_SINGLEFILE=1 GENERATE_SOURCEMAP=false react-scripts build && node scripts/inline.js",
     "test": "react-scripts test",
     "test:all": "react-scripts test --watchAll=false",
+    "typecheck": "tsc --noEmit",
+    "test:ci": "react-scripts test --watchAll=false --forceExit --testPathIgnorePatterns=\"<rootDir>/src/tests/e2e/\"",
     "test:greedyPlacement": "react-scripts test --watchAll=false --testPathPattern=greedySpatialPlacement",
     "test:blockCapacities": "react-scripts test --watchAll=false --testPathPattern=assignBlockCapacities",
     "eject": "react-scripts eject",

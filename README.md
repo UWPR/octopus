@@ -70,6 +70,8 @@ before `npm run deploy:manual`, from a clean checkout of `main`.
 - `npm start` runs the dev server at http://localhost:3000.
 - `npm run build` creates the production build in `build/`.
 - `npm run build:singlefile` creates a single self-contained `build/octopus-<version>.html` that runs offline from a local file, with all JavaScript, CSS, icons, and the logo inlined.
+- `npm run typecheck` runs the TypeScript type check.
+- `npm run test:ci` runs the unit tests once, without the Playwright end-to-end tests. CI and the release workflow run it.
 
 Octopus is a Create React App, so the standard `npm test` (test runner) and
 `npm run eject` (one-way config ejection, not recommended) are also available but not

@@ -27,7 +27,7 @@ jobs:
         run: npm ci
 
       - name: Type check
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Unit tests
-        run: npx react-scripts test --watchAll=false --forceExit --testPathIgnorePatterns=e2e
+        run: npm run test:ci
