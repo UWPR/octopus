@@ -59,7 +59,8 @@ can download that one file and open it in any modern browser with no installatio
 no network connection.
 
 The hosted site is updated by publishing a release on GitHub, which runs the tests
-and deploys the released commit. `npm run deploy:manual` is for emergencies only. It
+and deploys the released commit. A pre-release gets its single-file build but does not
+update the hosted site. `npm run deploy:manual` is for emergencies only. It
 uploads whatever is in `build/` without building, and `npm run build:singlefile`
 writes its single-file build into the same folder. Run `npm run build` immediately
 before `npm run deploy:manual`, from a clean checkout of `main`.

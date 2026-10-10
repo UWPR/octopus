@@ -3,7 +3,8 @@ name: Release artifact
 # When a release is published in the GitHub UI, this
 # - checks that the released commit is on main
 # - runs the type check and the unit tests
-# - builds the app from the released commit and deploys it to GitHub Pages
+# - builds the app from the released commit and deploys it to GitHub Pages,
+#   except for a pre-release
 # - attaches a self-contained single-file offline copy (octopus-<version>.html)
 #   to the release
 on:
@@ -56,6 +57,7 @@ jobs:
           CI: false
 
       - name: Deploy to GitHub Pages
+        if: ${{ !github.event.release.prerelease }}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
