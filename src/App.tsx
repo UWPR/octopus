@@ -436,7 +436,25 @@ const App: React.FC = () => {
 
   // ID column change handler with reset
   const handleIdColumnChangeWithReset = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newIdColumn = event.target.value;
     handleIdColumnChange(event);
+
+    // Conflict resolution: the ID column cannot also be a covariate, the QC column or the subject
+    // column, and the selects no longer list it, so clear any selection that names it.
+    if (selectedCovariates.includes(newIdColumn)) {
+      setSelectedCovariates(prev => prev.filter(c => c !== newIdColumn));
+    }
+    if (qcColumn === newIdColumn) {
+      setQcColumn('');
+      setQcColumnValues([]);
+      setSelectedQcValues([]);
+    }
+    if (subjectColumn === newIdColumn) {
+      setSubjectColumn('');
+      setGroupingConstraint('none');
+      setGroupValidation(null);
+    }
+
     resetCovariateState();
   };
 
