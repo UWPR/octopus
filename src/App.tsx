@@ -873,10 +873,6 @@ const App: React.FC = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
       setRandomizationError(null);
 
-      // Clear highlighting since plate layout is changing
-      setSelectedCombination(null);
-      setSelectedSubject(null);
-
       // Process metadata and set the covariateKey
       processMetadata(searches);
 
@@ -885,7 +881,7 @@ const App: React.FC = () => {
         subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
 
       // Re-randomize - colors are already generated, so we don't need to regenerate them.
-      // On an error the previous layout stays on screen.
+      // On an error the previous layout and its highlighting stay on screen.
       try {
         reRandomize(
           searches,
@@ -897,6 +893,9 @@ const App: React.FC = () => {
           repeatedMeasuresConfig,
           naPolicy
         );
+        // Clear highlighting since plate layout changed
+        setSelectedCombination(null);
+        setSelectedSubject(null);
       } catch (err: any) {
         setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
       }
@@ -908,10 +907,6 @@ const App: React.FC = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
       setRandomizationError(null);
 
-      // Clear highlighting since plate layout is changing
-      setSelectedCombination(null);
-      setSelectedSubject(null);
-
       // Process metadata and set the covariateKey
       processMetadata(searches);
 
@@ -919,7 +914,7 @@ const App: React.FC = () => {
       const repeatedMeasuresConfig: RepeatedMeasuresConfig | undefined =
         subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
 
-      // On an error the previous layout of the plate stays on screen
+      // On an error the previous layout of the plate and its highlighting stay on screen
       try {
         reRandomizeSinglePlate(
           plateIndex,
@@ -932,6 +927,9 @@ const App: React.FC = () => {
           repeatedMeasuresConfig,
           naPolicy
         );
+        // Clear highlighting since plate layout changed
+        setSelectedCombination(null);
+        setSelectedSubject(null);
       } catch (err: any) {
         setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
       }

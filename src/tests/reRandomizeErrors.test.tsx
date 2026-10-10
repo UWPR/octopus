@@ -27,13 +27,18 @@ const plateFingerprint = (): string =>
     .map(el => el.getAttribute('title'))
     .join('|');
 
+// Number of wells on the first plate drawn with the highlight of the selected summary card.
+const highlightedWellCount = (): number =>
+  // eslint-disable-next-line testing-library/no-node-access
+  screen.getByTestId('plate-grid-0').querySelectorAll('.well-highlighted-compact').length;
+
 beforeEach(() => {
   // CRA resets mock implementations before each test, so the pass-through is set here.
   mockedGroupAware.mockImplementation(realGroupAware);
 });
 
 describe('App per-plate re-randomize', () => {
-  it('displays the algorithm error and keeps the plate when single-plate re-randomize throws', async () => {
+  it('displays the algorithm error and keeps the plate and highlight when single-plate re-randomize throws', async () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Choose File'), { target: { files: [new File([CSV], 'subjects.csv', { type: 'text/csv' })] } });
@@ -52,6 +57,11 @@ describe('App per-plate re-randomize', () => {
     const before = plateFingerprint();
     expect(before.split('|').length).toBe(16);
 
+    // Highlight one treatment, 2 subjects of 4 samples
+    fireEvent.click(screen.getByRole('button', { name: /Show Covariate Summary/ }));
+    fireEvent.click(screen.getByTestId('summary-card-0'));
+    expect(highlightedWellCount()).toBe(8);
+
     mockedGroupAware.mockImplementationOnce(() => {
       throw new Error('Forced re-randomize failure');
     });
@@ -60,5 +70,6 @@ describe('App per-plate re-randomize', () => {
 
     expect(await screen.findByText('Forced re-randomize failure')).toBeInTheDocument();
     expect(plateFingerprint()).toBe(before);
+    expect(highlightedWellCount()).toBe(8);
   });
 });
