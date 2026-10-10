@@ -169,8 +169,9 @@ export function useFileUpload() {
   /**
    * Load samples from a saved layout file. Unlike loadSampleCsvText, this sets the searches,
    * file name, columns, and ID column directly from the file's recorded settings, without
-   * applying the auto-ID-column defaults. Bumps uploadCounter so the Sequence Export Wizard
-   * remounts. The caller (App.applyLoadedLayout) restores the remaining settings.
+   * applying the auto-ID-column defaults. Bumps uploadCounter, which remounts the Sequence Export
+   * Wizard and runs the new-file reset effect in App. The caller (App.applyLoadedLayout) restores
+   * the remaining settings and sets the flag that makes that reset keep them.
    */
   const loadSearches = (
     loadedSearches: SearchData[],

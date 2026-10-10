@@ -296,16 +296,17 @@ const App: React.FC = () => {
     setLoadWarning(null); // not cleared by clearConfigAndLayout, so a valid load's warning survives
   };
 
-  // Reset the derived state when a new sample file is uploaded (but not on initial load, and not
-  // while restoring a saved layout, whose settings have just been set from the file).
+  // Reset the derived state once per file load. uploadCounter increments on every successful
+  // sample CSV parse and every layout load, so the reset also runs when the new file has the same
+  // name and sample count as the previous one.
+  //  - A layout load sets isRestoringRef in applyLoadedLayout. This run consumes the flag and
+  //    keeps the settings just restored from the file.
+  //  - On initial mount selectedFileName is empty, so nothing is cleared.
   useEffect(() => {
     if (isRestoringRef.current) {
       isRestoringRef.current = false;
       return;
     }
-    // Reset the derived design whenever a new sample file is selected. Gate on the filename, not
-    // the sample count, so a file that parses but yields no usable samples (header-only, or all
-    // IDs blank) still replaces the previous design instead of leaving it on screen.
     if (selectedFileName) {
       clearConfigAndLayout();
       // Initialize the N/A policy from the new data. When a column mixes spellings, default to
@@ -320,7 +321,7 @@ const App: React.FC = () => {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFileName, searches.length]);
+  }, [uploadCounter]);
 
   // Run validation whenever subject column, grouping constraint, or plate dimensions change
   useEffect(() => {
