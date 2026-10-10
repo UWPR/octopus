@@ -32,4 +32,19 @@ describe('useFileUpload header whitespace', () => {
     );
     expect(keys).toEqual(['A', 'B']);
   });
+
+  it('keeps quoted headers that contain commas, with and without a space after the comma', () => {
+    const { result } = renderHook(() => useFileUpload());
+
+    let outcome: ReturnType<typeof result.current.loadSampleCsvText> | undefined;
+    act(() => {
+      outcome = result.current.loadSampleCsvText('ID,"Dose, total","Volume,total"\nS1,1,2\n', 'quoted.csv');
+    });
+    expect(outcome).toEqual({ ok: true, warning: undefined });
+
+    expect(result.current.availableColumns).toEqual(['ID', 'Dose, total', 'Volume,total']);
+    expect(result.current.searches).toEqual([
+      { name: 'S1', metadata: { 'Dose, total': '1', 'Volume,total': '2' } },
+    ]);
+  });
 });
