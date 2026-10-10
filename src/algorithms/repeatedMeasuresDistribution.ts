@@ -104,14 +104,14 @@ export function validateSubjectGroups(
     if (constraint === 'same-row' && group.size > largestRowCapacity) {
       errors.push(
         `Subject ${group.subjectId} has ${group.size} samples, which exceeds the row capacity of ` +
-        `${largestRowCapacity}${rowsQcBase > 0 ? ' after QC' : ''}. ` +
+        `${largestRowCapacity}${rowsQcBase > 0 ? ' after placing QC samples' : ''}. ` +
         `Try increasing the plate dimensions or switching to Same Plate constraint.`
       );
     }
     if (constraint === 'same-plate' && group.size > largestPlateCapacity) {
       errors.push(
         `Subject ${group.subjectId} has ${group.size} samples, which exceeds the plate capacity of ` +
-        `${largestPlateCapacity}${platesQcShare > 0 ? ' after QC' : ''}. ` +
+        `${largestPlateCapacity}${platesQcShare > 0 ? ' after placing QC samples' : ''}. ` +
         `Try increasing the plate dimensions.`
       );
     }
@@ -143,7 +143,7 @@ export function validateSubjectGroups(
         errors.push(
           `Cannot fit ${groupCount} subject groups of size ${groupSize} into available rows. ` +
           `With ${numPlates} plate(s) × ${numRows} rows, the rows can hold ${totalSlots} group(s) of this size ` +
-          `(the smallest row has ${smallestRowCap} slots after QC). ` +
+          `(the smallest row has ${smallestRowCap} slots${qcCount > 0 ? ' after placing QC samples' : ''}). ` +
           `Try increasing the plate dimensions or switching to Same Plate constraint.`
         );
       }

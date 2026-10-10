@@ -37,35 +37,55 @@ beforeEach(() => {
   mockedGroupAware.mockImplementation(realGroupAware);
 });
 
-describe('App per-plate re-randomize', () => {
+// Generates a Same Row layout of CSV on one plate and highlights one treatment, 2 subjects of 4 samples.
+// Returns the fingerprint of the plate.
+const generateHighlightedLayout = async (): Promise<string> => {
+  render(<App />);
+
+  fireEvent.change(screen.getByLabelText('Choose File'), { target: { files: [new File([CSV], 'subjects.csv', { type: 'text/csv' })] } });
+  await screen.findByText('(16 samples)');
+  // The file is read outside act, so the new-file reset effect is still pending here. Let it run
+  // first, or it clears the selections made below.
+  await act(() => new Promise(resolve => setTimeout(resolve, 0)));
+
+  (screen.getByRole('option', { name: 'Treatment (Drug, Placebo)' }) as HTMLOptionElement).selected = true;
+  fireEvent.change(screen.getByLabelText('Select Covariates:'));
+  fireEvent.change(screen.getByLabelText('Subject ID Column (optional):'), { target: { value: 'Subject' } });
+  await screen.findByText('Grouping Constraint:');
+  fireEvent.click(screen.getByRole('button', { name: 'Generate Randomized Plates' }));
+
+  await screen.findByTitle('Re-randomize this plate');
+  const fingerprint = plateFingerprint();
+  expect(fingerprint.split('|').length).toBe(16);
+
+  fireEvent.click(screen.getByRole('button', { name: /Show Covariate Summary/ }));
+  fireEvent.click(screen.getByTestId('summary-card-0'));
+  expect(highlightedWellCount()).toBe(8);
+  return fingerprint;
+};
+
+describe('App re-randomize errors', () => {
   it('displays the algorithm error and keeps the plate and highlight when single-plate re-randomize throws', async () => {
-    render(<App />);
-
-    fireEvent.change(screen.getByLabelText('Choose File'), { target: { files: [new File([CSV], 'subjects.csv', { type: 'text/csv' })] } });
-    await screen.findByText('(16 samples)');
-    // The file is read outside act, so the new-file reset effect is still pending here. Let it run
-    // first, or it clears the selections made below.
-    await act(() => new Promise(resolve => setTimeout(resolve, 0)));
-
-    (screen.getByRole('option', { name: 'Treatment (Drug, Placebo)' }) as HTMLOptionElement).selected = true;
-    fireEvent.change(screen.getByLabelText('Select Covariates:'));
-    fireEvent.change(screen.getByLabelText('Subject ID Column (optional):'), { target: { value: 'Subject' } });
-    await screen.findByText('Grouping Constraint:');
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Randomized Plates' }));
-
-    const reRandomizeButton = await screen.findByTitle('Re-randomize this plate');
-    const before = plateFingerprint();
-    expect(before.split('|').length).toBe(16);
-
-    // Highlight one treatment, 2 subjects of 4 samples
-    fireEvent.click(screen.getByRole('button', { name: /Show Covariate Summary/ }));
-    fireEvent.click(screen.getByTestId('summary-card-0'));
-    expect(highlightedWellCount()).toBe(8);
+    const before = await generateHighlightedLayout();
 
     mockedGroupAware.mockImplementationOnce(() => {
       throw new Error('Forced re-randomize failure');
     });
-    fireEvent.click(reRandomizeButton);
+    fireEvent.click(screen.getByTitle('Re-randomize this plate'));
+    expect(mockedGroupAware).toHaveBeenCalledTimes(2);
+
+    expect(await screen.findByText('Forced re-randomize failure')).toBeInTheDocument();
+    expect(plateFingerprint()).toBe(before);
+    expect(highlightedWellCount()).toBe(8);
+  });
+
+  it('displays the algorithm error and keeps the plates and highlight when re-randomize of all plates throws', async () => {
+    const before = await generateHighlightedLayout();
+
+    mockedGroupAware.mockImplementationOnce(() => {
+      throw new Error('Forced re-randomize failure');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Re-randomize' }));
     expect(mockedGroupAware).toHaveBeenCalledTimes(2);
 
     expect(await screen.findByText('Forced re-randomize failure')).toBeInTheDocument();

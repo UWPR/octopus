@@ -2823,7 +2823,7 @@ describe('Subject-grouping feasibility', () => {
     const result = validateSubjectGroups([makeGroup('A', 12)], 'same-row', 12, 96, 96, 8, 27);
     expect(result.isValid).toBe(false);
     expect(result.errors).toEqual([
-      'Subject A has 12 samples, which exceeds the row capacity of 9 after QC. ' +
+      'Subject A has 12 samples, which exceeds the row capacity of 9 after placing QC samples. ' +
       'Try increasing the plate dimensions or switching to Same Plate constraint.',
     ]);
   });
@@ -2841,7 +2841,8 @@ describe('Subject-grouping feasibility', () => {
     const result = validateSubjectGroups(groups, 'same-plate', 4, 8, 16, 2, 2);
     expect(result.isValid).toBe(false);
     expect(result.errors).toEqual([
-      'Subject A has 8 samples, which exceeds the plate capacity of 7 after QC. Try increasing the plate dimensions.',
+      'Subject A has 8 samples, which exceeds the plate capacity of 7 after placing QC samples. ' +
+      'Try increasing the plate dimensions.',
     ]);
   });
 
