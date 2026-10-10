@@ -29,7 +29,7 @@ From a sample sheet (CSV), Octopus:
 
 ## Running locally
 
-Prerequisites: Node.js 20 or newer and npm.
+Prerequisites: Node.js 22 or newer and npm.
 
 ```
 git clone https://github.com/UWPR/octopus.git
@@ -40,16 +40,20 @@ npm start
 
 This opens the app at http://localhost:3000 with hot reload.
 
-To produce the deployable static build:
+## Testing
 
-```
-npm run build
-```
+- `npm run typecheck` runs the TypeScript type check.
+- `npm run test:ci` runs the unit tests once, without the end-to-end tests.
+- `npx playwright test` runs the end-to-end tests in Google Chrome, which must be
+  installed. It starts the dev server on port 3000, or uses one that is already running.
 
-The optimized site is written to the `build/` folder. This is what is published to
-GitHub Pages.
+Use `npm run test:ci` rather than `npm test`. `npm test` also picks up the end-to-end
+tests in `src/tests/e2e/`, which fail under the unit test runner.
 
-## Deployment
+Every pull request runs `npm run typecheck` and `npm run test:ci` on GitHub, and the
+result is shown as a check on the pull request. The end-to-end tests do not run there.
+
+## Hosted app and offline copy
 
 The app is hosted on GitHub Pages at https://uwpr.github.io/octopus. Tagged versions
 are on the [Releases](https://github.com/UWPR/octopus/releases) page.
@@ -58,24 +62,34 @@ Each release also includes a single-file offline build, `octopus-<version>.html`
 can download that one file and open it in any modern browser with no installation and
 no network connection.
 
-The hosted site is updated by publishing a release on GitHub, which runs the tests
-and deploys the released commit. A pre-release gets its single-file build but does not
-update the hosted site. `npm run deploy:manual` is for emergencies only. It
-uploads whatever is in `build/` without building, and `npm run build:singlefile`
-writes its single-file build into the same folder. Run `npm run build` immediately
-before `npm run deploy:manual`, from a clean checkout of `main`.
+## Releasing
+
+The hosted site and the offline copy are updated only by publishing a release.
+
+1. Merge the changes into `main`.
+2. Set `version` in `package.json` to the new version. It names the offline copy and is
+   shown in the documentation.
+3. Publish a release on GitHub with a tag on a commit on `main`.
+
+The release workflow then checks that the commit is on `main`, runs the type check and
+the unit tests, builds the hosted site and the offline copy, deploys the hosted site to
+GitHub Pages, and attaches `octopus-<version>.html` to the release. A pre-release gets
+the offline copy but does not update the hosted site.
+
+`npm run deploy:manual` is for emergencies only. It uploads whatever is in `build/`
+without building, and `npm run build:singlefile` writes its single-file build into the
+same folder. Run `npm run build` immediately before `npm run deploy:manual`, from a
+clean checkout of `main`.
 
 ## Available scripts
 
 - `npm start` runs the dev server at http://localhost:3000.
-- `npm run build` creates the production build in `build/`.
+- `npm run build` creates the production build in `build/`, to check a build locally.
 - `npm run build:singlefile` creates a single self-contained `build/octopus-<version>.html` that runs offline from a local file, with all JavaScript, CSS, icons, and the logo inlined.
-- `npm run typecheck` runs the TypeScript type check.
-- `npm run test:ci` runs the unit tests once, without the Playwright end-to-end tests. CI and the release workflow run it.
+- `npm run typecheck` and `npm run test:ci` are described under Testing.
 
-Octopus is a Create React App, so the standard `npm test` (test runner) and
-`npm run eject` (one-way config ejection, not recommended) are also available but not
-part of the normal workflow.
+Octopus is a Create React App, so `npm run eject` (one-way config ejection) is also
+available. It is not recommended.
 
 ## License
 
