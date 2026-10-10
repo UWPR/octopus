@@ -7,10 +7,14 @@ import { screen, fireEvent, act } from '@testing-library/react';
  */
 export async function loadFile(inputLabel: 'Choose File' | 'Load Layout', file: File): Promise<void> {
   const readSpy = jest.spyOn(FileReader.prototype, 'readAsText');
-  fireEvent.change(screen.getByLabelText(inputLabel), { target: { files: [file] } });
-  expect(readSpy).toHaveBeenCalledTimes(1);
-  const reader = readSpy.mock.instances[0] as unknown as FileReader;
-  readSpy.mockRestore();
+  let reader: FileReader;
+  try {
+    fireEvent.change(screen.getByLabelText(inputLabel), { target: { files: [file] } });
+    expect(readSpy).toHaveBeenCalledTimes(1);
+    reader = readSpy.mock.instances[0] as unknown as FileReader;
+  } finally {
+    readSpy.mockRestore();
+  }
   await act(() => new Promise<void>(resolve => reader.addEventListener('loadend', () => resolve())));
 }
 
