@@ -1,9 +1,10 @@
 name: CI
 
-# Runs the type check and the unit tests on every push and pull request.
+# Runs the type check and the unit tests on every pull request and on every push to main.
 # The Playwright end-to-end tests are not run here.
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
