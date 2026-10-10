@@ -2819,6 +2819,15 @@ describe('Subject-grouping feasibility', () => {
     expect(result).toEqual({ isValid: true, errors: [], warnings: [] });
   });
 
+  it('Same Row validator rejects a subject of 12 when every row of one 8x12 plate holds 3 or 4 of 27 QC', () => {
+    const result = validateSubjectGroups([makeGroup('A', 12)], 'same-row', 12, 96, 96, 8, 27);
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toEqual([
+      'Subject A has 12 samples, which exceeds the row capacity of 9 after QC. ' +
+      'Try increasing the plate dimensions or switching to Same Plate constraint.',
+    ]);
+  });
+
   it('Same Plate validator rejects a subject of 8 when each 2x4 plate holds 1 of 2 QC samples', () => {
     const groups: SubjectGroup[] = [
       makeGroup('A', 8),

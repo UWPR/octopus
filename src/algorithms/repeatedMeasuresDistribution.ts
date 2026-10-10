@@ -93,11 +93,18 @@ export function validateSubjectGroups(
   const platesQcShare = qcCount > 0 ? Math.floor(qcCount / numPlates) : 0;
   const largestPlateCapacity = plateCapacity - platesQcShare;
 
+  // Under Same Row the QC split gives every row base or base + 1 QC samples, and at least one
+  // row gets only base, so no row has more wells free than rowCapacity - base.
+  const totalRows = numRows !== undefined ? numPlates * numRows : 0;
+  const rowsQcBase = totalRows > 0 ? Math.floor(qcCount / totalRows) : 0;
+  const largestRowCapacity = rowCapacity - rowsQcBase;
+
   // Check per-group capacity based on constraint level
   for (const group of groups) {
-    if (constraint === 'same-row' && group.size > rowCapacity) {
+    if (constraint === 'same-row' && group.size > largestRowCapacity) {
       errors.push(
-        `Subject ${group.subjectId} has ${group.size} samples, which exceeds the row capacity of ${rowCapacity}. ` +
+        `Subject ${group.subjectId} has ${group.size} samples, which exceeds the row capacity of ` +
+        `${largestRowCapacity}${rowsQcBase > 0 ? ' after QC' : ''}. ` +
         `Try increasing the plate dimensions or switching to Same Plate constraint.`
       );
     }
@@ -112,13 +119,11 @@ export function validateSubjectGroups(
 
   // For same-row: check if multi-sample groups can fit across all plates
   if (constraint === 'same-row' && numRows !== undefined) {
-    // Model the rows distributeQcByCovariate produces. Every row gets base QC samples and
+    // Model the rows distributeQcByCovariate produces. Every row gets rowsQcBase QC samples and
     // `extra` rows get one more, so row capacities take two values.
-    const totalRows = numPlates * numRows;
-    const base = Math.floor(qcCount / totalRows);
     const extra = qcCount % totalRows;
-    const fullerRowCap = Math.max(0, rowCapacity - base - 1);
-    const emptierRowCap = Math.max(0, rowCapacity - base);
+    const fullerRowCap = Math.max(0, largestRowCapacity - 1);
+    const emptierRowCap = Math.max(0, largestRowCapacity);
     const smallestRowCap = extra > 0 ? fullerRowCap : emptierRowCap;
 
     // Count groups by size
@@ -130,6 +135,8 @@ export function validateSubjectGroups(
 
     // Check slot feasibility across all plates
     for (const [groupSize, groupCount] of Array.from(groupsBySize.entries())) {
+      // A group larger than every row is already reported above
+      if (groupSize > largestRowCapacity) continue;
       const totalSlots = extra * Math.floor(fullerRowCap / groupSize) +
         (totalRows - extra) * Math.floor(emptierRowCap / groupSize);
       if (groupCount > totalSlots) {
