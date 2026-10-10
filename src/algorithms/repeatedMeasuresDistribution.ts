@@ -225,6 +225,8 @@ export function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup
  * @param globalProportions - Map of covariateKey → proportion across all experimental samples
  * @param plateRowSlotLimits - Optional per-plate limit on how many multi-sample groups can be assigned
  *   (for same-row constraint: each row holds floor(rowCap / groupSize) groups)
+ * @param groupingConstraint - The active constraint. Under Same Plate the error messages do not
+ *   suggest switching to Same Plate.
  * @returns Map from plate index to array of SubjectGroups assigned to that plate
  * @throws Error if a group cannot fit in any plate
  */
@@ -232,8 +234,16 @@ export function distributeGroupsToPlates(
   groups: SubjectGroup[],
   plateCapacities: number[],
   globalProportions: Map<string, number>,
-  plateRowSlotLimits?: number[]
+  plateRowSlotLimits?: number[],
+  groupingConstraint: GroupingConstraint = 'same-row'
 ): Map<number, SubjectGroup[]> {
+  const remedy = groupingConstraint === 'same-plate'
+    ? 'Try increasing the plate dimensions.'
+    : 'Try increasing the plate dimensions or switching to Same Plate constraint.';
+  const singletonRemedy = groupingConstraint === 'same-plate'
+    ? 'Try adjusting the plate dimensions.'
+    : 'Try adjusting the plate dimensions or switching to Same Plate constraint.';
+
   // Separate multi-sample groups from singletons
   const multiGroups = groups.filter(g => g.size > 1);
   const singletons = groups.filter(g => g.size === 1);
@@ -298,7 +308,7 @@ export function distributeGroupsToPlates(
           `Unable to fit all subject groups into available plates. ` +
           `Remaining plate capacities: [${remainingCapacities.join(', ')}]. ` +
           shapeParts.join('; ') + '. ' +
-          `Try increasing the plate dimensions or switching to Same Plate constraint.`
+          remedy
         );
       }
     }
@@ -355,7 +365,7 @@ export function distributeGroupsToPlates(
       throw new Error(
         `Unable to fit all samples into available plates. ` +
         `No remaining capacity for singleton sample after placing subject groups. ` +
-        `Try adjusting the plate dimensions or switching to Same Plate constraint.`
+        singletonRemedy
       );
     }
 
@@ -1217,19 +1227,8 @@ export function groupAwareRandomization(
     effectivePlateCapacities.push(plateCap);
   }
 
-  // If keepEmptyInLastPlate, reduce last plate's effective capacity
-  // to only what's needed for remaining experimental samples.
-  // Disabled for same-row constraint: row-slot geometry already constrains
-  // distribution tightly, and reducing capacity causes singleton imbalance.
-  const totalExperimental = experimentalSamples.length;
-  if (keepEmptyInLastPlate && numPlates > 1 && groupingConstraint !== 'same-row') {
-    const capacityBeforeLast = effectivePlateCapacities.slice(0, numPlates - 1)
-      .reduce((sum, c) => sum + c, 0);
-    const remainingForLast = Math.max(0, totalExperimental - capacityBeforeLast);
-    if (remainingForLast < effectivePlateCapacities[numPlates - 1]) {
-      effectivePlateCapacities[numPlates - 1] = remainingForLast;
-    }
-  }
+  // keepEmptyInLastPlate does not change plate capacities under a grouping constraint, because
+  // whole subject groups cannot fill the earlier plates exactly.
 
   // For same-row constraint, compute per-plate row-slot limits.
   // These limit how many multi-sample groups each plate can accept,
@@ -1262,7 +1261,8 @@ export function groupAwareRandomization(
     subjectGroups,
     effectivePlateCapacities,
     globalProportions,
-    plateRowSlotLimits
+    plateRowSlotLimits,
+    groupingConstraint
   );
 
   // Step 7: Initialize plate data structures
