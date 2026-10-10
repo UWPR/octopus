@@ -244,6 +244,108 @@ export function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup
   return result;
 }
 
+// Each groupsFitRows call gives the recipe search at most ROW_FIT_ITERATION_LIMIT steps, and
+// assignGroupsToPlatesByRows tries at most PLATE_ASSIGNMENT_STEP_LIMIT placements.
+const ROW_FIT_ITERATION_LIMIT = 5_000;
+const PLATE_ASSIGNMENT_STEP_LIMIT = 2_000;
+
+/**
+ * Returns true when the multi-sample groups fit into rows of the given capacities. Tries a
+ * best-fit-decreasing packing first, then findValidRecipes within ROW_FIT_ITERATION_LIMIT steps,
+ * so false can also mean the search ran out of steps.
+ */
+function groupsFitRows(groups: SubjectGroup[], rowCapacities: number[]): boolean {
+  const remaining = [...rowCapacities];
+  const sorted = [...groups].sort((a, b) => b.size - a.size);
+  let packed = true;
+  for (const group of sorted) {
+    let best = -1;
+    for (let r = 0; r < remaining.length; r++) {
+      if (remaining[r] >= group.size && (best < 0 || remaining[r] < remaining[best])) best = r;
+    }
+    if (best < 0) {
+      packed = false;
+      break;
+    }
+    remaining[best] -= group.size;
+  }
+  return packed || findValidRecipes(groups, rowCapacities, 1, ROW_FIT_ITERATION_LIMIT).length > 0;
+}
+
+/**
+ * Assigns the multi-sample groups to plates so that every plate can hold its groups in whole rows.
+ *
+ * Takes the groups in the given order and tries the plates by most remaining capacity, then by
+ * covariate balance, then at random, the same preference as the FFD loop in
+ * distributeGroupsToPlates. A plate is skipped when groupsFitRows rejects its groups plus the new
+ * one. When a group fits no plate, the search returns to the previous group and tries its next
+ * plate, up to PLATE_ASSIGNMENT_STEP_LIMIT placements. Of the plates in the same state (remaining
+ * capacity, row capacities and group sizes) only the first is tried for each group.
+ *
+ * On success fills plateAssignments, remainingCapacities and remainingRowSlots and returns true.
+ * On failure leaves them unchanged and returns false.
+ */
+function assignGroupsToPlatesByRows(
+  sortedGroups: SubjectGroup[],
+  plateRowCapacities: number[][],
+  globalProportions: Map<string, number>,
+  plateAssignments: Map<number, SubjectGroup[]>,
+  remainingCapacities: number[],
+  remainingRowSlots: number[] | undefined
+): boolean {
+  const plateState = (plateIdx: number, extra: SubjectGroup[] = []): string =>
+    plateRowCapacities[plateIdx].join(',') + '|' +
+    [...plateAssignments.get(plateIdx)!, ...extra].map(g => g.size).sort((a, b) => b - a).join(',');
+
+  const fitCache = new Map<string, boolean>();
+  const fitsRows = (plateIdx: number, group: SubjectGroup): boolean => {
+    const key = plateState(plateIdx, [group]);
+    let fits = fitCache.get(key);
+    if (fits === undefined) {
+      fits = groupsFitRows([...plateAssignments.get(plateIdx)!, group], plateRowCapacities[plateIdx]);
+      fitCache.set(key, fits);
+    }
+    return fits;
+  };
+
+  let steps = 0;
+  const place = (gi: number): boolean => {
+    if (gi === sortedGroups.length) return true;
+    if (++steps > PLATE_ASSIGNMENT_STEP_LIMIT) return false;
+    const group = sortedGroups[gi];
+
+    // Shuffle first so the stable sort breaks full ties at random
+    const candidates = shuffleArray(Array.from({ length: remainingCapacities.length }, (_, i) => i))
+      .filter(i => remainingCapacities[i] >= group.size && !(remainingRowSlots && remainingRowSlots[i] <= 0))
+      .map(i => ({
+        plateIdx: i,
+        remaining: remainingCapacities[i],
+        score: covariateImbalanceScore(
+          plateAssignments.get(i)!.flatMap(g => g.samples), group.samples, globalProportions
+        ),
+      }))
+      .sort((a, b) => b.remaining - a.remaining || a.score - b.score);
+
+    const triedStates = new Set<string>();
+    for (const { plateIdx } of candidates) {
+      const state = `${remainingCapacities[plateIdx]}|${plateState(plateIdx)}`;
+      if (triedStates.has(state)) continue;
+      triedStates.add(state);
+      if (!fitsRows(plateIdx, group)) continue;
+
+      plateAssignments.get(plateIdx)!.push(group);
+      remainingCapacities[plateIdx] -= group.size;
+      if (remainingRowSlots) remainingRowSlots[plateIdx] -= 1;
+      if (place(gi + 1)) return true;
+      plateAssignments.get(plateIdx)!.pop();
+      remainingCapacities[plateIdx] += group.size;
+      if (remainingRowSlots) remainingRowSlots[plateIdx] += 1;
+    }
+    return false;
+  };
+  return place(0);
+}
+
 /**
  * Distributes subject groups to plates using first-fit-decreasing bin packing.
  *
@@ -259,6 +361,9 @@ export function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup
  *   (for same-row constraint: each row holds floor(rowCap / groupSize) groups)
  * @param groupingConstraint - The active constraint. Under Same Plate the error messages do not
  *   suggest switching to Same Plate.
+ * @param plateRowCapacities - Optional row capacities of each plate after QC. When set, a plate
+ *   accepts a multi-sample group only if all of its groups still fit into its rows, and the
+ *   assignment backtracks when a group fits no plate (see assignGroupsToPlatesByRows).
  * @returns Map from plate index to array of SubjectGroups assigned to that plate
  * @throws Error if a group cannot fit in any plate
  */
@@ -267,7 +372,8 @@ export function distributeGroupsToPlates(
   plateCapacities: number[],
   globalProportions: Map<string, number>,
   plateRowSlotLimits?: number[],
-  groupingConstraint: GroupingConstraint = 'same-row'
+  groupingConstraint: GroupingConstraint = 'same-row',
+  plateRowCapacities?: number[][]
 ): Map<number, SubjectGroup[]> {
   const remedy = groupingConstraint === 'same-plate'
     ? 'Try increasing the plate dimensions.'
@@ -296,8 +402,13 @@ export function distributeGroupsToPlates(
     return plateAssignments.get(plateIdx)!.flatMap(g => g.samples);
   };
 
-  // Place multi-sample groups using FFD
-  for (let gi = 0; gi < sortedMultiGroups.length; gi++) {
+  const placedByRows = plateRowCapacities !== undefined && assignGroupsToPlatesByRows(
+    sortedMultiGroups, plateRowCapacities, globalProportions, plateAssignments, remainingCapacities, remainingRowSlots
+  );
+
+  // Place multi-sample groups using FFD. With row capacities this runs only when the row-aware
+  // assignment fails, so a request that has no layout gets the same error messages as before.
+  for (let gi = 0; !placedByRows && gi < sortedMultiGroups.length; gi++) {
     const group = sortedMultiGroups[gi];
     // Find plates that can fit this group, sorted by remaining capacity descending
     const candidatePlates: { plateIdx: number; remaining: number }[] = [];
@@ -1305,7 +1416,8 @@ export function groupAwareRandomization(
     effectivePlateCapacities,
     globalProportions,
     plateRowSlotLimits,
-    groupingConstraint
+    groupingConstraint,
+    groupingConstraint === 'same-row' ? effectiveRowCapacitiesPerPlate : undefined
   );
 
   // Step 7: Initialize plate data structures

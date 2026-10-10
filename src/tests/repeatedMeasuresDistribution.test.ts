@@ -2963,6 +2963,65 @@ describe('Subject-grouping feasibility', () => {
     );
   });
 
+  it('PBT: Same Row generates every layout that fills every well', () => {
+    fc.assert(
+      fc.property(filledLayoutArb, ({ numRows, numColumns, numQc, groups }) => {
+        const samples = [
+          ...groups.flatMap(g => g.samples.map(s => ({
+            name: s.name,
+            metadata: { SubjectID: g.subjectId.startsWith('__singleton_') ? '' : g.subjectId, Treatment: 'Drug' },
+          }))),
+          ...makeQc('QC', numQc),
+        ];
+        expect(() =>
+          groupAwareRandomization(samples, ['Treatment'], sameRow, false, numRows, numColumns)
+        ).not.toThrow();
+      }),
+      { numRuns: 300 }
+    );
+  });
+
+  it('Same Row splits subjects of 5, 4, 4, 3, 2, 1 and 1 across two 2x5 plates so each plate fills its rows', () => {
+    // Every layout uses rows of 5, 4+1, 4+1 and 3+2. A split by plate capacity alone puts 4, 4 and 2
+    // on one plate, and no two rows of 5 hold those.
+    const sizes = [5, 3, 2, 1, 4, 4, 1];
+    const samples = sizes.flatMap((size, i) => makeSubject(`S${i}`, size, i % 2 === 0 ? 'Placebo' : 'Drug'));
+
+    const failures = collectFailures(50, () =>
+      groupAwareRandomization(samples, ['Treatment'], sameRow, false, 2, 5)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  // Two 4x6 plates with every row cut into subjects of 1 to 6 samples, so a Same Row layout exists.
+  const filledTwoPlatesArb = fc.gen().map(gen => {
+    const samples: SearchData[] = [];
+    let subjects = 0;
+    for (let row = 0; row < 8; row++) {
+      let free = 6;
+      while (free > 0) {
+        const size = gen(fc.integer, { min: 1, max: free });
+        samples.push(...makeSubject(`S${subjects++}`, size, gen(fc.constantFrom, 'Drug', 'Placebo')));
+        free -= size;
+      }
+    }
+    return samples;
+  });
+
+  it('Same Row generates 300 requests that fill two 4x6 plates without an error', () => {
+    const requests = fc.sample(filledTwoPlatesArb, { numRuns: 300, seed: 20261009 });
+
+    const failures: string[] = [];
+    requests.forEach((samples, i) => {
+      try {
+        groupAwareRandomization(samples, ['Treatment'], sameRow, false, 4, 6);
+      } catch (e) {
+        failures.push(`request ${i}: ${(e as Error).message}`);
+      }
+    });
+    expect(failures).toEqual([]);
+  });
+
   // Subjects up to 2 wells wider than a row, blank-subject singletons and up to 6 QC in 1 to 3 keys.
   const arbitraryRequestArb = fc.gen().map(gen => {
     const numRows = gen(fc.integer, { min: 1, max: 4 });

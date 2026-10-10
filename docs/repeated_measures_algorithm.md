@@ -92,6 +92,14 @@ Assigns patient groups to plates largest-first with covariate balance as a tiebr
 
 When using the "Same Row" constraint, each plate has a limit on how many multi-sample groups it can accept: the sum over its rows of `floor(rowCapacity / smallestGroupSize)`. This is an upper bound on the group count, not a row-fit check, so a plate can still receive a set of groups that no row split can hold. See Packing Failures.
 
+### Row-Aware Assignment (Same-Row Constraint)
+
+Under "Same Row", a plate accepts a multi-sample group only if all of its groups, the new one included, still fit into the plate's rows after QC. The check tries a best-fit packing of the groups into the rows first and then the Stage 4 recipe search with a small step limit.
+
+When a group fits no plate, the assignment goes back to the previous group and tries that group's next plate, in the same order of preference as above. The search stops after 2,000 placements. Plates in the same state (same remaining capacity, row capacities and group sizes) are tried only once for each group.
+
+If no split is found, the capacity-only assignment above runs as it did before the row check, so a request that has no layout gets the same error messages as before.
+
 ### Example
 
 20 groups (52 experimental samples) + 12 QC = 64 samples on a 6×12 plate (72 wells). Everything fits on one plate, so this stage is trivial for the FLARE dataset.
@@ -291,7 +299,7 @@ When the grouping constraint is "Same Plate" instead of "Same Row", the pipeline
 
 When the pipeline cannot fit the subject groups into the plates or rows, it throws a `PackingError`, and Generate, Re-randomize and single-plate re-randomize display its message.
 
-Some multi-plate Same Row requests that have a layout fail on every run. Plate assignment (Stage 3) does not consider row shapes, and for some inputs it makes the same choice every run. For example, two 2×5 plates with subjects of 5, 3, 2, 1, 4, 4 and 1 samples, with treatments alternating Placebo, Drug, Placebo and so on per subject, always put the groups of 4, 4 and 2 on one plate, which no row split can hold.
+Under "Same Row", plate assignment (Stage 3) only gives a plate groups that fit into its rows, so a multi-plate request that has a layout fails only if the search reaches one of its step limits. For example, two 2×5 plates with subjects of 5, 3, 2, 1, 4, 4 and 1 samples have a layout, but none with the groups of 4, 4 and 2 on one plate. With treatments alternating Placebo, Drug, Placebo and so on, the split by plate capacity alone puts those three groups on one plate every run.
 
 ---
 
