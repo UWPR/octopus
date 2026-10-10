@@ -5,31 +5,13 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import App from '../App';
 import { serializeLayout, LayoutSettings, CovariateColorMap } from '../utils/layoutIO';
 import { SearchData } from '../utils/types';
+import { loadFile, csvFile, selectCovariate } from './appFileInput';
 
 const REPLACE_DESIGN_MESSAGE = 'This will replace the current plate design and settings. Continue?';
-
-// Drive a file input with an in-memory file and wait until App has handled the file text. The
-// read is asynchronous, so the helper waits for the reader's loadend event, which fires after
-// App's onload handler. Waiting inside act also runs the effects of that state update.
-async function loadFile(inputLabel: 'Choose File' | 'Load Layout', file: File): Promise<void> {
-  const readSpy = jest.spyOn(FileReader.prototype, 'readAsText');
-  fireEvent.change(screen.getByLabelText(inputLabel), { target: { files: [file] } });
-  expect(readSpy).toHaveBeenCalledTimes(1);
-  const reader = readSpy.mock.instances[0] as unknown as FileReader;
-  readSpy.mockRestore();
-  await act(() => new Promise<void>(resolve => reader.addEventListener('loadend', () => resolve())));
-}
-
-const csvFile = (text: string, name: string) => new File([text], name, { type: 'text/csv' });
-
-function selectCovariate(optionName: string) {
-  (screen.getByRole('option', { name: optionName }) as HTMLOptionElement).selected = true;
-  fireEvent.change(screen.getByLabelText('Select Covariates:'));
-}
 
 const selectedCovariateCount = () =>
   (screen.getByLabelText('Select Covariates:') as HTMLSelectElement).selectedOptions.length;
