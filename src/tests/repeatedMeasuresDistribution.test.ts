@@ -1,5 +1,5 @@
 import * as fc from 'fast-check';
-import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization, covariateImbalanceScore, computeGlobalProportions, distributeQcByCovariate } from '../algorithms/repeatedMeasuresDistribution';
+import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization, covariateImbalanceScore, computeGlobalProportions, distributeQcByCovariate, PackingError } from '../algorithms/repeatedMeasuresDistribution';
 import { SearchData, SubjectGroup, RepeatedMeasuresConfig } from '../utils/types';
 
 // Helper: create a sample with a subject column value
@@ -37,10 +37,16 @@ const PACKING_ERROR = new RegExp('^(' + [
   /Total samples \(\d+\) exceed total row capacity/,
 ].map(r => r.source).join('|') + ')');
 
+// A subject larger than every plate is a plain Error, since no rerun can fit it.
+const SUBJECT_EXCEEDS_PLATE = /^Unable to fit all subject groups into available plates\. Subject \S+ \(size \d+\) exceeds the largest plate capacity/;
+
 // Fails unless `thrown` is one of the packing errors, so a TypeError cannot pass as infeasible.
+// Every packing error except SUBJECT_EXCEEDS_PLATE must be a PackingError, the type useRandomization retries.
 const expectPackingError = (thrown: unknown): void => {
   expect(thrown).toBeInstanceOf(Error);
-  expect((thrown as Error).message).toMatch(PACKING_ERROR);
+  const message = (thrown as Error).message;
+  expect(message).toMatch(PACKING_ERROR);
+  if (!SUBJECT_EXCEEDS_PLATE.test(message)) expect(thrown).toBeInstanceOf(PackingError);
 };
 
 // ─── Property-Based Tests ───────────────────────────────────────────────────
