@@ -245,31 +245,39 @@ export function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup
 }
 
 // Each groupsFitRows call gives the recipe search at most ROW_FIT_ITERATION_LIMIT steps, and
-// assignGroupsToPlatesByRows tries at most PLATE_ASSIGNMENT_STEP_LIMIT placements.
+// assignGroupsToPlatesByRows undoes at most PLATE_ASSIGNMENT_BACKTRACK_LIMIT placements.
 const ROW_FIT_ITERATION_LIMIT = 5_000;
-const PLATE_ASSIGNMENT_STEP_LIMIT = 2_000;
+const PLATE_ASSIGNMENT_BACKTRACK_LIMIT = 2_000;
 
 /**
- * Returns true when the multi-sample groups fit into rows of the given capacities. Tries a
- * best-fit-decreasing packing first, then findValidRecipes within ROW_FIT_ITERATION_LIMIT steps,
- * so false can also mean the search ran out of steps.
+ * Packs the groups into rows largest first, each into the row with the fewest free wells that still
+ * holds it. Returns the row index of each group, in the order of `groups`, or undefined when a
+ * group fits no row.
  */
-function groupsFitRows(groups: SubjectGroup[], rowCapacities: number[]): boolean {
+function bestFitDecreasingRows(groups: SubjectGroup[], rowCapacities: number[]): number[] | undefined {
   const remaining = [...rowCapacities];
-  const sorted = [...groups].sort((a, b) => b.size - a.size);
-  let packed = true;
-  for (const group of sorted) {
+  const rowOf = new Array<number>(groups.length);
+  const order = groups.map((_, i) => i).sort((a, b) => groups[b].size - groups[a].size);
+  for (const gi of order) {
     let best = -1;
     for (let r = 0; r < remaining.length; r++) {
-      if (remaining[r] >= group.size && (best < 0 || remaining[r] < remaining[best])) best = r;
+      if (remaining[r] >= groups[gi].size && (best < 0 || remaining[r] < remaining[best])) best = r;
     }
-    if (best < 0) {
-      packed = false;
-      break;
-    }
-    remaining[best] -= group.size;
+    if (best < 0) return undefined;
+    remaining[best] -= groups[gi].size;
+    rowOf[gi] = best;
   }
-  return packed || findValidRecipes(groups, rowCapacities, 1, ROW_FIT_ITERATION_LIMIT).length > 0;
+  return rowOf;
+}
+
+/**
+ * Returns true when the multi-sample groups fit into rows of the given capacities. Tries
+ * bestFitDecreasingRows first, then findValidRecipes within ROW_FIT_ITERATION_LIMIT steps, so false
+ * can also mean the search ran out of steps.
+ */
+function groupsFitRows(groups: SubjectGroup[], rowCapacities: number[]): boolean {
+  return bestFitDecreasingRows(groups, rowCapacities) !== undefined ||
+    findValidRecipes(groups, rowCapacities, 1, ROW_FIT_ITERATION_LIMIT, true).length > 0;
 }
 
 /**
@@ -279,8 +287,9 @@ function groupsFitRows(groups: SubjectGroup[], rowCapacities: number[]): boolean
  * covariate balance, then at random, the same preference as the FFD loop in
  * distributeGroupsToPlates. A plate is skipped when groupsFitRows rejects its groups plus the new
  * one. When a group fits no plate, the search returns to the previous group and tries its next
- * plate, up to PLATE_ASSIGNMENT_STEP_LIMIT placements. Of the plates in the same state (remaining
- * capacity, row capacities and group sizes) only the first is tried for each group.
+ * plate. The search gives up after PLATE_ASSIGNMENT_BACKTRACK_LIMIT such returns. Of the plates in
+ * the same state (remaining capacity, row capacities and group sizes) only the first is tried for
+ * each group.
  *
  * On success fills plateAssignments, remainingCapacities and remainingRowSlots and returns true.
  * On failure leaves them unchanged and returns false.
@@ -308,10 +317,9 @@ function assignGroupsToPlatesByRows(
     return fits;
   };
 
-  let steps = 0;
+  let backtracks = 0;
   const place = (gi: number): boolean => {
     if (gi === sortedGroups.length) return true;
-    if (++steps > PLATE_ASSIGNMENT_STEP_LIMIT) return false;
     const group = sortedGroups[gi];
 
     // Shuffle first so the stable sort breaks full ties at random
@@ -328,6 +336,7 @@ function assignGroupsToPlatesByRows(
 
     const triedStates = new Set<string>();
     for (const { plateIdx } of candidates) {
+      if (backtracks > PLATE_ASSIGNMENT_BACKTRACK_LIMIT) return false;
       const state = `${remainingCapacities[plateIdx]}|${plateState(plateIdx)}`;
       if (triedStates.has(state)) continue;
       triedStates.add(state);
@@ -340,6 +349,7 @@ function assignGroupsToPlatesByRows(
       plateAssignments.get(plateIdx)!.pop();
       remainingCapacities[plateIdx] += group.size;
       if (remainingRowSlots) remainingRowSlots[plateIdx] += 1;
+      backtracks++;
     }
     return false;
   };
@@ -801,13 +811,16 @@ function findRecipeForRow(rowIdx: number, state: RecipeSearchState): boolean {
  * groups evenly; forward packs them tightly), so the combined set of up
  * to maxRecipes recipes has good diversity.
  *
+ * @param firstPassOnly - When true, skips the second pass. The first pass alone finds a recipe
+ *   whenever one exists within the iteration limit.
  * @returns Array of valid recipes (each recipe is an array of Maps: rowIdx → (size → count))
  */
 function findValidRecipes(
   multiGroups: SubjectGroup[],
   rowCapacities: number[],
   recipesPerPass: number = 50,
-  iterationLimit: number = 500_000
+  iterationLimit: number = 500_000,
+  firstPassOnly: boolean = false
 ): Map<number, number>[][] {
   const sizeCounts = new Map<number, number>();
   for (const g of multiGroups) {
@@ -837,7 +850,7 @@ function findValidRecipes(
   // Second pass: forward search (descending count for largest size)
   // explores recipes that pack large groups tightly.
   // Collects up to recipesPerPass additional unique recipes (dedup is shared).
-  if (state.recipeIterations < iterationLimit) {
+  if (!firstPassOnly && state.recipeIterations < iterationLimit) {
     state.searchReversed = false;
     state.maxRecipes = state.validRecipes.length + recipesPerPass;
     for (const [size, count] of Array.from(sizeCounts.entries())) {
@@ -1217,7 +1230,20 @@ export function distributeGroupsToRows(
   } else {
     // Step 5: Fallback to greedy FFD
     const sortedMultiGroups = sortGroupsByDescendingSize(multiGroups);
-    greedyFFDPlacement(sortedMultiGroups, globalProportions, state);
+    try {
+      greedyFFDPlacement(sortedMultiGroups, globalProportions, state);
+    } catch (err) {
+      // distributeGroupsToPlates accepts a plate whose groups bestFitDecreasingRows packs, so
+      // that packing must be tried before the greedy error is reported
+      const rowOf = err instanceof PackingError ? bestFitDecreasingRows(multiGroups, rowCapacities) : undefined;
+      if (!rowOf) throw err;
+      state.remainingCapacities = [...rowCapacities];
+      for (let i = 0; i < rowCapacities.length; i++) state.rowAssignments.set(i, []);
+      multiGroups.forEach((group, gi) => {
+        state.rowAssignments.get(rowOf[gi])!.push(group);
+        state.remainingCapacities[rowOf[gi]] -= group.size;
+      });
+    }
   }
 
   // Step 6: Fill remaining capacity with singletons

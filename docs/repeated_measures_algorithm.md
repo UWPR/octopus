@@ -96,7 +96,7 @@ When using the "Same Row" constraint, each plate has a limit on how many multi-s
 
 Under "Same Row", a plate accepts a multi-sample group only if all of its groups, the new one included, still fit into the plate's rows after QC. The check tries a best-fit packing of the groups into the rows first and then the Stage 4 recipe search with a small step limit.
 
-When a group fits no plate, the assignment goes back to the previous group and tries that group's next plate, in the same order of preference as above. The search stops after 2,000 placements. Plates in the same state (same remaining capacity, row capacities and group sizes) are tried only once for each group.
+When a group fits no plate, the assignment goes back to the previous group and tries that group's next plate, in the same order of preference as above. The search stops after it has gone back 2,000 times. Plates in the same state (same remaining capacity, row capacities and group sizes) are tried only once for each group.
 
 If no split is found, the capacity-only assignment above runs as it did before the row check, so a request that has no layout gets the same error messages as before.
 
@@ -253,6 +253,8 @@ If the search returns no recipe, because none exists or the iteration budget ran
 4. Pick the row with the best (lowest) score. Ties broken by most remaining capacity, then random.
 
 When no recipe exists, the greedy pass cannot fit the groups either, since any placement it finds is a recipe, and it throws a `PackingError`. The fallback matters only when the budget ran out before the search reached a recipe that exists.
+
+If the greedy placement leaves a group without a row, the groups are packed largest first, each into the row with the fewest free wells that still holds it. Stage 3 tries the same packing first when it checks a plate under "Same Row". If that packing also fails, the greedy placement's error message is shown.
 
 ---
 
