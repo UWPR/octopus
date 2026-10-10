@@ -36,8 +36,7 @@
     "test:greedyPlacement": "react-scripts test --watchAll=false --testPathPattern=greedySpatialPlacement",
     "test:blockCapacities": "react-scripts test --watchAll=false --testPathPattern=assignBlockCapacities",
     "eject": "react-scripts eject",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "deploy:manual": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
