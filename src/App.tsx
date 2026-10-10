@@ -871,6 +871,8 @@ const App: React.FC = () => {
   // Re-randomization handler
   const handleReRandomize = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
+      setRandomizationError(null);
+
       // Clear highlighting since plate layout is changing
       setSelectedCombination(null);
       setSelectedSubject(null);
@@ -882,23 +884,30 @@ const App: React.FC = () => {
       const repeatedMeasuresConfig: RepeatedMeasuresConfig | undefined =
         subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
 
-      // Re-randomize - colors are already generated, so we don't need to regenerate them
-      reRandomize(
-        searches,
-        selectedCovariates,
-        selectedAlgorithm,
-        keepEmptyInLastPlate,
-        plateRows,
-        plateColumns,
-        repeatedMeasuresConfig,
-        naPolicy
-      );
+      // Re-randomize - colors are already generated, so we don't need to regenerate them.
+      // On an error the previous layout stays on screen.
+      try {
+        reRandomize(
+          searches,
+          selectedCovariates,
+          selectedAlgorithm,
+          keepEmptyInLastPlate,
+          plateRows,
+          plateColumns,
+          repeatedMeasuresConfig,
+          naPolicy
+        );
+      } catch (err: any) {
+        setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
+      }
     }
   };
 
   // Single plate re-randomization handler
   const handleReRandomizePlate = (plateIndex: number) => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
+      setRandomizationError(null);
+
       // Clear highlighting since plate layout is changing
       setSelectedCombination(null);
       setSelectedSubject(null);
@@ -910,17 +919,22 @@ const App: React.FC = () => {
       const repeatedMeasuresConfig: RepeatedMeasuresConfig | undefined =
         subjectColumn ? { subjectColumn, groupingConstraint } : undefined;
 
-      reRandomizeSinglePlate(
-        plateIndex,
-        searches,
-        selectedCovariates,
-        selectedAlgorithm,
-        keepEmptyInLastPlate,
-        plateRows,
-        plateColumns,
-        repeatedMeasuresConfig,
-        naPolicy
-      );
+      // On an error the previous layout of the plate stays on screen
+      try {
+        reRandomizeSinglePlate(
+          plateIndex,
+          searches,
+          selectedCovariates,
+          selectedAlgorithm,
+          keepEmptyInLastPlate,
+          plateRows,
+          plateColumns,
+          repeatedMeasuresConfig,
+          naPolicy
+        );
+      } catch (err: any) {
+        setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
+      }
       // Quality metrics will be recalculated automatically via useEffect
     }
   };
