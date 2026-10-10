@@ -29,6 +29,20 @@ const makeGroup = (id: string, size: number, treatment: string = 'Drug'): Subjec
 const DRUG_PLACEBO_PROPORTIONS = new Map<string, number>([['Drug', 0.5], ['Placebo', 0.5]]);
 const EMPTY_PROPORTIONS = new Map<string, number>();
 
+// Messages the group-aware pipeline throws when the groups do not fit the plates or rows.
+const PACKING_ERROR = new RegExp('^(' + [
+  /Unable to fit all (subject groups|samples) into available (plates|rows)\. /,
+  /Cannot fit \d+ subject groups of size \d+ into the available rows\. /,
+  /Subject \S+ has \d+ samples, but the largest row only has /,
+  /Total samples \(\d+\) exceed total row capacity/,
+].map(r => r.source).join('|') + ')');
+
+// Fails unless `thrown` is one of the packing errors, so a TypeError cannot pass as infeasible.
+const expectPackingError = (thrown: unknown): void => {
+  expect(thrown).toBeInstanceOf(Error);
+  expect((thrown as Error).message).toMatch(PACKING_ERROR);
+};
+
 // ─── Property-Based Tests ───────────────────────────────────────────────────
 
 describe('Property 1: Subject grouping is complete and disjoint', () => {
@@ -122,7 +136,8 @@ describe('Property 2: Same Plate grouping invariant', () => {
           let result: Map<number, SubjectGroup[]>;
           try {
             result = distributeGroupsToPlates(groups, plateCapacities, DRUG_PLACEBO_PROPORTIONS);
-          } catch {
+          } catch (e) {
+            expectPackingError(e);
             return; // infeasible packing is acceptable
           }
 
@@ -206,7 +221,8 @@ describe('Property 3: Same Row grouping invariant + Property 5: Row capacity is 
           let result: Map<number, SubjectGroup[]>;
           try {
             result = distributeGroupsToRows(groups, rowCapacities, DRUG_PLACEBO_PROPORTIONS);
-          } catch {
+          } catch (e) {
+            expectPackingError(e);
             return; // infeasible packing is acceptable
           }
 
@@ -637,7 +653,8 @@ describe('Property 6: QC samples reduce effective capacity for group fitting', (
               numRows,
               numColumns
             );
-          } catch {
+          } catch (e) {
+            expectPackingError(e);
             return; // infeasible packing is acceptable
           }
 
@@ -2859,5 +2876,127 @@ describe('Subject-grouping feasibility', () => {
       if (perPlate.join(',') !== '2,3,3') unevenRuns.push(perPlate.join(','));
     }
     expect(unevenRuns).toEqual([]);
+  });
+
+  it('Same Plate validator accepts a subject that fills the plate holding no QC', () => {
+    // 1 QC sample on two 2x4 plates. One plate keeps all 8 wells, so a subject of 8 fits there.
+    const samples = [...makeSubject('A', 8, 'Drug'), ...makeQc('QC', 1)];
+
+    const validation = validateSubjectGroups(
+      buildSubjectGroups(samples.filter(s => !s.isQC), 'SubjectID'), 'same-plate', 4, 8, 16, 2, 1
+    );
+    expect(validation).toEqual({ isValid: true, errors: [], warnings: [] });
+
+    const failures = collectFailures(20, () =>
+      groupAwareRandomization(samples, ['Treatment'], samePlate, false, 2, 4)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  // A random order of 0..n-1, drawn from the generator.
+  const genPermutation = (gen: fc.GeneratorValue, n: number): number[] => {
+    const remaining = Array.from({ length: n }, (_, i) => i);
+    const order: number[] = [];
+    while (remaining.length > 0) {
+      order.push(remaining.splice(gen(fc.integer, { min: 0, max: remaining.length - 1 }), 1)[0]);
+    }
+    return order;
+  };
+
+  // Splits `count` into `numBuckets` counts that differ by at most one, extras in a random order.
+  const genEvenSplit = (gen: fc.GeneratorValue, count: number, numBuckets: number): number[] => {
+    const split = new Array(numBuckets).fill(Math.floor(count / numBuckets));
+    genPermutation(gen, numBuckets).slice(0, count % numBuckets).forEach(i => { split[i] += 1; });
+    return split;
+  };
+
+  // Every well of every plate is filled. QC is split across plates and rows the way
+  // distributeQcByCovariate splits it, and each row's remaining wells are cut into subjects.
+  const filledLayoutArb = fc.gen().map(gen => {
+    const numPlates = gen(fc.integer, { min: 1, max: 3 });
+    const numRows = gen(fc.integer, { min: 1, max: 4 });
+    const numColumns = gen(fc.integer, { min: 2, max: 8 });
+    const numQc = gen(fc.integer, { min: 0, max: Math.min(numPlates * numRows * 2, numPlates * numRows * numColumns - 1) });
+
+    const groups: SubjectGroup[] = [];
+    let singletons = 0;
+    genEvenSplit(gen, numQc, numPlates).forEach(plateQc => {
+      genEvenSplit(gen, plateQc, numRows).forEach(rowQc => {
+        let free = numColumns - rowQc;
+        while (free > 0) {
+          const size = gen(fc.integer, { min: 1, max: free });
+          const subjectId = size === 1 && gen(fc.boolean) ? `__singleton_${singletons++}` : `S${groups.length}`;
+          groups.push(makeGroup(subjectId, size));
+          free -= size;
+        }
+      });
+    });
+    return { numPlates, numRows, numColumns, numQc, groups };
+  });
+
+  it('PBT: the validator accepts every layout that fills every well', () => {
+    fc.assert(
+      fc.property(filledLayoutArb, ({ numPlates, numRows, numColumns, numQc, groups }) => {
+        const plateCapacity = numRows * numColumns;
+        for (const constraint of ['same-row', 'same-plate'] as const) {
+          const result = validateSubjectGroups(
+            groups, constraint, numColumns, plateCapacity, numPlates * plateCapacity, numRows, numQc
+          );
+          expect(result.errors).toEqual([]);
+          expect(result.isValid).toBe(true);
+        }
+      }),
+      { numRuns: 300 }
+    );
+  });
+
+  // Subjects up to 2 wells wider than a row, blank-subject singletons and up to 6 QC in 1 to 3 keys.
+  const arbitraryRequestArb = fc.gen().map(gen => {
+    const numRows = gen(fc.integer, { min: 1, max: 4 });
+    const numColumns = gen(fc.integer, { min: 2, max: 8 });
+    const constraint = gen(fc.constantFrom, 'same-row' as const, 'same-plate' as const);
+    const keepEmptyInLastPlate = gen(fc.boolean);
+
+    const samples: SearchData[] = [];
+    const numSubjects = gen(fc.integer, { min: 1, max: 12 });
+    for (let s = 0; s < numSubjects; s++) {
+      const size = gen(fc.integer, { min: 1, max: numColumns + 2 });
+      samples.push(...makeSubject(`S${s}`, size, gen(fc.constantFrom, 'Drug', 'Placebo')));
+    }
+    const numSingletons = gen(fc.integer, { min: 0, max: 4 });
+    for (let s = 0; s < numSingletons; s++) {
+      samples.push({ name: `blank_${s}`, metadata: { SubjectID: '', Treatment: 'Drug' } });
+    }
+    const numQcKeys = gen(fc.integer, { min: 1, max: 3 });
+    const numQc = gen(fc.integer, { min: 0, max: 6 });
+    for (let q = 0; q < numQc; q++) {
+      samples.push(...makeQc(`QC${q % numQcKeys}`, 1).map(qc => ({ ...qc, name: `QC_${q}` })));
+    }
+    return { numRows, numColumns, constraint, keepEmptyInLastPlate, samples, numQc };
+  });
+
+  it('PBT: whenever the validator rejects a request, groupAwareRandomization throws a packing error', () => {
+    fc.assert(
+      fc.property(arbitraryRequestArb, ({ numRows, numColumns, constraint, keepEmptyInLastPlate, samples, numQc }) => {
+        // Same inputs App.tsx passes to the validator
+        const plateCapacity = numRows * numColumns;
+        const numPlates = Math.ceil(samples.length / plateCapacity);
+        const groups = buildSubjectGroups(samples.filter(s => !s.isQC), 'SubjectID');
+        const validation = validateSubjectGroups(
+          groups, constraint, numColumns, plateCapacity, numPlates * plateCapacity, numRows, numQc
+        );
+        if (validation.isValid) return;
+
+        const config: RepeatedMeasuresConfig = { subjectColumn: 'SubjectID', groupingConstraint: constraint };
+        let thrown: unknown;
+        try {
+          groupAwareRandomization(samples, ['Treatment'], config, keepEmptyInLastPlate, numRows, numColumns);
+        } catch (e) {
+          thrown = e;
+        }
+        expectPackingError(thrown);
+      }),
+      { numRuns: 300 }
+    );
   });
 });
