@@ -2736,7 +2736,7 @@ describe('Edge case: plate-level packing failure (edge-case-plate-infeasible)', 
 });
 
 
-// ─── Feasibility: validator, QC allocator and packing agree ─────────────────
+// --- Feasibility: validator, QC allocator and packing agree ---
 
 describe('Subject-grouping feasibility', () => {
   const sameRow: RepeatedMeasuresConfig = { subjectColumn: 'SubjectID', groupingConstraint: 'same-row' };
