@@ -49,11 +49,6 @@ npm run build
 The optimized site is written to the `build/` folder. This is what is published to
 GitHub Pages.
 
-The hosted site is updated by publishing a release on GitHub, which runs the tests
-and deploys the commit. `npm run deploy:manual` uploads `build/` to GitHub Pages
-directly and is for emergencies only. Run it after `npm run build`, from a clean
-checkout of `main`.
-
 ## Deployment
 
 The app is hosted on GitHub Pages at https://uwpr.github.io/octopus. Tagged versions
@@ -62,6 +57,12 @@ are on the [Releases](https://github.com/UWPR/octopus/releases) page.
 Each release also includes a single-file offline build, `octopus-<version>.html`. You
 can download that one file and open it in any modern browser with no installation and
 no network connection.
+
+The hosted site is updated by publishing a release on GitHub, which runs the tests
+and deploys the released commit. `npm run deploy:manual` is for emergencies only. It
+uploads whatever is in `build/` without building, and `npm run build:singlefile`
+writes its single-file build into the same folder. Run `npm run build` immediately
+before `npm run deploy:manual`, from a clean checkout of `main`.
 
 ## Available scripts
 
