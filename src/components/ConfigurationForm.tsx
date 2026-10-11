@@ -167,10 +167,13 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
         {/* Left Column: ID Column Selection and Algorithm */}
         <div style={styles.compactColumn}>
           <label htmlFor="idColumn" style={styles.compactLabel}>Select ID Column:</label>
+          {/* A saved layout has no CSV rows to rebuild the sample names from, so it keeps its ID column */}
           <select
             id="idColumn"
             value={selectedIdColumn}
             onChange={onIdColumnChange}
+            disabled={isLayoutFile}
+            title={isLayoutFile ? 'A saved layout keeps its ID column. Choose the sample CSV to change it.' : undefined}
             style={styles.compactSelect}
           >
             {availableColumns.map((column) => (
