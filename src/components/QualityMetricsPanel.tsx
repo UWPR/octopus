@@ -72,25 +72,27 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                   {numPlates > 1 && (
                   <div style={styles.compactScoreItem}>
                     <span style={styles.compactItemLabel}>Avg Balance:</span>
+                    <QualitySwatch color={getQualityColor(metrics.plateDiversity.averageBalanceScore)} />
                     <span style={{
                       ...styles.compactItemValue,
+                      ...styles.scoreNumber,
                       color: getQualityColor(metrics.plateDiversity.averageBalanceScore)
                     }}>
                       {formatScore(metrics.plateDiversity.averageBalanceScore)}
                     </span>
-                    <QualitySwatch color={getQualityColor(metrics.plateDiversity.averageBalanceScore)} />
                   </div>
                   )}
                   {QUALITY_DISPLAY_CONFIG.showClusteringScore && (
                     <div style={styles.compactScoreItem}>
                       <span style={styles.compactItemLabel}>Avg Clustering Score:</span>
+                      <QualitySwatch color={getQualityColor(metrics.plateDiversity.averageClusteringScore)} />
                       <span style={{
                         ...styles.compactItemValue,
+                        ...styles.scoreNumber,
                         color: getQualityColor(metrics.plateDiversity.averageClusteringScore)
                       }}>
                         {formatScore(metrics.plateDiversity.averageClusteringScore)}
                       </span>
-                      <QualitySwatch color={getQualityColor(metrics.plateDiversity.averageClusteringScore)} />
                     </div>
                   )}
                 </div>
@@ -112,6 +114,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                             <QualitySwatch color={getQualityColor(plate.overallScore)} size={12} />
                             <span style={{
                               ...styles.overallScoreValue,
+                              ...styles.scoreNumber,
                               color: getQualityColor(plate.overallScore)
                             }}>
                               {formatScore(plate.overallScore)}
@@ -127,7 +130,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                               color: getQualityColor(plate.balanceScore)
                             }}>
                               <QualitySwatch color={getQualityColor(plate.balanceScore)} />
-                              {' '}{formatScore(plate.balanceScore)}
+                              <span style={styles.scoreNumber}>{formatScore(plate.balanceScore)}</span>
                             </span>
                           </div>
                           )}
@@ -139,7 +142,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                                 color: getQualityColor(plate.clusteringScore)
                               }}>
                                 <QualitySwatch color={getQualityColor(plate.clusteringScore)} />
-                                {' '}{formatScore(plate.clusteringScore)}
+                                <span style={styles.scoreNumber}>{formatScore(plate.clusteringScore)}</span>
                               </span>
                             </div>
                           )}
@@ -277,15 +280,16 @@ const styles = {
     marginTop: '2px',
   },
 
+  // Label, swatch and number columns, so the average rows line up whatever the label length
   compactAverageScores: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px',
+    display: 'grid',
+    gridTemplateColumns: 'auto auto auto',
+    alignItems: 'center',
+    columnGap: '8px',
+    rowGap: '4px',
   },
   compactScoreItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
+    display: 'contents',
   },
   compactItemLabel: {
     fontSize: '12px',
@@ -394,8 +398,18 @@ const styles = {
     color: '#666',
   },
   scoreValue: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
     fontSize: '12px',
     fontWeight: '600',
+  },
+  // Right-aligned in a fixed width, so 99.0 and 100.0 line up after their swatches
+  scoreNumber: {
+    display: 'inline-block',
+    minWidth: '38px',
+    textAlign: 'right' as const,
+    fontVariantNumeric: 'tabular-nums',
   },
   recommendationsSection: {
     padding: '12px',

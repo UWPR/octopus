@@ -89,7 +89,7 @@ test.describe('group distribution warnings', () => {
     await expect(planned).toBeVisible();
     await expect(planned.getByText(
       `With these covariates, ${EXPECTED_TREATMENT_ERRORS} of the 10 treatment groups have fewer samples than ` +
-      'the 3 plates, so they cannot appear on every plate. Selecting fewer covariates or using larger plates makes larger groups.',
+      'the number of plates, so they cannot appear on every plate. Try selecting fewer covariates.',
       { exact: true }
     )).toBeVisible();
     await expect(planned.getByText(SMALLEST_GROUPS, { exact: true })).toBeVisible();

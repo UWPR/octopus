@@ -17,7 +17,8 @@ import { buildCovariateKey, effectiveDisplayValue } from './utils';
  *   through the run, so one per plate is not enough. Every used row should have
  *   one. This is layout-based and only available after generation.
  * - Balance warning: the group is covered but its measured balance score is below
- *   70. Balance is only known after a layout is generated, so this tier is
+ *   70, and it is not already placed as evenly as its count allows.
+ *   Balance is only known after a layout is generated, so this tier is
  *   skipped when no observed balance is supplied.
  *
  * A coverage error outranks the balance warning. A group that fails both is
@@ -64,6 +65,9 @@ export interface WarningOptions {
   // here with uncoveredRows > 0, it is flagged instead of the treatment coverage
   // rule.
   qcRowCoverage?: Map<string, GroupRowCoverage>;
+  // Groups at their best achievable balance, from groupsAtBestAchievableBalance. A group in
+  // this set gets no balance warning, since no placement could raise its score.
+  bestAchievableGroups?: Set<string>;
 }
 
 // A group whose balance score falls below this is flagged as a balance warning.
@@ -94,6 +98,28 @@ export function aggregateObservedGroupBalance(metrics: QualityMetrics): Map<stri
     means.set(combination, acc.sum / acc.plates);
   });
   return means;
+}
+
+/**
+ * The groups at their best achievable balance, placed as evenly as their sample count allows. On
+ * every plate the group's count is its expected count (its share of that plate's samples) rounded
+ * down or up. A small group can score below 70 even then, for example 4 samples on 3 equal plates
+ * split 2/1/1, and no placement can do better. Plates of different sizes are judged by their own
+ * expected counts.
+ */
+export function groupsAtBestAchievableBalance(metrics: QualityMetrics): Set<string> {
+  const notEven = new Set<string>();
+  const seen = new Set<string>();
+  metrics.plateDiversity.plateScores.forEach((plate) => {
+    Object.entries(plate.covariateGroupBalance).forEach(([combination, detail]) => {
+      seen.add(combination);
+      const { actualCount, expectedCount } = detail;
+      if (actualCount < Math.floor(expectedCount) || actualCount > Math.ceil(expectedCount)) {
+        notEven.add(combination);
+      }
+    });
+  });
+  return new Set(Array.from(seen).filter((combination) => !notEven.has(combination)));
 }
 
 /**
@@ -226,7 +252,7 @@ export function computeGroupDistributionWarnings(
   plateCount: number,
   options: WarningOptions = {}
 ): GroupDistributionWarnings {
-  const { observedGroupBalance, selectedQcValues = [], qcRowCoverage } = options;
+  const { observedGroupBalance, selectedQcValues = [], qcRowCoverage, bestAchievableGroups } = options;
   const byCombination = new Map<string, GroupWarning>();
   const totalGroups = summaryData.length;
 
@@ -269,7 +295,7 @@ export function computeGroupDistributionWarnings(
       // generated layout with a real score.
       if (plateCount > 1) {
         const observed = observedGroupBalance?.get(item.combination);
-        if (observed !== undefined && observed < POOR_BALANCE_THRESHOLD) {
+        if (observed !== undefined && observed < POOR_BALANCE_THRESHOLD && !bestAchievableGroups?.has(item.combination)) {
           byCombination.set(item.combination, {
             combination: item.combination,
             severity: 'warning',
@@ -340,12 +366,16 @@ export function plannedTreatmentGroups(
 }
 
 /** The warning shown before Generate when some treatment groups cannot reach every plate. */
-export function plannedCoverageSummary(count: number, totalGroups: number, plateCount: number): string {
+export function plannedCoverageSummary(
+  count: number,
+  totalGroups: number,
+  covariateCount: number
+): string {
   const fewer = count === 1 ? 'has fewer samples' : 'have fewer samples';
   const pronoun = count === 1 ? 'it' : 'they';
-  return (
+  const summary =
     `With these covariates, ${count} of the ${totalGroups} treatment groups ${fewer} than the ` +
-    `${plateCount} plates, so ${pronoun} cannot appear on every plate. ` +
-    'Selecting fewer covariates or using larger plates makes larger groups.'
-  );
+    `number of plates, so ${pronoun} cannot appear on every plate.`;
+  // With one covariate there is no fewer-covariates option to suggest
+  return covariateCount > 1 ? `${summary} Try selecting fewer covariates.` : summary;
 }

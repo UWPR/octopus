@@ -33,8 +33,8 @@ describe('App sparse group warnings', () => {
 
     // The leading ! is the banner icon, hidden from screen readers
     expect(screen.getByTestId('planned-coverage-banner').textContent).toBe(
-      '!With these covariates, 1 of the 3 treatment groups has fewer samples than the 2 plates, ' +
-      'so it cannot appear on every plate. Selecting fewer covariates or using larger plates makes larger groups.' +
+      '!With these covariates, 1 of the 3 treatment groups has fewer samples than the number of plates, ' +
+      'so it cannot appear on every plate. Try selecting fewer covariates.' +
       'Smallest groups: b | y (1 sample)'
     );
     expect(screen.getByRole('button', { name: 'Generate Randomized Plates' })).toBeEnabled();
@@ -67,6 +67,21 @@ describe('App sparse group warnings', () => {
     // The summary shows the same warnings, so the banner above the plates hides while it is open
     fireEvent.click(screen.getByRole('button', { name: 'Show affected groups' }));
     expect(screen.getByTestId('distribution-warning-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('layout-warning-banner')).not.toBeInTheDocument();
+  });
+
+  it('shows no balance warning when every group is split as evenly as its count allows', async () => {
+    // 12 samples in three groups of 4 on 2x2 plates is 3 plates of 4, so every group splits 2/1/1
+    const evenCsv = ['Sample ID,Cond', ...Array.from({ length: 12 }, (_, i) => `S${i},${'abc'[i % 3]}`)].join('\n');
+    render(<App />);
+    await loadFile('Choose File', csvFile(evenCsv, 'even.csv'));
+    const [rows, columns] = screen.getAllByRole('spinbutton');
+    fireEvent.change(rows, { target: { value: '2' } });
+    fireEvent.change(columns, { target: { value: '2' } });
+    selectCovariate('Cond (a, b, c)');
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Randomized Plates' }));
+
+    expect(screen.getByTestId('plate-grid-2')).toBeInTheDocument();
     expect(screen.queryByTestId('layout-warning-banner')).not.toBeInTheDocument();
   });
 

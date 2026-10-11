@@ -26,7 +26,7 @@ import { useRandomization } from './hooks/useRandomization';
 import { useCovariateColors } from './hooks/useCovariateColors';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useQualityMetrics } from './hooks/useQualityMetrics';
-import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, computeQcRowCoverage, hasCoverageError, plannedTreatmentGroups, plannedCoverageSummary, covariateGroupLabel } from './utils/groupDistributionWarnings';
+import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, groupsAtBestAchievableBalance, computeQcRowCoverage, hasCoverageError, plannedTreatmentGroups, plannedCoverageSummary, covariateGroupLabel } from './utils/groupDistributionWarnings';
 import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
@@ -157,6 +157,10 @@ const App: React.FC = () => {
     () => (metrics ? aggregateObservedGroupBalance(metrics) : undefined),
     [metrics]
   );
+  const bestAchievableGroups = useMemo(
+    () => (metrics ? groupsAtBestAchievableBalance(metrics) : undefined),
+    [metrics]
+  );
   // QC/reference groups must appear in every used row, not just every plate. This
   // reads the generated layout to find rows a QC group is missing from.
   const qcRowCoverage = useMemo(() => {
@@ -177,8 +181,9 @@ const App: React.FC = () => {
         observedGroupBalance,
         selectedQcValues,
         qcRowCoverage,
+        bestAchievableGroups,
       }),
-    [summaryData, plateCount, observedGroupBalance, selectedQcValues, qcRowCoverage]
+    [summaryData, plateCount, observedGroupBalance, selectedQcValues, qcRowCoverage, bestAchievableGroups]
   );
   // Color the collapsed indicator red when any group fails coverage, amber when the
   // only issues are balance (UNEVEN) warnings.
@@ -1152,7 +1157,9 @@ const App: React.FC = () => {
             <DistributionWarningBanner
               severity="error"
               lines={plannedWarnings.warningCount > 0
-                ? [plannedCoverageSummary(plannedWarnings.warningCount, plannedWarnings.totalGroups, plannedPlateCount)]
+                ? [plannedCoverageSummary(
+                    plannedWarnings.warningCount, plannedWarnings.totalGroups, selectedCovariates.length
+                  )]
                 : []}
               sparseGroups={plannedSparseGroups}
               testId="planned-coverage-banner"

@@ -48,14 +48,21 @@ describe('covariateGroupLabel', () => {
 });
 
 describe('plannedCoverageSummary', () => {
-  it('names the count, the groups and the plates', () => {
-    expect(plannedCoverageSummary(1, 3, 3)).toBe(
-      'With these covariates, 1 of the 3 treatment groups has fewer samples than the 3 plates, ' +
-      'so it cannot appear on every plate. Selecting fewer covariates or using larger plates makes larger groups.'
+  it('names the count and the groups, and suggests fewer covariates when more than one is selected', () => {
+    expect(plannedCoverageSummary(1, 3, 2)).toBe(
+      'With these covariates, 1 of the 3 treatment groups has fewer samples than the number of plates, ' +
+      'so it cannot appear on every plate. Try selecting fewer covariates.'
     );
-    expect(plannedCoverageSummary(4, 24, 2)).toBe(
-      'With these covariates, 4 of the 24 treatment groups have fewer samples than the 2 plates, ' +
-      'so they cannot appear on every plate. Selecting fewer covariates or using larger plates makes larger groups.'
+    expect(plannedCoverageSummary(4, 24, 3)).toBe(
+      'With these covariates, 4 of the 24 treatment groups have fewer samples than the number of plates, ' +
+      'so they cannot appear on every plate. Try selecting fewer covariates.'
+    );
+  });
+
+  it('gives no advice when only one covariate is selected', () => {
+    expect(plannedCoverageSummary(1, 3, 1)).toBe(
+      'With these covariates, 1 of the 3 treatment groups has fewer samples than the number of plates, ' +
+      'so it cannot appear on every plate.'
     );
   });
 });

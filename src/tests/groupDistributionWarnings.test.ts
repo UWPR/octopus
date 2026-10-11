@@ -1,6 +1,7 @@
 import {
   computeGroupDistributionWarnings,
   aggregateObservedGroupBalance,
+  groupsAtBestAchievableBalance,
   computeQcRowCoverage,
   hasCoverageError,
   POOR_BALANCE_THRESHOLD,
@@ -434,5 +435,51 @@ describe('computeQcRowCoverage', () => {
     ];
     const coverage = computeQcRowCoverage(allEmpty, new Set(['QC']), keyOf);
     expect(coverage.get('QC')).toEqual({ usedRows: 0, uncoveredRows: 0 });
+  });
+});
+
+// Metrics with only the per-plate counts set. countsByPlate[i] maps combination -> [actual, expected].
+function makeCountMetrics(countsByPlate: Array<Record<string, [number, number]>>): QualityMetrics {
+  const metrics = makeMetrics(countsByPlate.map(groups => Object.fromEntries(Object.keys(groups).map(k => [k, 0]))));
+  metrics.plateDiversity.plateScores.forEach((plate, i) => {
+    Object.entries(countsByPlate[i]).forEach(([combination, [actual, expected]]) => {
+      plate.covariateGroupBalance[combination].actualCount = actual;
+      plate.covariateGroupBalance[combination].expectedCount = expected;
+    });
+  });
+  return metrics;
+}
+
+describe('groupsAtBestAchievableBalance', () => {
+  it('includes a group whose count on every plate is its expected count rounded down or up', () => {
+    // 4 samples on 3 equal plates: expected 1.33 each, so 2/1/1 is the most even split
+    const metrics = makeCountMetrics([
+      { V: [2, 4 / 3], D: [3, 4 / 3] },
+      { V: [1, 4 / 3], D: [1, 4 / 3] },
+      { V: [1, 4 / 3], D: [0, 4 / 3] },
+    ]);
+    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['V']);
+  });
+
+  it('judges each plate by its own expected count, so an even split onto a small plate is not included', () => {
+    // 30 samples on plates of 96, 96 and 20 samples out of 212: 10/10/10 overloads the small plate
+    const expected = [30 * 96 / 212, 30 * 96 / 212, 30 * 20 / 212];
+    const metrics = makeCountMetrics([
+      { E: [10, expected[0]], P: [14, expected[0]] },
+      { E: [10, expected[1]], P: [13, expected[1]] },
+      { E: [10, expected[2]], P: [3, expected[2]] },
+    ]);
+    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['P']);
+  });
+});
+
+describe('computeGroupDistributionWarnings with groups at their best achievable balance', () => {
+  it('gives no balance warning to a group placed as evenly as its count allows', () => {
+    const summary = [{ combination: 'V', count: 4 }, { combination: 'D', count: 4 }];
+    const warnings = computeGroupDistributionWarnings(summary, 3, {
+      observedGroupBalance: new Map([['V', 66], ['D', 40]]),
+      bestAchievableGroups: new Set(['V']),
+    });
+    expect(Array.from(warnings.byCombination.keys())).toEqual(['D']);
   });
 });
