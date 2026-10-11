@@ -304,7 +304,8 @@ export function hasCoverageError(warnings: GroupDistributionWarnings): boolean {
  * covariates, such as "Drug | T0 | A". `values` holds the display values, as in SummaryItem.values.
  */
 export function covariateGroupLabel(values: { [covariate: string]: string }, selectedCovariates: string[]): string {
-  return selectedCovariates.map((covariate) => values[covariate]).join(' | ');
+  // A blank kept distinct from N/A displays as '', so name it as the N/A values checklist does
+  return selectedCovariates.map((covariate) => values[covariate] || '(blank)').join(' | ');
 }
 
 /**
@@ -345,6 +346,6 @@ export function plannedCoverageSummary(count: number, totalGroups: number, plate
   return (
     `With these covariates, ${count} of the ${totalGroups} treatment groups ${fewer} than the ` +
     `${plateCount} plates, so ${pronoun} cannot appear on every plate. ` +
-    'Selecting fewer covariates makes larger groups.'
+    'Selecting fewer covariates or using larger plates makes larger groups.'
   );
 }

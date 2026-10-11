@@ -34,7 +34,7 @@ describe('App sparse group warnings', () => {
     // The leading ! is the banner icon, hidden from screen readers
     expect(screen.getByTestId('planned-coverage-banner').textContent).toBe(
       '!With these covariates, 1 of the 3 treatment groups has fewer samples than the 2 plates, ' +
-      'so it cannot appear on every plate. Selecting fewer covariates makes larger groups.' +
+      'so it cannot appear on every plate. Selecting fewer covariates or using larger plates makes larger groups.' +
       'Smallest groups: b | y (1 sample)'
     );
     expect(screen.getByRole('button', { name: 'Generate Randomized Plates' })).toBeEnabled();
@@ -70,20 +70,24 @@ describe('App sparse group warnings', () => {
     expect(screen.queryByTestId('layout-warning-banner')).not.toBeInTheDocument();
   });
 
-  it('renders the warning live region before the warning appears', async () => {
+  it('renders both warning live regions before their warnings appear', async () => {
     render(<App />);
     await loadFile('Choose File', csvFile(CSV, 'data.csv'));
-    const regions = screen.getAllByRole('status');
-    expect(regions).toHaveLength(1);
-    expect(regions[0].textContent).toBe('');
+    // The region before Generate, then the region above the plates
+    const [plannedRegion, layoutRegion] = screen.getAllByRole('status');
+    expect(screen.getAllByRole('status')).toHaveLength(2);
+    expect(plannedRegion.textContent).toBe('');
+    expect(layoutRegion.textContent).toBe('');
 
     const [rows, columns] = screen.getAllByRole('spinbutton');
     fireEvent.change(rows, { target: { value: '2' } });
     fireEvent.change(columns, { target: { value: '2' } });
     selectCovariate('Cond (a, b)');
     selectCovariate('Site (x, y)');
+    expect(within(plannedRegion).getByTestId('planned-coverage-banner')).toBeInTheDocument();
 
-    expect(screen.getAllByRole('status')[0]).toBe(regions[0]);
-    expect(within(regions[0]).getByTestId('planned-coverage-banner')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Randomized Plates' }));
+    expect(layoutRegion).toBeInTheDocument();
+    expect(within(layoutRegion).getByTestId('layout-warning-banner')).toBeInTheDocument();
   });
 });

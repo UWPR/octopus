@@ -2,6 +2,7 @@ import {
   plannedTreatmentGroups,
   plannedCoverageSummary,
   computeGroupDistributionWarnings,
+  covariateGroupLabel,
 } from '../utils/groupDistributionWarnings';
 import { SearchData, DEFAULT_NA_POLICY } from '../utils/types';
 
@@ -39,15 +40,22 @@ describe('plannedTreatmentGroups', () => {
   });
 });
 
+describe('covariateGroupLabel', () => {
+  it('joins the display values in covariate order and names a blank value', () => {
+    expect(covariateGroupLabel({ Cond: 'a', Site: '', Dose: '10' }, ['Dose', 'Cond', 'Site'])).toBe('10 | a | (blank)');
+    expect(covariateGroupLabel({ Cond: '' }, ['Cond'])).toBe('(blank)');
+  });
+});
+
 describe('plannedCoverageSummary', () => {
   it('names the count, the groups and the plates', () => {
     expect(plannedCoverageSummary(1, 3, 3)).toBe(
       'With these covariates, 1 of the 3 treatment groups has fewer samples than the 3 plates, ' +
-      'so it cannot appear on every plate. Selecting fewer covariates makes larger groups.'
+      'so it cannot appear on every plate. Selecting fewer covariates or using larger plates makes larger groups.'
     );
     expect(plannedCoverageSummary(4, 24, 2)).toBe(
       'With these covariates, 4 of the 24 treatment groups have fewer samples than the 2 plates, ' +
-      'so they cannot appear on every plate. Selecting fewer covariates makes larger groups.'
+      'so they cannot appear on every plate. Selecting fewer covariates or using larger plates makes larger groups.'
     );
   });
 });

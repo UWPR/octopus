@@ -1176,6 +1176,19 @@ const App: React.FC = () => {
           {/* Randomization / infeasibility error - shown by the Generate button that triggers it */}
           {randomizationError && renderBanner(randomizationError)}
 
+          {/* Group distribution warnings above the plates while the Covariate Summary, which shows the
+              same warnings, is closed. Rendered from the file load on, so its live region exists before
+              Generate fills it and screen readers announce the warnings. */}
+          {searches.length > 0 && (
+            <DistributionWarningBanner
+              severity={warningsHaveError ? 'error' : 'warning'}
+              lines={isProcessed && !showSummary ? distributionWarnings.summaries : []}
+              sparseGroups={layoutSparseGroups}
+              testId="layout-warning-banner"
+              onShowGroups={() => setShowSummary(true)}
+            />
+          )}
+
           {/* Plates Visualization */}
           {isProcessed && randomizedPlates.length > 0 && (
             <>
@@ -1253,16 +1266,6 @@ const App: React.FC = () => {
                   onExportSequence={() => setShowSequenceExportWizard(true)}
                 />
               </div>
-
-              {/* Group distribution warnings above the plates while the Covariate Summary, which shows
-                  the same warnings, is closed */}
-              <DistributionWarningBanner
-                severity={warningsHaveError ? 'error' : 'warning'}
-                lines={showSummary ? [] : distributionWarnings.summaries}
-                sparseGroups={layoutSparseGroups}
-                testId="layout-warning-banner"
-                onShowGroups={() => setShowSummary(true)}
-              />
 
               <SummaryPanel
                 summaryData={summaryData}
