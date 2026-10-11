@@ -71,7 +71,7 @@ function makeMetrics(scoresByPlate: Array<Record<string, number>>): QualityMetri
 }
 
 describe('computeGroupDistributionWarnings', () => {
-  it('threshold constant is the Fair floor (70)', () => {
+  it('threshold constant is 70', () => {
     expect(POOR_BALANCE_THRESHOLD).toBe(70);
   });
 
@@ -288,7 +288,7 @@ describe('computeGroupDistributionWarnings', () => {
 
   it('a flagged group never displays a balance score of 70 (floors the mean, not rounds)', () => {
     // Mean (70 + 69) / 2 = 69.5 is below the 70 threshold, so the group is flagged.
-    // Rounding would show "70", which contradicts 70 being the acceptable Fair floor.
+    // Rounding would show "70", which contradicts 70 being acceptable.
     // Flooring shows 69.
     const observed = aggregateObservedGroupBalance(makeMetrics([{ A: 70 }, { A: 69 }]));
     const result = computeGroupDistributionWarnings([makeItem('A', 30)], 2, { observedGroupBalance: observed });

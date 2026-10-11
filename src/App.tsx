@@ -26,7 +26,7 @@ import { useRandomization } from './hooks/useRandomization';
 import { useCovariateColors } from './hooks/useCovariateColors';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useQualityMetrics } from './hooks/useQualityMetrics';
-import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, computeQcRowCoverage, hasCoverageError, plannedTreatmentGroups, plannedCoverageSummary } from './utils/groupDistributionWarnings';
+import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, computeQcRowCoverage, hasCoverageError, plannedTreatmentGroups, plannedCoverageSummary, covariateGroupLabel } from './utils/groupDistributionWarnings';
 import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
@@ -380,10 +380,12 @@ const App: React.FC = () => {
   // so groups too small to reach every plate are flagged while the covariates are chosen.
   const plannedPlateCount = Math.ceil(searches.length / (plateRows * plateColumns));
   const plannedGroups = useMemo(
-    () => (isProcessed || selectedCovariates.length === 0
+    // Only the balanced algorithm uses the chosen plate size. The dev-mode greedy algorithm always
+    // uses 96-well plates, so the planned plate count would be wrong for it.
+    () => (isProcessed || selectedCovariates.length === 0 || selectedAlgorithm !== 'balanced'
       ? []
       : plannedTreatmentGroups(searches, selectedCovariates, naPolicy, qcColumn, selectedQcValues)),
-    [isProcessed, searches, selectedCovariates, naPolicy, qcColumn, selectedQcValues]
+    [isProcessed, searches, selectedCovariates, naPolicy, qcColumn, selectedQcValues, selectedAlgorithm]
   );
   const plannedWarnings = useMemo(
     () => computeGroupDistributionWarnings(plannedGroups, plannedPlateCount),
@@ -401,7 +403,7 @@ const App: React.FC = () => {
         const warning = distributionWarnings.byCombination.get(item.combination);
         return warning?.severity === 'error' && !warning.isQc;
       })
-      .map(item => ({ label: selectedCovariates.map(c => item.values[c]).join(' | '), count: item.count })),
+      .map(item => ({ label: covariateGroupLabel(item.values, selectedCovariates), count: item.count })),
     [summaryData, distributionWarnings, selectedCovariates]
   );
 
@@ -1146,10 +1148,12 @@ const App: React.FC = () => {
           )}
 
           {/* Treatment groups too small to reach every plate - shown while the covariates are chosen */}
-          {!isProcessed && plannedWarnings.warningCount > 0 && (
+          {searches.length > 0 && !isProcessed && (
             <DistributionWarningBanner
               severity="error"
-              lines={[plannedCoverageSummary(plannedWarnings.warningCount, plannedWarnings.totalGroups, plannedPlateCount)]}
+              lines={plannedWarnings.warningCount > 0
+                ? [plannedCoverageSummary(plannedWarnings.warningCount, plannedWarnings.totalGroups, plannedPlateCount)]
+                : []}
               sparseGroups={plannedSparseGroups}
               testId="planned-coverage-banner"
             />
@@ -1250,16 +1254,15 @@ const App: React.FC = () => {
                 />
               </div>
 
-              {/* Group distribution warnings above the plates, so they show without opening the summary */}
-              {distributionWarnings.warningCount > 0 && (
-                <DistributionWarningBanner
-                  severity={warningsHaveError ? 'error' : 'warning'}
-                  lines={distributionWarnings.summaries}
-                  sparseGroups={layoutSparseGroups}
-                  testId="layout-warning-banner"
-                  onShowGroups={() => setShowSummary(true)}
-                />
-              )}
+              {/* Group distribution warnings above the plates while the Covariate Summary, which shows
+                  the same warnings, is closed */}
+              <DistributionWarningBanner
+                severity={warningsHaveError ? 'error' : 'warning'}
+                lines={showSummary ? [] : distributionWarnings.summaries}
+                sparseGroups={layoutSparseGroups}
+                testId="layout-warning-banner"
+                onShowGroups={() => setShowSummary(true)}
+              />
 
               <SummaryPanel
                 summaryData={summaryData}

@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import App from '../App';
 import { loadFile, csvFile, selectCovariate } from './appFileInput';
 
@@ -57,12 +57,33 @@ describe('App sparse group warnings', () => {
     expect(screen.queryByTestId('distribution-warning-banner')).not.toBeInTheDocument();
     const banner = screen.getByTestId('layout-warning-banner');
     expect(banner).toHaveAttribute('data-severity', 'error');
-    expect(banner.textContent).toContain(
-      '1 of the treatment covariate groups is not represented on every plate.'
-    );
-    expect(banner.textContent).toContain('Smallest groups: b | y (1 sample)');
+    // Checked line by line, since a balance line can follow, depending on the random placement
+    expect(within(banner).getByText(
+      '1 of the treatment covariate groups is not represented on every plate. ' +
+      'Ideally, each plate should have at least one sample from every treatment covariate group.'
+    )).toBeInTheDocument();
+    expect(within(banner).getByText('Smallest groups: b | y (1 sample)')).toBeInTheDocument();
 
+    // The summary shows the same warnings, so the banner above the plates hides while it is open
     fireEvent.click(screen.getByRole('button', { name: 'Show affected groups' }));
     expect(screen.getByTestId('distribution-warning-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('layout-warning-banner')).not.toBeInTheDocument();
+  });
+
+  it('renders the warning live region before the warning appears', async () => {
+    render(<App />);
+    await loadFile('Choose File', csvFile(CSV, 'data.csv'));
+    const regions = screen.getAllByRole('status');
+    expect(regions).toHaveLength(1);
+    expect(regions[0].textContent).toBe('');
+
+    const [rows, columns] = screen.getAllByRole('spinbutton');
+    fireEvent.change(rows, { target: { value: '2' } });
+    fireEvent.change(columns, { target: { value: '2' } });
+    selectCovariate('Cond (a, b)');
+    selectCovariate('Site (x, y)');
+
+    expect(screen.getAllByRole('status')[0]).toBe(regions[0]);
+    expect(within(regions[0]).getByTestId('planned-coverage-banner')).toBeInTheDocument();
   });
 });

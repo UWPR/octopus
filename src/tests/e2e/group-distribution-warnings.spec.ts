@@ -21,6 +21,9 @@ const DEMO = path.join(__dirname, '../../../test-data/group-distribution-demo.cs
 
 // Vehicle|T0|A, Vehicle|T24|B, Drug|T24|B, Placebo|T0|A all fall below 3 samples.
 const EXPECTED_TREATMENT_ERRORS = 4;
+const SMALLEST_GROUPS =
+  'Smallest groups: Drug | T24 | B (1 sample), Placebo | T0 | A (1 sample), ' +
+  'Vehicle | T0 | A (2 samples), Vehicle | T24 | B (2 samples)';
 
 test.describe('group distribution warnings', () => {
   test.beforeEach(async ({ page }) => {
@@ -84,10 +87,12 @@ test.describe('group distribution warnings', () => {
     // Before Generate: the 10 study groups are counted without the QC and Ref samples.
     const planned = page.getByTestId('planned-coverage-banner');
     await expect(planned).toBeVisible();
-    await expect(planned).toContainText(
-      `${EXPECTED_TREATMENT_ERRORS} of the 10 treatment groups have fewer samples than the 3 plates`
-    );
-    await expect(planned).toContainText('Vehicle | T0 | A (');
+    await expect(planned.getByText(
+      `With these covariates, ${EXPECTED_TREATMENT_ERRORS} of the 10 treatment groups have fewer samples than ` +
+      'the 3 plates, so they cannot appear on every plate. Selecting fewer covariates makes larger groups.',
+      { exact: true }
+    )).toBeVisible();
+    await expect(planned.getByText(SMALLEST_GROUPS, { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeEnabled();
 
     await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
@@ -98,12 +103,16 @@ test.describe('group distribution warnings', () => {
     const layoutBanner = page.getByTestId('layout-warning-banner');
     await expect(layoutBanner).toBeVisible();
     await expect(layoutBanner).toHaveAttribute('data-severity', 'error');
-    await expect(layoutBanner).toContainText(
-      `${EXPECTED_TREATMENT_ERRORS} of the treatment covariate groups are not represented on every plate`
-    );
-    await expect(layoutBanner).toContainText('Vehicle | T0 | A (');
+    await expect(layoutBanner.getByText(
+      `${EXPECTED_TREATMENT_ERRORS} of the treatment covariate groups are not represented on every plate. ` +
+      'Ideally, each plate should have at least one sample from every treatment covariate group.',
+      { exact: true }
+    )).toBeVisible();
+    await expect(layoutBanner.getByText(SMALLEST_GROUPS, { exact: true })).toBeVisible();
 
+    // The summary shows the same warnings, so the banner above the plates hides while it is open.
     await layoutBanner.getByRole('button', { name: 'Show affected groups' }).click();
     await expect(page.getByTestId('distribution-warning-banner')).toBeVisible();
+    await expect(layoutBanner).toHaveCount(0);
   });
 });

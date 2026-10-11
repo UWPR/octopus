@@ -6,7 +6,7 @@ const MAX_NAMED_GROUPS = 5;
 interface DistributionWarningBannerProps {
   // 'error' when some group cannot reach every plate or row, 'warning' for balance only
   severity: 'error' | 'warning';
-  // One line per kind of problem, from the group distribution warnings
+  // One line per kind of problem, from the group distribution warnings. Empty shows nothing.
   lines: string[];
   // Groups too small to reach every plate, named smallest first
   sparseGroups: { label: string; count: number }[];
@@ -37,34 +37,38 @@ const DistributionWarningBanner: React.FC<DistributionWarningBannerProps> = ({
   const unnamed = smallestFirst.length - named.length;
 
   return (
-    // Polite live region, not role="alert": the warnings change as the user edits the design
-    <div
-      role="status"
-      aria-live="polite"
-      data-testid={testId}
-      data-severity={severity}
-      style={{
-        ...styles.banner,
-        backgroundColor: palette.bg,
-        border: `1px solid ${palette.border}`,
-        borderLeft: `5px solid ${palette.accent}`,
-        color: palette.text,
-      }}
-    >
-      <span style={{ ...styles.icon, backgroundColor: palette.accent }} aria-hidden="true">!</span>
-      <div style={styles.text}>
-        {lines.map((line, i) => <div key={i}>{line}</div>)}
-        {named.length > 0 && (
-          <div style={styles.groups}>
-            Smallest groups: {named.join(', ')}{unnamed > 0 ? `, and ${unnamed} more` : ''}
+    // Polite live region, not role="alert": the warnings change as the user edits the design. The
+    // region is always rendered and only its content changes, since screen readers announce changes
+    // to a live region that already exists, not one inserted with its text.
+    <div role="status" aria-live="polite">
+      {lines.length > 0 && (
+        <div
+          data-testid={testId}
+          data-severity={severity}
+          style={{
+            ...styles.banner,
+            backgroundColor: palette.bg,
+            border: `1px solid ${palette.border}`,
+            borderLeft: `5px solid ${palette.accent}`,
+            color: palette.text,
+          }}
+        >
+          <span style={{ ...styles.icon, backgroundColor: palette.accent }} aria-hidden="true">!</span>
+          <div style={styles.text}>
+            {lines.map((line, i) => <div key={i}>{line}</div>)}
+            {named.length > 0 && (
+              <div style={styles.groups}>
+                Smallest groups: {named.join(', ')}{unnamed > 0 ? `, and ${unnamed} more` : ''}
+              </div>
+            )}
+            {onShowGroups && (
+              <button type="button" onClick={onShowGroups} style={{ ...styles.button, color: palette.text }}>
+                Show affected groups
+              </button>
+            )}
           </div>
-        )}
-        {onShowGroups && (
-          <button type="button" onClick={onShowGroups} style={{ ...styles.button, color: palette.text }}>
-            Show affected groups
-          </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

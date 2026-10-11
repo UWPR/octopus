@@ -16,8 +16,8 @@ import { buildCovariateKey, effectiveDisplayValue } from './utils';
  *   one used row of the generated layout. QC samples are meant to be interspersed
  *   through the run, so one per plate is not enough. Every used row should have
  *   one. This is layout-based and only available after generation.
- * - Balance warning: the group is covered but its measured balance score is Poor
- *   or Bad. Balance is only known after a layout is generated, so this tier is
+ * - Balance warning: the group is covered but its measured balance score is below
+ *   70. Balance is only known after a layout is generated, so this tier is
  *   skipped when no observed balance is supplied.
  *
  * A coverage error outranks the balance warning. A group that fails both is
@@ -274,7 +274,7 @@ export function computeGroupDistributionWarnings(
             combination: item.combination,
             severity: 'warning',
             // Floor, not round, so a flagged group (observed < 70) can never
-            // display a score of 70 or above, which is the acceptable Fair floor.
+            // display a score of 70 or above, which is acceptable.
             reason: balanceReason(Math.floor(observed), plateCount),
             count: item.count,
             isQc,
@@ -300,9 +300,17 @@ export function hasCoverageError(warnings: GroupDistributionWarnings): boolean {
 }
 
 /**
+ * The name of a covariate group in a warning, its display values in the order of the selected
+ * covariates, such as "Drug | T0 | A". `values` holds the display values, as in SummaryItem.values.
+ */
+export function covariateGroupLabel(values: { [covariate: string]: string }, selectedCovariates: string[]): string {
+  return selectedCovariates.map((covariate) => values[covariate]).join(' | ');
+}
+
+/**
  * The treatment groups of the samples before Generate, keyed with buildCovariateKey as the layout
  * keys them. Samples with a selected value in the QC column are left out, since the QC coverage
- * rule needs a generated layout. Each group carries its covariate values joined by " | " as a label.
+ * rule needs a generated layout. Each group carries its covariateGroupLabel.
  * Groups are in the order their first sample appears.
  */
 export function plannedTreatmentGroups(
@@ -320,10 +328,11 @@ export function plannedTreatmentGroups(
     if (group) {
       group.count += 1;
     } else {
-      const label = selectedCovariates
-        .map((covariate) => effectiveDisplayValue(sample.metadata[covariate] ?? '', naPolicy))
-        .join(' | ');
-      groups.set(key, { combination: key, count: 1, label });
+      const values: { [covariate: string]: string } = {};
+      selectedCovariates.forEach((covariate) => {
+        values[covariate] = effectiveDisplayValue(sample.metadata[covariate] ?? '', naPolicy);
+      });
+      groups.set(key, { combination: key, count: 1, label: covariateGroupLabel(values, selectedCovariates) });
     }
   });
   return Array.from(groups.values());

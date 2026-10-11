@@ -1,7 +1,7 @@
 import React from 'react';
 import { QualityMetrics } from '../utils/types';
 import { QUALITY_DISPLAY_CONFIG } from '../utils/configs';
-import { getQualityColor, getQualityLevelColor, getQualityLevel, formatScore } from '../utils/utils';
+import { getQualityColor, getQualityLevelColor, formatScore } from '../utils/utils';
 import QualitySwatch from './QualitySwatch';
 
 interface QualityMetricsPanelProps {
@@ -78,7 +78,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                     }}>
                       {formatScore(metrics.plateDiversity.averageBalanceScore)}
                     </span>
-                    <QualitySwatch color={getQualityLevelColor(getQualityLevel(metrics.plateDiversity.averageBalanceScore))} />
+                    <QualitySwatch color={getQualityColor(metrics.plateDiversity.averageBalanceScore)} />
                   </div>
                   )}
                   {QUALITY_DISPLAY_CONFIG.showClusteringScore && (
@@ -90,7 +90,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                       }}>
                         {formatScore(metrics.plateDiversity.averageClusteringScore)}
                       </span>
-                      <QualitySwatch color={getQualityLevelColor(getQualityLevel(metrics.plateDiversity.averageClusteringScore))} />
+                      <QualitySwatch color={getQualityColor(metrics.plateDiversity.averageClusteringScore)} />
                     </div>
                   )}
                 </div>
@@ -109,7 +109,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                         <div style={styles.plateScoreHeader}>
                           <span style={styles.plateNumber}>Plate {plate.plateIndex + 1}</span>
                           <div style={styles.overallScoreContainer}>
-                            <QualitySwatch color={getQualityLevelColor(getQualityLevel(plate.overallScore))} size={12} />
+                            <QualitySwatch color={getQualityColor(plate.overallScore)} size={12} />
                             <span style={{
                               ...styles.overallScoreValue,
                               color: getQualityColor(plate.overallScore)
@@ -126,7 +126,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                               ...styles.scoreValue,
                               color: getQualityColor(plate.balanceScore)
                             }}>
-                              <QualitySwatch color={getQualityLevelColor(getQualityLevel(plate.balanceScore))} />
+                              <QualitySwatch color={getQualityColor(plate.balanceScore)} />
                               {' '}{formatScore(plate.balanceScore)}
                             </span>
                           </div>
@@ -138,7 +138,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                                 ...styles.scoreValue,
                                 color: getQualityColor(plate.clusteringScore)
                               }}>
-                                <QualitySwatch color={getQualityLevelColor(getQualityLevel(plate.clusteringScore))} />
+                                <QualitySwatch color={getQualityColor(plate.clusteringScore)} />
                                 {' '}{formatScore(plate.clusteringScore)}
                               </span>
                             </div>
@@ -368,28 +368,10 @@ const styles = {
     fontWeight: '600',
     color: '#333',
   },
-  overallScoreBadge: {
-    padding: '2px 8px',
-    borderRadius: '12px',
-    color: '#fff',
-    fontSize: '12px',
-    fontWeight: '600',
-  },
   overallScoreContainer: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-  },
-  overallQualityBadge: {
-    padding: '2px 4px',
-    borderRadius: '3px',
-    color: '#fff',
-    fontSize: '11px',
-    fontWeight: '600',
-    textTransform: 'uppercase' as const,
-    display: 'inline-block',
-    minWidth: '14px',
-    textAlign: 'center' as const,
   },
   overallScoreValue: {
     fontSize: '13px',
