@@ -173,7 +173,7 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
             value={selectedIdColumn}
             onChange={onIdColumnChange}
             disabled={isLayoutFile}
-            title={isLayoutFile ? 'A saved layout keeps its ID column. Choose the sample CSV to change it.' : undefined}
+            aria-describedby={isLayoutFile ? 'idColumnLayoutNote' : undefined}
             style={styles.compactSelect}
           >
             {availableColumns.map((column) => (
@@ -182,6 +182,11 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
               </option>
             ))}
           </select>
+          {isLayoutFile && (
+            <small id="idColumnLayoutNote" style={styles.compactHint}>
+              Saved layouts keep their ID column.
+            </small>
+          )}
 
           <label htmlFor="qcColumn" style={{ ...styles.compactLabel, marginTop: '10px' }}>
             QC/Reference Column (optional):

@@ -454,6 +454,8 @@ const App: React.FC = () => {
 
   // ID column change handler with reset
   const handleIdColumnChangeWithReset = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    // A saved layout has no CSV rows to rebuild the sample names from, so it keeps its ID column
+    if (isLayoutFile) return;
     const newIdColumn = event.target.value;
     handleIdColumnChange(event);
     idColumnChangedRef.current = true;
@@ -667,8 +669,10 @@ const App: React.FC = () => {
     plateAssignmentsToRestore: Map<number, SearchData[]>,
     storedColors: ReturnType<typeof parseLayout>['covariateColors']
   ) => {
-    // Suppress the new-file reset effect so the settings below survive.
+    // Suppress the new-file reset effect so the settings below survive. Also drop any pending
+    // ID column change, so its N/A reset cannot overwrite the N/A policy restored below.
     isRestoringRef.current = true;
+    idColumnChangedRef.current = false;
 
     // Restore samples and every setting.
     loadSearches(loadedSearches, fileName, settings.selectedIdColumn, settings.metadataColumns);

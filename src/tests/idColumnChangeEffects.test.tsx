@@ -7,52 +7,24 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from '../App';
-import { serializeLayout, LayoutSettings, CovariateColorMap } from '../utils/layoutIO';
 import { SearchData } from '../utils/types';
-import { loadFile, csvFile, selectCovariate } from './appFileInput';
-
-const changeSelect = (label: string, value: string) =>
-  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+import { loadFile, csvFile, selectCovariate, changeSelect, layoutFile } from './appFileInput';
 
 const idSelect = () => screen.getByLabelText('Select ID Column:') as HTMLSelectElement;
 
 const naCheckbox = (label: string) => screen.getByLabelText(`Treat ${label} as N/A`) as HTMLInputElement;
 
-// A saved layout of 4 samples on one 2x2 plate, covariate Cond, with a Type column for QC.
-function layoutJson(): string {
-  const samples: SearchData[] = [
-    { name: 'L1', metadata: { Cond: 'a', Type: 'Sample' } },
-    { name: 'L2', metadata: { Cond: 'b', Type: 'Sample' } },
-    { name: 'L3', metadata: { Cond: 'a', Type: 'Pool' } },
-    { name: 'L4', metadata: { Cond: 'b', Type: 'Sample' } },
-  ];
-  const settings: LayoutSettings = {
-    selectedIdColumn: 'Sample ID',
-    selectedCovariates: ['Cond'],
-    qcColumn: '',
-    selectedQcValues: [],
-    selectedAlgorithm: 'balanced',
-    keepEmptyInLastPlate: false,
-    plateRows: 2,
-    plateColumns: 2,
-    subjectColumn: '',
-    groupingConstraint: 'none',
-    metadataColumns: ['Cond', 'Type'],
-    naPolicy: { foldBlank: false, foldSpellings: [] },
-  };
-  const colors: CovariateColorMap = {
-    a: { color: '#111111', useOutline: false, useStripes: false, textColor: '#fff' },
-    b: { color: '#222222', useOutline: false, useStripes: false, textColor: '#fff' },
-  };
-  return serializeLayout({
-    searches: samples,
-    randomizedPlates: [[[samples[0], samples[1]], [samples[2], samples[3]]]],
-    settings,
-    covariateColors: colors,
-  });
-}
+const LAYOUT_ID_NOTE = 'Saved layouts keep their ID column.';
 
-const loadLayout = () => loadFile('Load Layout', new File([layoutJson()], 'lay.json', { type: 'application/json' }));
+// 4 samples for a 2x2 layout, covariate Cond, with a Type column for QC.
+const typedSamples: SearchData[] = [
+  { name: 'L1', metadata: { Cond: 'a', Type: 'Sample' } },
+  { name: 'L2', metadata: { Cond: 'b', Type: 'Sample' } },
+  { name: 'L3', metadata: { Cond: 'a', Type: 'Pool' } },
+  { name: 'L4', metadata: { Cond: 'b', Type: 'Sample' } },
+];
+
+const loadLayout = () => loadFile('Load Layout', layoutFile(typedSamples, ['Cond', 'Type']));
 
 describe('App ID column change and the N/A values checklist', () => {
   it('checks the N/A spellings of a column that stops being the ID column', async () => {
@@ -80,23 +52,56 @@ describe('App ID column change and the N/A values checklist', () => {
     expect(naCheckbox('NA').checked).toBe(true);
     expect(naCheckbox('(blank)').checked).toBe(true);
   });
+
+  it('keeps the N/A policy a layout restores when the layout is loaded after an ID column change', async () => {
+    render(<App />);
+    await loadFile('Choose File', csvFile('ID,Alt,Code\nS1,A1,NA\nS2,A2,\nS3,A3,X\n', 'data.csv'));
+    changeSelect('Select ID Column:', 'Alt');
+    expect(naCheckbox('NA').checked).toBe(true);
+
+    // The layout's Note column mixes two N/A spellings, and the layout saved them unfolded.
+    const notedSamples: SearchData[] = [
+      { name: 'L1', metadata: { Cond: 'a', Note: 'NA' } },
+      { name: 'L2', metadata: { Cond: 'b', Note: '' } },
+      { name: 'L3', metadata: { Cond: 'a', Note: 'x' } },
+    ];
+    await loadFile('Load Layout', layoutFile(notedSamples, ['Cond', 'Note']));
+
+    expect(screen.getByText('Layout file')).toBeInTheDocument();
+    expect(naCheckbox('NA').checked).toBe(false);
+    expect(naCheckbox('(blank)').checked).toBe(false);
+  });
 });
 
 describe('App ID column select with a loaded layout', () => {
-  it('is disabled after a layout load and enabled after a sample CSV load', async () => {
+  it('is disabled with a visible note after a layout load, and enabled after a sample CSV load', async () => {
     const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
     try {
       render(<App />);
       await loadLayout();
       expect(screen.getByText('Layout file')).toBeInTheDocument();
       expect(idSelect().disabled).toBe(true);
+      expect(screen.getByText(LAYOUT_ID_NOTE)).toBeInTheDocument();
+      expect(idSelect()).toHaveAccessibleDescription(LAYOUT_ID_NOTE);
 
       await loadFile('Choose File', csvFile('Sample ID,Cond\nN1,x\nN2,y\n', 'new.csv'));
       expect(screen.getByText('new.csv')).toBeInTheDocument();
       expect(idSelect().disabled).toBe(false);
+      expect(screen.queryByText(LAYOUT_ID_NOTE)).not.toBeInTheDocument();
     } finally {
       confirmSpy.mockRestore();
     }
+  });
+
+  it('keeps the ID column when a change event reaches the select of a loaded layout', async () => {
+    render(<App />);
+    await loadLayout();
+
+    // A disabled select does not take user input, but a change event can still reach its handler.
+    changeSelect('Select ID Column:', 'Cond');
+
+    expect(idSelect().value).toBe('Sample ID');
+    expect(screen.getByTestId('plate-grid-0')).toBeInTheDocument();
   });
 
   it('generates plates after a covariate change on a loaded layout', async () => {
