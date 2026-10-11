@@ -184,7 +184,7 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
           </select>
           {isLayoutFile && (
             <small id="idColumnLayoutNote" style={styles.compactHint}>
-              Saved layouts keep their ID column.
+              ID column of a saved layout cannot be changed
             </small>
           )}
 

@@ -16,7 +16,7 @@ const idSelect = () => screen.getByLabelText('Select ID Column:') as HTMLSelectE
 
 const naCheckbox = (label: string) => screen.getByLabelText(`Treat ${label} as N/A`) as HTMLInputElement;
 
-const LAYOUT_ID_NOTE = 'Saved layouts keep their ID column.';
+const LAYOUT_ID_NOTE = 'ID column of a saved layout cannot be changed';
 
 // 4 samples for a 2x2 layout, covariate Cond, with a Type column for QC.
 const typedSamples: SearchData[] = [
