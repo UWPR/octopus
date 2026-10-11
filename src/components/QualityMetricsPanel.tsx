@@ -262,7 +262,9 @@ const styles = {
     gap: '12px',
   },
   compactScoreValue: {
-    textAlign: 'center' as const,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   compactScore: {
     fontSize: '24px',
