@@ -115,6 +115,7 @@ describe('App ID column select with a loaded layout', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Generate Randomized Plates' }));
 
     expect(screen.getByTestId('plate-grid-0')).toBeInTheDocument();
+    expect(idSelect().disabled).toBe(true);
   });
 
   it('lists the values of a QC column chosen on a loaded layout', async () => {
@@ -125,5 +126,6 @@ describe('App ID column select with a loaded layout', () => {
 
     expect(screen.getByRole('checkbox', { name: 'Pool' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Sample' })).toBeInTheDocument();
+    expect(idSelect().disabled).toBe(true);
   });
 });

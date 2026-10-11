@@ -45,9 +45,9 @@ const REPLACE_DESIGN_MESSAGE =
 // (documentation, quick start, and sample downloads) are all hidden there.
 const IS_SINGLE_FILE = process.env.REACT_APP_SINGLEFILE === '1';
 
-// The N/A policy a file load starts with. When a column mixes spellings, fold every detected
-// spelling (all checklist boxes checked), otherwise fold nothing.
-const initialNaPolicy = (detection: NaDetectionResult): NaPolicy =>
+// The N/A policy a file load starts with, also set after an ID column change. When a column mixes
+// spellings, fold every detected spelling (all checklist boxes checked), otherwise fold nothing.
+const fileLoadNaPolicy = (detection: NaDetectionResult): NaPolicy =>
   detection.hasAmbiguousColumn
     ? {
         foldBlank: detection.spellings.has(''),
@@ -327,7 +327,7 @@ const App: React.FC = () => {
     }
     if (selectedFileName) {
       clearConfigAndLayout();
-      setNaPolicy(initialNaPolicy(naDetection));
+      setNaPolicy(fileLoadNaPolicy(naDetection));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadCounter]);
@@ -448,7 +448,7 @@ const App: React.FC = () => {
     if (!newSearches) return; // a saved layout keeps its ID column
 
     // Set the N/A checklist as a file load with the new ID column would
-    setNaPolicy(initialNaPolicy(
+    setNaPolicy(fileLoadNaPolicy(
       detectNaTypeValues(newSearches, availableColumns.filter(col => col !== newIdColumn))
     ));
 
