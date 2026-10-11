@@ -62,8 +62,10 @@ Result: 20 subject groups (8 of size 2, 12 of size 3) + 12 QC singletons.
 Distributes QC samples proportionally across plates and rows, respecting QC covariate subgroups (e.g., BatchQC vs BatchRef).
 
 For each QC covariate group:
-1. Divide count evenly across plates: each plate gets `floor(count / numPlates)`, remainder distributed randomly (one extra per plate).
-2. Within each plate, divide evenly across rows: each row gets `floor(plateAlloc / numRows)`, remainder distributed randomly.
+1. Divide count evenly across plates: each plate gets `floor(count / numPlates)`. The remainder goes one per plate to the plates holding the fewest QC samples so far, counting every QC group, with ties broken at random.
+2. Within each plate, divide evenly across rows: each row gets `floor(plateAlloc / numRows)`. The remainder goes one per row to the rows of that plate holding the fewest QC samples so far, ties at random.
+
+Each QC group is spread evenly, and so is the QC total. Plate totals differ by at most one, as do the row totals within a plate. The feasibility check behind the Generate button (`validateSubjectGroups`) assumes exactly this split.
 
 ### Example
 
@@ -291,11 +293,19 @@ When the grouping constraint is "Same Plate" instead of "Same Row", the pipeline
 
 ---
 
+## Packing Failures
+
+When the pipeline cannot fit the subject groups into the plates or rows, it throws a `PackingError`, and Generate, Re-randomize and single-plate re-randomize display its message.
+
+Some multi-plate Same Row requests that have a layout fail on every run. Plate assignment (Stage 3) does not consider row shapes, and for some inputs it makes the same choice every run. For example, two 2×5 plates with subjects of 5, 3, 2, 1, 4, 4 and 1 samples, with treatments alternating Placebo, Drug, Placebo and so on, always put the groups of 4, 4 and 2 on one plate, which no row split can hold.
+
+---
+
 ## Summary of Randomization Points
 
 | Stage | Randomized? | What's random |
 |---|---|---|
-| QC distribution | Yes | Remainder allocation across plates/rows |
+| QC distribution | Partially | Which of the least-filled plates and rows get the remainder |
 | Groups to plates | Yes | Shuffle within equal-size groups; random tiebreaking |
 | Recipe search (Phase 1) | **No** | Deterministic backtracking, same tree every time |
 | Recipe selection | Partially | Picks lowest covariate imbalance score; random tiebreaking among equal scores |

@@ -1,5 +1,5 @@
 import * as fc from 'fast-check';
-import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization, covariateImbalanceScore, computeGlobalProportions, distributeQcByCovariate } from '../algorithms/repeatedMeasuresDistribution';
+import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization, covariateImbalanceScore, computeGlobalProportions, distributeQcByCovariate, PackingError } from '../algorithms/repeatedMeasuresDistribution';
 import { SearchData, SubjectGroup, RepeatedMeasuresConfig } from '../utils/types';
 
 // Helper: create a sample with a subject column value
@@ -28,6 +28,26 @@ const makeGroup = (id: string, size: number, treatment: string = 'Drug'): Subjec
 // Helper: standard globalProportions for Drug/Placebo tests (equal 50/50)
 const DRUG_PLACEBO_PROPORTIONS = new Map<string, number>([['Drug', 0.5], ['Placebo', 0.5]]);
 const EMPTY_PROPORTIONS = new Map<string, number>();
+
+// Messages the group-aware pipeline throws when the groups do not fit the plates or rows.
+const PACKING_ERROR = new RegExp('^(' + [
+  /Unable to fit all (subject groups|samples) into available (plates|rows)\. /,
+  /Cannot fit \d+ subject groups of size \d+ into the available rows\. /,
+  /Subject \S+ has \d+ samples, but the largest row only has /,
+  /Total samples \(\d+\) exceed total row capacity/,
+].map(r => r.source).join('|') + ')');
+
+// A subject larger than every plate is a plain Error.
+const SUBJECT_EXCEEDS_PLATE = /^Unable to fit all subject groups into available plates\. Subject \S+ \(size \d+\) exceeds the largest plate capacity/;
+
+// Fails unless `thrown` is one of the packing errors, so a TypeError cannot pass as infeasible.
+// Every packing error except SUBJECT_EXCEEDS_PLATE must be a PackingError.
+const expectPackingError = (thrown: unknown): void => {
+  expect(thrown).toBeInstanceOf(Error);
+  const message = (thrown as Error).message;
+  expect(message).toMatch(PACKING_ERROR);
+  if (!SUBJECT_EXCEEDS_PLATE.test(message)) expect(thrown).toBeInstanceOf(PackingError);
+};
 
 // ─── Property-Based Tests ───────────────────────────────────────────────────
 
@@ -122,7 +142,8 @@ describe('Property 2: Same Plate grouping invariant', () => {
           let result: Map<number, SubjectGroup[]>;
           try {
             result = distributeGroupsToPlates(groups, plateCapacities, DRUG_PLACEBO_PROPORTIONS);
-          } catch {
+          } catch (e) {
+            expectPackingError(e);
             return; // infeasible packing is acceptable
           }
 
@@ -206,7 +227,8 @@ describe('Property 3: Same Row grouping invariant + Property 5: Row capacity is 
           let result: Map<number, SubjectGroup[]>;
           try {
             result = distributeGroupsToRows(groups, rowCapacities, DRUG_PLACEBO_PROPORTIONS);
-          } catch {
+          } catch (e) {
+            expectPackingError(e);
             return; // infeasible packing is acceptable
           }
 
@@ -637,7 +659,8 @@ describe('Property 6: QC samples reduce effective capacity for group fitting', (
               numRows,
               numColumns
             );
-          } catch {
+          } catch (e) {
+            expectPackingError(e);
             return; // infeasible packing is acceptable
           }
 
@@ -2715,5 +2738,281 @@ describe('Edge case: plate-level packing failure (edge-case-plate-infeasible)', 
     expect(error!.message).toMatch(/group\(s\) of size 4 need plates with 4\+ wells/);
     expect(error!.message).toMatch(/plate dimensions/);
     expect(error!.message).toMatch(/Same Plate constraint/);
+  });
+});
+
+
+// --- Feasibility: validator, QC allocator and packing agree ---
+
+describe('Subject-grouping feasibility', () => {
+  const sameRow: RepeatedMeasuresConfig = { subjectColumn: 'SubjectID', groupingConstraint: 'same-row' };
+  const samePlate: RepeatedMeasuresConfig = { subjectColumn: 'SubjectID', groupingConstraint: 'same-plate' };
+
+  const makeSubject = (subjectId: string, count: number, treatment: string): SearchData[] =>
+    Array.from({ length: count }, (_, i) => ({
+      name: `${subjectId}_T${i}`,
+      metadata: { SubjectID: subjectId, Treatment: treatment },
+    }));
+
+  const makeQc = (key: string, count: number): SearchData[] =>
+    Array.from({ length: count }, (_, i) => ({
+      name: `${key}_${i}`,
+      metadata: { Treatment: key },
+      covariateKey: key,
+      isQC: true,
+    }));
+
+  // Runs the layout `runs` times and returns the message of every run that threw.
+  const collectFailures = (runs: number, generate: () => void): string[] => {
+    const failures: string[] = [];
+    for (let i = 0; i < runs; i++) {
+      try {
+        generate();
+      } catch (e) {
+        failures.push((e as Error).message);
+      }
+    }
+    return failures;
+  };
+
+  it('Same Plate with "keep empty spots in last plate" on generates 40 subjects of 5 on 8x12 plates', () => {
+    const samples: SearchData[] = [];
+    for (let s = 0; s < 40; s++) {
+      samples.push(...makeSubject(`P${String(s).padStart(3, '0')}`, 5, s % 2 === 0 ? 'Drug' : 'Placebo'));
+    }
+
+    const failures = collectFailures(20, () =>
+      groupAwareRandomization(samples, ['Treatment'], samePlate, true, 8, 12)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it('Same Plate with "keep empty spots in last plate" on generates groups of 6, 5 and 3 on two 2x4 plates', () => {
+    const samples = [
+      ...makeSubject('A', 6, 'Drug'),
+      ...makeSubject('B', 5, 'Placebo'),
+      ...makeSubject('C', 3, 'Drug'),
+    ];
+
+    const failures = collectFailures(50, () =>
+      groupAwareRandomization(samples, ['Treatment'], samePlate, true, 2, 4)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it('a Same Plate packing error does not suggest switching to Same Plate', () => {
+    // Three groups of 5 cannot share two plates of 8 wells, whichever plate takes the third group.
+    const samples = [
+      ...makeSubject('A', 5, 'Drug'),
+      ...makeSubject('B', 5, 'Placebo'),
+      ...makeSubject('C', 5, 'Drug'),
+    ];
+
+    expect(() => groupAwareRandomization(samples, ['Treatment'], samePlate, false, 2, 4)).toThrow(
+      new Error(
+        'Unable to fit all subject groups into available plates. Remaining plate capacities: [3, 3]. ' +
+        '1 group(s) of size 5 need plates with 5+ wells, but only 0 plate(s) qualify (0 slot(s)). ' +
+        'Try increasing the plate dimensions.'
+      )
+    );
+  });
+
+  it('Same Row validator accepts 3 subjects of 6 with 1 QC on one 4x6 plate', () => {
+    // The QC sample takes one well of one row, so three rows still hold 6 wells each.
+    const groups = [makeGroup('A', 6), makeGroup('B', 6), makeGroup('C', 6)];
+
+    const result = validateSubjectGroups(groups, 'same-row', 6, 24, 24, 4, 1);
+    expect(result).toEqual({ isValid: true, errors: [], warnings: [] });
+  });
+
+  it('Same Row validator rejects a subject of 12 when every row of one 8x12 plate holds 3 or 4 of 27 QC', () => {
+    const result = validateSubjectGroups([makeGroup('A', 12)], 'same-row', 12, 96, 96, 8, 27);
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toEqual([
+      'Subject A has 12 samples, which exceeds the row capacity of 9 after placing QC samples. ' +
+      'Try increasing the plate dimensions or switching to Same Plate constraint.',
+    ]);
+  });
+
+  it('Same Plate validator rejects a subject of 8 when each 2x4 plate holds 1 of 2 QC samples', () => {
+    const groups: SubjectGroup[] = [
+      makeGroup('A', 8),
+      ...Array.from({ length: 6 }, (_, i) => ({
+        subjectId: `__singleton_${i}`,
+        samples: [makeSingletonSample(`S${i}`)],
+        size: 1,
+      })),
+    ];
+
+    const result = validateSubjectGroups(groups, 'same-plate', 4, 8, 16, 2, 2);
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toEqual([
+      'Subject A has 8 samples, which exceeds the plate capacity of 7 after placing QC samples. ' +
+      'Try increasing the plate dimensions.',
+    ]);
+  });
+
+  // 3 QC keys x 9 on 8 rows: each key puts 1 QC on every row and 1 extra on 1 of the rows.
+  const threeQcKeys = (): SearchData[] => [...makeQc('QC', 9), ...makeQc('Ref', 9), ...makeQc('Blind', 9)];
+
+  it('Same Row generates 8 subjects of 8 with 3 QC keys of 9 on one 8x12 plate every time', () => {
+    const samples: SearchData[] = [...threeQcKeys()];
+    for (let s = 0; s < 8; s++) {
+      samples.push(...makeSubject(`P${s}`, 8, s % 2 === 0 ? 'Drug' : 'Placebo'));
+    }
+
+    const validation = validateSubjectGroups(
+      buildSubjectGroups(samples.filter(s => !s.isQC), 'SubjectID'), 'same-row', 12, 96, 96, 8, 27
+    );
+    expect(validation).toEqual({ isValid: true, errors: [], warnings: [] });
+
+    const failures = collectFailures(200, () =>
+      groupAwareRandomization(samples, ['Treatment'], sameRow, false, 8, 12)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it('distributeQcByCovariate gives every row 3 or 4 of 27 QC samples in 3 keys', () => {
+    const qc = threeQcKeys();
+    const unevenRuns: string[] = [];
+    for (let i = 0; i < 200; i++) {
+      const perRow = distributeQcByCovariate(qc, 1, 8)[0].map(row => row.length).sort((a, b) => a - b);
+      if (perRow.join(',') !== '3,3,3,3,3,4,4,4') unevenRuns.push(perRow.join(','));
+    }
+    expect(unevenRuns).toEqual([]);
+  });
+
+  it('distributeQcByCovariate gives every plate 2 or 3 of 8 QC samples in 2 keys', () => {
+    const qc = [...makeQc('QC', 4), ...makeQc('Ref', 4)];
+    const unevenRuns: string[] = [];
+    for (let i = 0; i < 200; i++) {
+      const perPlate = distributeQcByCovariate(qc, 3, 2)
+        .map(plate => plate.reduce((sum, row) => sum + row.length, 0))
+        .sort((a, b) => a - b);
+      if (perPlate.join(',') !== '2,3,3') unevenRuns.push(perPlate.join(','));
+    }
+    expect(unevenRuns).toEqual([]);
+  });
+
+  it('Same Plate validator accepts a subject that fills the plate holding no QC', () => {
+    // 1 QC sample on two 2x4 plates. One plate keeps all 8 wells, so a subject of 8 fits there.
+    const samples = [...makeSubject('A', 8, 'Drug'), ...makeQc('QC', 1)];
+
+    const validation = validateSubjectGroups(
+      buildSubjectGroups(samples.filter(s => !s.isQC), 'SubjectID'), 'same-plate', 4, 8, 16, 2, 1
+    );
+    expect(validation).toEqual({ isValid: true, errors: [], warnings: [] });
+
+    const failures = collectFailures(20, () =>
+      groupAwareRandomization(samples, ['Treatment'], samePlate, false, 2, 4)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  // A random order of 0..n-1, drawn from the generator.
+  const genPermutation = (gen: fc.GeneratorValue, n: number): number[] => {
+    const remaining = Array.from({ length: n }, (_, i) => i);
+    const order: number[] = [];
+    while (remaining.length > 0) {
+      order.push(remaining.splice(gen(fc.integer, { min: 0, max: remaining.length - 1 }), 1)[0]);
+    }
+    return order;
+  };
+
+  // Splits `count` into `numBuckets` counts that differ by at most one, extras in a random order.
+  const genEvenSplit = (gen: fc.GeneratorValue, count: number, numBuckets: number): number[] => {
+    const split = new Array(numBuckets).fill(Math.floor(count / numBuckets));
+    genPermutation(gen, numBuckets).slice(0, count % numBuckets).forEach(i => { split[i] += 1; });
+    return split;
+  };
+
+  // Every well of every plate is filled. QC is split across plates and rows the way
+  // distributeQcByCovariate splits it, and each row's remaining wells are cut into subjects.
+  const filledLayoutArb = fc.gen().map(gen => {
+    const numPlates = gen(fc.integer, { min: 1, max: 3 });
+    const numRows = gen(fc.integer, { min: 1, max: 4 });
+    const numColumns = gen(fc.integer, { min: 2, max: 8 });
+    const numQc = gen(fc.integer, { min: 0, max: Math.min(numPlates * numRows * 2, numPlates * numRows * numColumns - 1) });
+
+    const groups: SubjectGroup[] = [];
+    let singletons = 0;
+    genEvenSplit(gen, numQc, numPlates).forEach(plateQc => {
+      genEvenSplit(gen, plateQc, numRows).forEach(rowQc => {
+        let free = numColumns - rowQc;
+        while (free > 0) {
+          const size = gen(fc.integer, { min: 1, max: free });
+          const subjectId = size === 1 && gen(fc.boolean) ? `__singleton_${singletons++}` : `S${groups.length}`;
+          groups.push(makeGroup(subjectId, size));
+          free -= size;
+        }
+      });
+    });
+    return { numPlates, numRows, numColumns, numQc, groups };
+  });
+
+  it('PBT: the validator accepts every layout that fills every well', () => {
+    fc.assert(
+      fc.property(filledLayoutArb, ({ numPlates, numRows, numColumns, numQc, groups }) => {
+        const plateCapacity = numRows * numColumns;
+        for (const constraint of ['same-row', 'same-plate'] as const) {
+          const result = validateSubjectGroups(
+            groups, constraint, numColumns, plateCapacity, numPlates * plateCapacity, numRows, numQc
+          );
+          expect(result.errors).toEqual([]);
+          expect(result.isValid).toBe(true);
+        }
+      }),
+      { numRuns: 300 }
+    );
+  });
+
+  // Subjects up to 2 wells wider than a row, blank-subject singletons and up to 6 QC in 1 to 3 keys.
+  const arbitraryRequestArb = fc.gen().map(gen => {
+    const numRows = gen(fc.integer, { min: 1, max: 4 });
+    const numColumns = gen(fc.integer, { min: 2, max: 8 });
+    const constraint = gen(fc.constantFrom, 'same-row' as const, 'same-plate' as const);
+    const keepEmptyInLastPlate = gen(fc.boolean);
+
+    const samples: SearchData[] = [];
+    const numSubjects = gen(fc.integer, { min: 1, max: 12 });
+    for (let s = 0; s < numSubjects; s++) {
+      const size = gen(fc.integer, { min: 1, max: numColumns + 2 });
+      samples.push(...makeSubject(`S${s}`, size, gen(fc.constantFrom, 'Drug', 'Placebo')));
+    }
+    const numSingletons = gen(fc.integer, { min: 0, max: 4 });
+    for (let s = 0; s < numSingletons; s++) {
+      samples.push({ name: `blank_${s}`, metadata: { SubjectID: '', Treatment: 'Drug' } });
+    }
+    const numQcKeys = gen(fc.integer, { min: 1, max: 3 });
+    const numQc = gen(fc.integer, { min: 0, max: 6 });
+    for (let q = 0; q < numQc; q++) {
+      samples.push(...makeQc(`QC${q % numQcKeys}`, 1).map(qc => ({ ...qc, name: `QC_${q}` })));
+    }
+    return { numRows, numColumns, constraint, keepEmptyInLastPlate, samples, numQc };
+  });
+
+  it('PBT: whenever the validator rejects a request, groupAwareRandomization throws a packing error', () => {
+    fc.assert(
+      fc.property(arbitraryRequestArb, ({ numRows, numColumns, constraint, keepEmptyInLastPlate, samples, numQc }) => {
+        // Same inputs App.tsx passes to the validator
+        const plateCapacity = numRows * numColumns;
+        const numPlates = Math.ceil(samples.length / plateCapacity);
+        const groups = buildSubjectGroups(samples.filter(s => !s.isQC), 'SubjectID');
+        const validation = validateSubjectGroups(
+          groups, constraint, numColumns, plateCapacity, numPlates * plateCapacity, numRows, numQc
+        );
+        if (validation.isValid) return;
+
+        const config: RepeatedMeasuresConfig = { subjectColumn: 'SubjectID', groupingConstraint: constraint };
+        let thrown: unknown;
+        try {
+          groupAwareRandomization(samples, ['Treatment'], config, keepEmptyInLastPlate, numRows, numColumns);
+        } catch (e) {
+          thrown = e;
+        }
+        expectPackingError(thrown);
+      }),
+      { numRuns: 300 }
+    );
   });
 });

@@ -4,6 +4,19 @@ import { greedyPlaceInRow } from './greedySpatialPlacement';
 import { distributeToBlocks, calculateExpectedMinimums } from './balancedRandomization';
 
 /**
+ * Thrown when the packing cannot fit the subject groups into the plates or rows. A subject larger
+ * than every plate throws a plain Error instead.
+ */
+export class PackingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PackingError';
+    // Keeps instanceof working when the class is compiled to ES5
+    Object.setPrototypeOf(this, PackingError.prototype);
+  }
+}
+
+/**
  * Groups samples by the selected subject column value.
  * Samples with empty/missing subject column values become singletons (group size 1).
  * Returns an array of SubjectGroup objects.
@@ -64,6 +77,8 @@ export function validateSubjectGroups(
   const warnings: string[] = [];
 
   const totalSamples = groups.reduce((sum, g) => sum + g.size, 0);
+  const qcCount = numQcSamples ?? 0;
+  const numPlates = Math.ceil((totalSamples + qcCount) / plateCapacity);
 
   // Check total capacity
   if (totalSamples > totalWellCapacity) {
@@ -73,17 +88,30 @@ export function validateSubjectGroups(
     );
   }
 
+  // Under Same Plate a group needs one plate. distributeQcByCovariate gives every plate
+  // floor(qcCount / numPlates) or one more QC sample, so no plate has more wells free than this.
+  const platesQcShare = qcCount > 0 ? Math.floor(qcCount / numPlates) : 0;
+  const largestPlateCapacity = plateCapacity - platesQcShare;
+
+  // Under Same Row the QC split gives every row base or base + 1 QC samples, and at least one
+  // row gets only base, so no row has more wells free than rowCapacity - base.
+  const totalRows = numRows !== undefined ? numPlates * numRows : 0;
+  const rowsQcBase = totalRows > 0 ? Math.floor(qcCount / totalRows) : 0;
+  const largestRowCapacity = rowCapacity - rowsQcBase;
+
   // Check per-group capacity based on constraint level
   for (const group of groups) {
-    if (constraint === 'same-row' && group.size > rowCapacity) {
+    if (constraint === 'same-row' && group.size > largestRowCapacity) {
       errors.push(
-        `Subject ${group.subjectId} has ${group.size} samples, which exceeds the row capacity of ${rowCapacity}. ` +
+        `Subject ${group.subjectId} has ${group.size} samples, which exceeds the row capacity of ` +
+        `${largestRowCapacity}${rowsQcBase > 0 ? ' after placing QC samples' : ''}. ` +
         `Try increasing the plate dimensions or switching to Same Plate constraint.`
       );
     }
-    if (constraint === 'same-plate' && group.size > plateCapacity) {
+    if (constraint === 'same-plate' && group.size > largestPlateCapacity) {
       errors.push(
-        `Subject ${group.subjectId} has ${group.size} samples, which exceeds the plate capacity of ${plateCapacity}. ` +
+        `Subject ${group.subjectId} has ${group.size} samples, which exceeds the plate capacity of ` +
+        `${largestPlateCapacity}${platesQcShare > 0 ? ' after placing QC samples' : ''}. ` +
         `Try increasing the plate dimensions.`
       );
     }
@@ -91,9 +119,12 @@ export function validateSubjectGroups(
 
   // For same-row: check if multi-sample groups can fit across all plates
   if (constraint === 'same-row' && numRows !== undefined) {
-    const numPlates = Math.ceil((totalSamples + (numQcSamples ?? 0)) / plateCapacity);
-    const qcPerRow = numQcSamples ? Math.ceil(numQcSamples / (numPlates * numRows)) : 0;
-    const effectiveRowCap = rowCapacity - qcPerRow;
+    // Model the rows distributeQcByCovariate produces. Every row gets rowsQcBase QC samples and
+    // `extra` rows get one more, so row capacities take two values.
+    const extra = qcCount % totalRows;
+    const fullerRowCap = Math.max(0, largestRowCapacity - 1);
+    const emptierRowCap = Math.max(0, largestRowCapacity);
+    const smallestRowCap = extra > 0 ? fullerRowCap : emptierRowCap;
 
     // Count groups by size
     const groupsBySize = new Map<number, number>();
@@ -103,15 +134,16 @@ export function validateSubjectGroups(
     }
 
     // Check slot feasibility across all plates
-    const totalRows = numPlates * numRows;
     for (const [groupSize, groupCount] of Array.from(groupsBySize.entries())) {
-      const slotsPerRow = Math.floor(effectiveRowCap / groupSize);
-      const totalSlots = totalRows * slotsPerRow;
+      // A group larger than every row is already reported above
+      if (groupSize > largestRowCapacity) continue;
+      const totalSlots = extra * Math.floor(fullerRowCap / groupSize) +
+        (totalRows - extra) * Math.floor(emptierRowCap / groupSize);
       if (groupCount > totalSlots) {
         errors.push(
           `Cannot fit ${groupCount} subject groups of size ${groupSize} into available rows. ` +
-          `With ${numPlates} plate(s) × ${numRows} rows, each row can hold ${slotsPerRow} group(s) of this size ` +
-          `(${effectiveRowCap} effective slots per row after QC). ` +
+          `With ${numPlates} plate(s) × ${numRows} rows, the rows can hold ${totalSlots} group(s) of this size ` +
+          `(the smallest row has ${smallestRowCap} slots${qcCount > 0 ? ' after placing QC samples' : ''}). ` +
           `Try increasing the plate dimensions or switching to Same Plate constraint.`
         );
       }
@@ -225,6 +257,8 @@ export function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup
  * @param globalProportions - Map of covariateKey → proportion across all experimental samples
  * @param plateRowSlotLimits - Optional per-plate limit on how many multi-sample groups can be assigned
  *   (for same-row constraint: each row holds floor(rowCap / groupSize) groups)
+ * @param groupingConstraint - The active constraint. Under Same Plate the error messages do not
+ *   suggest switching to Same Plate.
  * @returns Map from plate index to array of SubjectGroups assigned to that plate
  * @throws Error if a group cannot fit in any plate
  */
@@ -232,8 +266,16 @@ export function distributeGroupsToPlates(
   groups: SubjectGroup[],
   plateCapacities: number[],
   globalProportions: Map<string, number>,
-  plateRowSlotLimits?: number[]
+  plateRowSlotLimits?: number[],
+  groupingConstraint: GroupingConstraint = 'same-row'
 ): Map<number, SubjectGroup[]> {
+  const remedy = groupingConstraint === 'same-plate'
+    ? 'Try increasing the plate dimensions.'
+    : 'Try increasing the plate dimensions or switching to Same Plate constraint.';
+  const singletonRemedy = groupingConstraint === 'same-plate'
+    ? 'Try adjusting the plate dimensions.'
+    : 'Try adjusting the plate dimensions or switching to Same Plate constraint.';
+
   // Separate multi-sample groups from singletons
   const multiGroups = groups.filter(g => g.size > 1);
   const singletons = groups.filter(g => g.size === 1);
@@ -294,11 +336,11 @@ export function distributeGroupsToPlates(
           );
         }
 
-        throw new Error(
+        throw new PackingError(
           `Unable to fit all subject groups into available plates. ` +
           `Remaining plate capacities: [${remainingCapacities.join(', ')}]. ` +
           shapeParts.join('; ') + '. ' +
-          `Try increasing the plate dimensions or switching to Same Plate constraint.`
+          remedy
         );
       }
     }
@@ -352,10 +394,10 @@ export function distributeGroupsToPlates(
     }
 
     if (candidatePlates.length === 0) {
-      throw new Error(
+      throw new PackingError(
         `Unable to fit all samples into available plates. ` +
         `No remaining capacity for singleton sample after placing subject groups. ` +
-        `Try adjusting the plate dimensions or switching to Same Plate constraint.`
+        singletonRemedy
       );
     }
 
@@ -413,7 +455,7 @@ function validateGroupFeasibility(
 
   const oversizedGroup = multiGroups.find(g => g.size > maxRowCap);
   if (oversizedGroup) {
-    throw new Error(
+    throw new PackingError(
       `Subject ${oversizedGroup.subjectId} has ${oversizedGroup.size} samples, ` +
       `but the largest row only has ${maxRowCap} available slots (after QC allocation). ` +
       `Try increasing the plate dimensions or switching to Same Plate constraint.`
@@ -424,7 +466,7 @@ function validateGroupFeasibility(
   const totalCapacity = rowCapacities.reduce((sum, c) => sum + c, 0);
   const totalSamples = totalMultiGroupSamples + singletons.length;
   if (totalSamples > totalCapacity) {
-    throw new Error(
+    throw new PackingError(
       `Total samples (${totalSamples}) exceed total row capacity (${totalCapacity}). ` +
       `Try increasing the plate dimensions.`
     );
@@ -439,7 +481,7 @@ function validateGroupFeasibility(
   for (const [groupSize, groupCount] of Array.from(groupsBySize.entries())) {
     const totalSlots = rowCapacities.reduce((sum, cap) => sum + Math.floor(cap / groupSize), 0);
     if (groupCount > totalSlots) {
-      throw new Error(
+      throw new PackingError(
         `Cannot fit ${groupCount} subject groups of size ${groupSize} into the available rows. ` +
         `The rows can hold at most ${totalSlots} groups of this size (max ${Math.floor(maxRowCap / groupSize)} per row). ` +
         `Try increasing the plate dimensions or switching to Same Plate constraint.`
@@ -903,7 +945,7 @@ function greedyFFDPlacement(
         );
       }
 
-      throw new Error(
+      throw new PackingError(
         `Unable to fit all subject groups into available rows. ` +
         `Remaining row capacities: [${state.remainingCapacities.join(', ')}]. ` +
         shapeParts.join('; ') + '. ' +
@@ -977,7 +1019,7 @@ function distributeSingletons(
     }
 
     if (candidateRows.length === 0) {
-      throw new Error(
+      throw new PackingError(
         `Unable to fit all samples into available rows. ` +
         `No remaining capacity for singleton sample after placing subject groups. ` +
         `Try adjusting the plate dimensions or switching to Same Plate constraint.`
@@ -1076,34 +1118,42 @@ export function distributeGroupsToRows(
 
 
 /**
- * Distributes `count` items across `numBuckets` buckets proportionally.
- * Each bucket gets floor(count / numBuckets). Remainder is distributed
- * one-per-bucket to randomly selected buckets.
+ * Splits `count` items across buckets as evenly as possible, given the totals already in each
+ * bucket. Each bucket gets floor(count / numBuckets), and the remainder goes one each to the
+ * buckets with the lowest running totals, ties at random. Adds the result to `runningTotals`.
  *
- * @returns Array of length numBuckets with the count allocated to each.
+ * @returns Array of length runningTotals.length with the count allocated to each bucket.
  */
-function distributeProportionally(count: number, numBuckets: number): number[] {
+function distributeEvenly(count: number, runningTotals: number[]): number[] {
+  const numBuckets = runningTotals.length;
   const base = Math.floor(count / numBuckets);
   const remainder = count % numBuckets;
   const result = new Array(numBuckets).fill(base);
 
-  // Distribute remainder one-per-bucket to randomly selected buckets
-  const indices = shuffleArray(Array.from({ length: numBuckets }, (_, i) => i));
+  // Shuffle first so the stable sort breaks ties between equal totals at random
+  const leastFilled = shuffleArray(Array.from({ length: numBuckets }, (_, i) => i))
+    .sort((a, b) => runningTotals[a] - runningTotals[b]);
   for (let i = 0; i < remainder; i++) {
-    result[indices[i]] += 1;
+    result[leastFilled[i]] += 1;
   }
 
+  for (let i = 0; i < numBuckets; i++) {
+    runningTotals[i] += result[i];
+  }
   return result;
 }
 
 /**
- * Distributes QC samples proportionally by covariateKey across plates and rows.
+ * Distributes QC samples by covariateKey across plates and rows.
  *
  * For each QC covariate group:
- *   - Plate level: each plate gets floor(groupCount / numPlates), remainder
- *     distributed randomly (one extra per plate).
- *   - Row level: within each plate, each row gets floor(plateAlloc / numRows),
- *     remainder distributed randomly (one extra per row).
+ *   - Plate level: each plate gets floor(groupCount / numPlates). The remainder goes one per
+ *     plate to the plates holding the fewest QC samples so far, across all groups.
+ *   - Row level: within each plate, each row gets floor(plateAlloc / numRows). The remainder
+ *     goes one per row to the rows of that plate holding the fewest QC samples so far.
+ *
+ * Each group is spread evenly, and so is the QC total. Plate totals differ by at most one, as
+ * do the row totals within a plate. validateSubjectGroups relies on this.
  *
  * @param qcSamples - All QC samples (isQC === true), already shuffled
  * @param numPlates - Number of plates
@@ -1130,13 +1180,16 @@ export function distributeQcByCovariate(
     groups.get(key)!.push(sample);
   }
 
+  const plateTotals = new Array(numPlates).fill(0);
+  const rowTotals = Array.from({ length: numPlates }, () => new Array(numRows).fill(0));
+
   // For each covariate group, distribute across plates then rows
   groups.forEach((groupSamples) => {
-    const plateCounts = distributeProportionally(groupSamples.length, numPlates);
+    const plateCounts = distributeEvenly(groupSamples.length, plateTotals);
 
     let sampleIdx = 0;
     for (let p = 0; p < numPlates; p++) {
-      const rowCounts = distributeProportionally(plateCounts[p], numRows);
+      const rowCounts = distributeEvenly(plateCounts[p], rowTotals[p]);
       for (let r = 0; r < numRows; r++) {
         for (let q = 0; q < rowCounts[r]; q++) {
           result[p][r].push(groupSamples[sampleIdx++]);
@@ -1217,19 +1270,8 @@ export function groupAwareRandomization(
     effectivePlateCapacities.push(plateCap);
   }
 
-  // If keepEmptyInLastPlate, reduce last plate's effective capacity
-  // to only what's needed for remaining experimental samples.
-  // Disabled for same-row constraint: row-slot geometry already constrains
-  // distribution tightly, and reducing capacity causes singleton imbalance.
-  const totalExperimental = experimentalSamples.length;
-  if (keepEmptyInLastPlate && numPlates > 1 && groupingConstraint !== 'same-row') {
-    const capacityBeforeLast = effectivePlateCapacities.slice(0, numPlates - 1)
-      .reduce((sum, c) => sum + c, 0);
-    const remainingForLast = Math.max(0, totalExperimental - capacityBeforeLast);
-    if (remainingForLast < effectivePlateCapacities[numPlates - 1]) {
-      effectivePlateCapacities[numPlates - 1] = remainingForLast;
-    }
-  }
+  // keepEmptyInLastPlate does not change plate capacities under a grouping constraint, because
+  // whole subject groups cannot fill the earlier plates exactly.
 
   // For same-row constraint, compute per-plate row-slot limits.
   // These limit how many multi-sample groups each plate can accept,
@@ -1262,7 +1304,8 @@ export function groupAwareRandomization(
     subjectGroups,
     effectivePlateCapacities,
     globalProportions,
-    plateRowSlotLimits
+    plateRowSlotLimits,
+    groupingConstraint
   );
 
   // Step 7: Initialize plate data structures
