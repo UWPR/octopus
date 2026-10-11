@@ -209,7 +209,12 @@ Click **"Show/Hide Covariate Summary"** to display:
 
 #### Group Distribution Warnings
 
-After you generate a layout, Octopus flags covariate groups that are poorly distributed across plates or rows. Flagged covariate group cards in the Covariate Summary panel carry a **SPARSE** label (red) or an **UNEVEN** label (amber). A banner at the top of the panel reports how many groups are affected. The collapsed toggle shows a warning count. Hover a label to read the full reason. The warnings are informational only and never block plate generation.
+Octopus flags covariate groups that are poorly distributed across plates or rows. The warnings are informational only and never block plate generation.
+
+- **Before you generate**, a red banner below the configuration appears when a treatment group has fewer samples than the number of plates the layout will use. It names the smallest groups. Selecting fewer covariates makes the groups larger.
+- **After you generate**, a banner above the plates lists the problems. It is red when a group misses a plate or a row, and amber when the only problem is uneven balance (a group balance score below 70). **Show affected groups** opens the Covariate Summary, where flagged group cards carry a **SPARSE** label (red) or an **UNEVEN** label (amber). Hover a label to read the full reason. The collapsed Covariate Summary toggle also shows a warning count.
+
+The groups are judged as follows.
 
 - **Treatment groups** are flagged when a group has fewer samples than there are plates, making it impossible to place at least one sample on every plate.
 

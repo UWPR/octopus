@@ -8,6 +8,7 @@ import PlatesGrid from './components/PlatesGrid';
 import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
 import QualitySwatch from './components/QualitySwatch';
+import DistributionWarningBanner from './components/DistributionWarningBanner';
 import SubjectPlacementPanel from './components/SubjectPlacementPanel';
 import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig, NaPolicy, DEFAULT_NA_POLICY } from './utils/types';
 import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp, buildLayoutFileName, detectNaTypeValues, NaDetectionResult } from './utils/utils';
@@ -25,7 +26,7 @@ import { useRandomization } from './hooks/useRandomization';
 import { useCovariateColors } from './hooks/useCovariateColors';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useQualityMetrics } from './hooks/useQualityMetrics';
-import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, computeQcRowCoverage, hasCoverageError } from './utils/groupDistributionWarnings';
+import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, computeQcRowCoverage, hasCoverageError, plannedTreatmentGroups, plannedCoverageSummary } from './utils/groupDistributionWarnings';
 import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
@@ -373,6 +374,35 @@ const App: React.FC = () => {
   const naDetection = useMemo(
     () => detectNaTypeValues(searches, availableColumns.filter(col => col !== selectedIdColumn)),
     [searches, availableColumns, selectedIdColumn]
+  );
+
+  // Before Generate: the treatment groups and the plate count a layout of these samples will have,
+  // so groups too small to reach every plate are flagged while the covariates are chosen.
+  const plannedPlateCount = Math.ceil(searches.length / (plateRows * plateColumns));
+  const plannedGroups = useMemo(
+    () => (isProcessed || selectedCovariates.length === 0
+      ? []
+      : plannedTreatmentGroups(searches, selectedCovariates, naPolicy, qcColumn, selectedQcValues)),
+    [isProcessed, searches, selectedCovariates, naPolicy, qcColumn, selectedQcValues]
+  );
+  const plannedWarnings = useMemo(
+    () => computeGroupDistributionWarnings(plannedGroups, plannedPlateCount),
+    [plannedGroups, plannedPlateCount]
+  );
+  const plannedSparseGroups = useMemo(
+    () => plannedGroups.filter(group => plannedWarnings.byCombination.has(group.combination)),
+    [plannedGroups, plannedWarnings]
+  );
+
+  // After Generate: the treatment groups that miss a plate, labeled with their covariate values
+  const layoutSparseGroups = useMemo(
+    () => summaryData
+      .filter(item => {
+        const warning = distributionWarnings.byCombination.get(item.combination);
+        return warning?.severity === 'error' && !warning.isQc;
+      })
+      .map(item => ({ label: selectedCovariates.map(c => item.values[c]).join(' | '), count: item.count })),
+    [summaryData, distributionWarnings, selectedCovariates]
   );
 
   // Toggle one entry of the "N/A values" checklist. Blank uses the empty-string token. The
@@ -1115,6 +1145,16 @@ const App: React.FC = () => {
             'ID column must have a value for each sample.'
           )}
 
+          {/* Treatment groups too small to reach every plate - shown while the covariates are chosen */}
+          {!isProcessed && plannedWarnings.warningCount > 0 && (
+            <DistributionWarningBanner
+              severity="error"
+              lines={[plannedCoverageSummary(plannedWarnings.warningCount, plannedWarnings.totalGroups, plannedPlateCount)]}
+              sparseGroups={plannedSparseGroups}
+              testId="planned-coverage-banner"
+            />
+          )}
+
           {/* Process Button */}
           {searches.length > 0 && !isProcessed && (
             <button
@@ -1209,6 +1249,17 @@ const App: React.FC = () => {
                   onExportSequence={() => setShowSequenceExportWizard(true)}
                 />
               </div>
+
+              {/* Group distribution warnings above the plates, so they show without opening the summary */}
+              {distributionWarnings.warningCount > 0 && (
+                <DistributionWarningBanner
+                  severity={warningsHaveError ? 'error' : 'warning'}
+                  lines={distributionWarnings.summaries}
+                  sparseGroups={layoutSparseGroups}
+                  testId="layout-warning-banner"
+                  onShowGroups={() => setShowSummary(true)}
+                />
+              )}
 
               <SummaryPanel
                 summaryData={summaryData}

@@ -1,5 +1,6 @@
-import { SummaryItem, QualityMetrics, SearchData } from './types';
+import { SummaryItem, QualityMetrics, SearchData, NaPolicy } from './types';
 import { QUALITY_LEVEL_CONFIG } from './configs';
+import { buildCovariateKey, effectiveDisplayValue } from './utils';
 
 /**
  * Group distribution warnings.
@@ -24,6 +25,9 @@ import { QUALITY_LEVEL_CONFIG } from './configs';
  */
 
 export type WarningSeverity = 'error' | 'warning';
+
+// The fields of a covariate group that the warnings read.
+export type WarningGroup = Pick<SummaryItem, 'combination' | 'count' | 'qcColumnValue'>;
 
 export interface GroupWarning {
   combination: string; // covariate-key, matches SummaryItem.combination
@@ -63,8 +67,8 @@ export interface WarningOptions {
 }
 
 // A group whose balance score falls below this is flagged as a balance warning.
-// Mapped to the Fair floor in QUALITY_LEVEL_CONFIG, so Poor and Bad groups are
-// flagged and Fair or better is treated as acceptable.
+// Mapped to the floor of the 70-79 band in QUALITY_LEVEL_CONFIG, so a group below 70 is
+// flagged and 70 or above is treated as acceptable.
 export const POOR_BALANCE_THRESHOLD = QUALITY_LEVEL_CONFIG.fair.lowScore; // 70
 
 /**
@@ -218,7 +222,7 @@ function buildSummaries(warnings: GroupWarning[]): string[] {
  *   coverage. All optional; each tier is skipped when its input is absent.
  */
 export function computeGroupDistributionWarnings(
-  summaryData: SummaryItem[],
+  summaryData: WarningGroup[],
   plateCount: number,
   options: WarningOptions = {}
 ): GroupDistributionWarnings {
@@ -293,4 +297,45 @@ export function computeGroupDistributionWarnings(
  */
 export function hasCoverageError(warnings: GroupDistributionWarnings): boolean {
   return Array.from(warnings.byCombination.values()).some((w) => w.severity === 'error');
+}
+
+/**
+ * The treatment groups of the samples before Generate, keyed with buildCovariateKey as the layout
+ * keys them. Samples with a selected value in the QC column are left out, since the QC coverage
+ * rule needs a generated layout. Each group carries its covariate values joined by " | " as a label.
+ * Groups are in the order their first sample appears.
+ */
+export function plannedTreatmentGroups(
+  samples: SearchData[],
+  selectedCovariates: string[],
+  naPolicy: NaPolicy,
+  qcColumn: string,
+  selectedQcValues: string[]
+): (WarningGroup & { label: string })[] {
+  const groups = new Map<string, WarningGroup & { label: string }>();
+  samples.forEach((sample) => {
+    if (qcColumn && selectedQcValues.includes(sample.metadata[qcColumn])) return;
+    const key = buildCovariateKey(sample, { selectedCovariates, naPolicy });
+    const group = groups.get(key);
+    if (group) {
+      group.count += 1;
+    } else {
+      const label = selectedCovariates
+        .map((covariate) => effectiveDisplayValue(sample.metadata[covariate] ?? '', naPolicy))
+        .join(' | ');
+      groups.set(key, { combination: key, count: 1, label });
+    }
+  });
+  return Array.from(groups.values());
+}
+
+/** The warning shown before Generate when some treatment groups cannot reach every plate. */
+export function plannedCoverageSummary(count: number, totalGroups: number, plateCount: number): string {
+  const fewer = count === 1 ? 'has fewer samples' : 'have fewer samples';
+  const pronoun = count === 1 ? 'it' : 'they';
+  return (
+    `With these covariates, ${count} of the ${totalGroups} treatment groups ${fewer} than the ` +
+    `${plateCount} plates, so ${pronoun} cannot appear on every plate. ` +
+    'Selecting fewer covariates makes larger groups.'
+  );
 }

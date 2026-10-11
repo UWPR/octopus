@@ -73,4 +73,37 @@ test.describe('group distribution warnings', () => {
     );
     expect(await rowCoverageErrors.count()).toBeGreaterThanOrEqual(1);
   });
+
+  test('warns before Generate and shows the warnings above the plates after Generate', async ({ page }) => {
+    await page.locator('#file-upload').setInputFiles(DEMO);
+    await page.locator('#qcColumn').selectOption('SampleType');
+    await page.getByRole('checkbox', { name: 'QC', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Ref', exact: true }).check();
+    await page.locator('#covariates').selectOption(['Treatment', 'Timepoint', 'Site']);
+
+    // Before Generate: the 10 study groups are counted without the QC and Ref samples.
+    const planned = page.getByTestId('planned-coverage-banner');
+    await expect(planned).toBeVisible();
+    await expect(planned).toContainText(
+      `${EXPECTED_TREATMENT_ERRORS} of the 10 treatment groups have fewer samples than the 3 plates`
+    );
+    await expect(planned).toContainText('Vehicle | T0 | A (');
+    await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeEnabled();
+
+    await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
+
+    // After Generate: the banner is above the plates while the Covariate Summary is still collapsed.
+    await expect(planned).toHaveCount(0);
+    await expect(page.getByTestId('distribution-warning-banner')).toHaveCount(0);
+    const layoutBanner = page.getByTestId('layout-warning-banner');
+    await expect(layoutBanner).toBeVisible();
+    await expect(layoutBanner).toHaveAttribute('data-severity', 'error');
+    await expect(layoutBanner).toContainText(
+      `${EXPECTED_TREATMENT_ERRORS} of the treatment covariate groups are not represented on every plate`
+    );
+    await expect(layoutBanner).toContainText('Vehicle | T0 | A (');
+
+    await layoutBanner.getByRole('button', { name: 'Show affected groups' }).click();
+    await expect(page.getByTestId('distribution-warning-banner')).toBeVisible();
+  });
 });
