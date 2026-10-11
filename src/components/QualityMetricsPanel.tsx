@@ -1,7 +1,8 @@
 import React from 'react';
 import { QualityMetrics } from '../utils/types';
 import { QUALITY_DISPLAY_CONFIG } from '../utils/configs';
-import { getQualityColor, getQualityLevelColor, getQualityLevel, getCompactQualityLevel, formatScore } from '../utils/utils';
+import { getQualityColor, getQualityLevelColor, getQualityLevel, formatScore } from '../utils/utils';
+import QualitySwatch from './QualitySwatch';
 
 interface QualityMetricsPanelProps {
   metrics: QualityMetrics | null;
@@ -63,12 +64,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                     }}>
                       {formatScore(metrics.overallQuality.score)}
                     </span>
-                    <span style={{
-                      ...styles.fullQualityBadge,
-                      backgroundColor: getQualityLevelColor(metrics.overallQuality.level)
-                    }}>
-                      {metrics.overallQuality.level.charAt(0).toUpperCase() + metrics.overallQuality.level.slice(1)}
-                    </span>
+                    <QualitySwatch color={getQualityLevelColor(metrics.overallQuality.level)} size={12} />
                   </div>
 
                 </div>
@@ -82,12 +78,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                     }}>
                       {formatScore(metrics.plateDiversity.averageBalanceScore)}
                     </span>
-                    <span style={{
-                      ...styles.qualityBadge,
-                      backgroundColor: getQualityLevelColor(getQualityLevel(metrics.plateDiversity.averageBalanceScore))
-                    }}>
-                      {getCompactQualityLevel(metrics.plateDiversity.averageBalanceScore)}
-                    </span>
+                    <QualitySwatch color={getQualityLevelColor(getQualityLevel(metrics.plateDiversity.averageBalanceScore))} />
                   </div>
                   )}
                   {QUALITY_DISPLAY_CONFIG.showClusteringScore && (
@@ -99,12 +90,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                       }}>
                         {formatScore(metrics.plateDiversity.averageClusteringScore)}
                       </span>
-                      <span style={{
-                        ...styles.qualityBadge,
-                        backgroundColor: getQualityLevelColor(getQualityLevel(metrics.plateDiversity.averageClusteringScore))
-                      }}>
-                        {getCompactQualityLevel(metrics.plateDiversity.averageClusteringScore)}
-                      </span>
+                      <QualitySwatch color={getQualityLevelColor(getQualityLevel(metrics.plateDiversity.averageClusteringScore))} />
                     </div>
                   )}
                 </div>
@@ -123,12 +109,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                         <div style={styles.plateScoreHeader}>
                           <span style={styles.plateNumber}>Plate {plate.plateIndex + 1}</span>
                           <div style={styles.overallScoreContainer}>
-                            <span style={{
-                              ...styles.fullQualityBadge,
-                              backgroundColor: getQualityLevelColor(getQualityLevel(plate.overallScore))
-                            }}>
-                              {getQualityLevel(plate.overallScore)}
-                            </span>
+                            <QualitySwatch color={getQualityLevelColor(getQualityLevel(plate.overallScore))} size={12} />
                             <span style={{
                               ...styles.overallScoreValue,
                               color: getQualityColor(plate.overallScore)
@@ -145,12 +126,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                               ...styles.scoreValue,
                               color: getQualityColor(plate.balanceScore)
                             }}>
-                              <span style={{
-                                ...styles.qualityBadge,
-                                backgroundColor: getQualityLevelColor(getQualityLevel(plate.balanceScore))
-                              }}>
-                                {getCompactQualityLevel(plate.balanceScore)}
-                              </span>
+                              <QualitySwatch color={getQualityLevelColor(getQualityLevel(plate.balanceScore))} />
                               {' '}{formatScore(plate.balanceScore)}
                             </span>
                           </div>
@@ -162,12 +138,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                                 ...styles.scoreValue,
                                 color: getQualityColor(plate.clusteringScore)
                               }}>
-                                <span style={{
-                                  ...styles.qualityBadge,
-                                  backgroundColor: getQualityLevelColor(getQualityLevel(plate.clusteringScore))
-                                }}>
-                                  {getCompactQualityLevel(plate.clusteringScore)}
-                                </span>
+                                <QualitySwatch color={getQualityLevelColor(getQualityLevel(plate.clusteringScore))} />
                                 {' '}{formatScore(plate.clusteringScore)}
                               </span>
                             </div>
@@ -457,27 +428,6 @@ const styles = {
     color: '#1565c0',
     marginBottom: '4px',
     lineHeight: '1.4',
-  },
-  qualityBadge: {
-    padding: '1px 3px',
-    borderRadius: '2px',
-    color: '#fff',
-    fontSize: '9px',
-    fontWeight: '600',
-    textTransform: 'uppercase' as const,
-    display: 'inline-block',
-    minWidth: '12px',
-    textAlign: 'center' as const,
-  },
-  fullQualityBadge: {
-    padding: '2px 6px',
-    borderRadius: '3px',
-    color: '#fff',
-    fontSize: '10px',
-    fontWeight: '600',
-    textTransform: 'uppercase' as const,
-    display: 'inline-block',
-    marginLeft: '6px',
   },
 };
 

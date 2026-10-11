@@ -244,12 +244,12 @@ Subject highlighting and covariate highlighting are mutually exclusive — click
 
 #### Quality Metrics
 
-**Overall Quality Button**: Shows experiment-wide quality score and level (Excellent, Good, Fair, Poor, or Bad)
+**Overall Quality Button**: Shows the experiment-wide quality score, with a swatch in the color of its score band (see Score Bands below)
 
 Click the quality button to open the **Quality Assessment Dialog** showing:
-- Overall quality score and level
+- Overall quality score
 - Average balance and clustering scores across all plates
-- Individual scores for each plate with quality badges
+- Individual scores for each plate, each with a color swatch
 
 **Plate Headers**: Each plate displays:
 - **Bal**: Balance score (0-100) for that plate (not shown with a single plate — see Balance Score section below)
@@ -444,15 +444,17 @@ The average of all active score components, calculated at both plate level and e
 - **Multiple plates**: Overall Score = (Balance Score + Clustering Score) / 2
 - **Single plate**: Overall Score = Clustering Score only (balance is excluded because with one plate, the plate's covariate distribution is identical to the overall distribution, making the balance score trivially perfect and uninformative)
 
-### Quality Levels
+### Score Bands
 
-| Score Range | Quality Level |
-|-------------|---------------|
-| 90-100 | Excellent |
-| 80-89 | Good |
-| 70-79 | Fair |
-| 60-69 | Poor |
-| 0-59 | Bad |
+Every score is shown as a number with a small swatch in the color of its band. The bands group the score ranges for display only. A score measures how well a layout meets the balance and spatial separation criteria that Octopus implements. It does not measure the statistical power of the experimental design.
+
+| Score Range | Band Color |
+|-------------|------------|
+| 90-100 | Green |
+| 80-89 | Yellow-green |
+| 70-79 | Orange |
+| 60-69 | Brown |
+| 0-59 | Red |
 
 ### Quality with Grouping Constraints
 

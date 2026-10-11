@@ -121,7 +121,7 @@ describe('computeGroupDistributionWarnings', () => {
     const warning = result.byCombination.get('A')!;
     expect(warning.severity).toBe('warning');
     expect(warning.reason).toBe(
-      'Balance score 60 (Poor or Bad). This group is spread unevenly across the 3 plates.'
+      'Balance score 60 (below 70). This group is spread unevenly across the 3 plates.'
     );
   });
 
@@ -275,7 +275,7 @@ describe('computeGroupDistributionWarnings', () => {
       observedGroupBalance: new Map([['A', 55]]),
     });
     expect(result.summaries).toEqual([
-      '1 covariate group is placed unevenly across the plates (Poor or Bad balance).',
+      '1 covariate group is placed unevenly across the plates (balance score below 70).',
     ]);
   });
 
@@ -295,7 +295,7 @@ describe('computeGroupDistributionWarnings', () => {
     const warning = result.byCombination.get('A')!;
     expect(warning.severity).toBe('warning');
     expect(warning.reason).toBe(
-      'Balance score 69 (Poor or Bad). This group is spread unevenly across the 2 plates.'
+      'Balance score 69 (below 70). This group is spread unevenly across the 2 plates.'
     );
   });
 

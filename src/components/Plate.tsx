@@ -18,7 +18,8 @@
 import React, { DragEvent, useMemo, useCallback } from 'react';
 import { SearchData, CovariateColorInfo, PlateQualityScore } from '../utils/types';
 import { QUALITY_DISPLAY_CONFIG } from '../utils/configs';
-import { getCovariateKey, getQualityColor, getCompactQualityLevel, formatScore } from '../utils/utils';
+import { getCovariateKey, getQualityColor, formatScore } from '../utils/utils';
+import QualitySwatch from './QualitySwatch';
 
 // Constants
 const DIMENSIONS = {
@@ -288,7 +289,7 @@ const Plate: React.FC<PlateProps> = ({
         </div>
         {plateQuality && (
           <div style={currentStyles.plateQualityRow}>
-            <div style={currentStyles.plateQualityMetrics}>
+            <div style={currentStyles.plateQualityMetrics} data-testid={`plate-quality-${plateIndex}`}>
               <span style={currentStyles.qualityLabel}>Quality:</span>
               {numPlates > 1 && (
               <span
@@ -297,12 +298,7 @@ const Plate: React.FC<PlateProps> = ({
                   color: getQualityColor(plateQuality.balanceScore)
                 }}
               >
-                <span style={{
-                  ...currentStyles.qualityBadge,
-                  backgroundColor: getQualityColor(plateQuality.balanceScore)
-                }}>
-                  {getCompactQualityLevel(plateQuality.balanceScore)}
-                </span>
+                <QualitySwatch color={getQualityColor(plateQuality.balanceScore)} />
                 {' '}Bal: {formatScore(plateQuality.balanceScore)}
               </span>
               )}
@@ -313,12 +309,7 @@ const Plate: React.FC<PlateProps> = ({
                     color: getQualityColor(plateQuality.clusteringScore)
                   }}
                 >
-                  <span style={{
-                    ...currentStyles.qualityBadge,
-                    backgroundColor: getQualityColor(plateQuality.clusteringScore)
-                  }}>
-                    {getCompactQualityLevel(plateQuality.clusteringScore)}
-                  </span>
+                  <QualitySwatch color={getQualityColor(plateQuality.clusteringScore)} />
                   {' '}Clust: {formatScore(plateQuality.clusteringScore)}
                 </span>
               )}
@@ -329,12 +320,7 @@ const Plate: React.FC<PlateProps> = ({
                     color: getQualityColor(plateQuality.rowClusteringScore)
                   }}
                 >
-                  <span style={{
-                    ...currentStyles.qualityBadge,
-                    backgroundColor: getQualityColor(plateQuality.rowClusteringScore)
-                  }}>
-                    {getCompactQualityLevel(plateQuality.rowClusteringScore)}
-                  </span>
+                  <QualitySwatch color={getQualityColor(plateQuality.rowClusteringScore)} />
                   {' '}Row: {formatScore(plateQuality.rowClusteringScore)}
                 </span>
               )}
@@ -432,15 +418,6 @@ const baseStyles = {
     backgroundColor: '#fff',
     borderRadius: '2px',
     border: '1px solid #e9ecef',
-  },
-  qualityBadge: {
-    padding: '1px 3px',
-    borderRadius: '2px',
-    color: '#fff',
-    fontSize: '9px',
-    fontWeight: '600',
-    textTransform: 'uppercase' as const,
-    display: 'inline-block',
   },
   detailsButton: {
     background: 'none',

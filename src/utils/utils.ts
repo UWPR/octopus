@@ -481,33 +481,13 @@ export const formatScore = (score: number): string => {
 };
 
 /**
- * Get compact quality level (first letter) for a given score
- * @param score - Quality score (0-100)
- * @returns Single uppercase letter representing quality level
- */
-export const getCompactQualityLevel = (score: number): string => {
-  return getCompactQualityLevelFromString(getQualityLevel(score));
-};
-
-/**
- * Get compact quality level from quality level string
- * @param level - Quality level string
- * @returns Single uppercase letter representing quality level
- */
-export const getCompactQualityLevelFromString = (level: QualityLevel): string => {
-  return QUALITY_LEVEL_CONFIG[level].shortLabel;
-};
-
-/**
- * Get all quality levels with their score ranges, badges, and descriptions
+ * Get all quality levels with their score ranges and colors
  * @returns Array of quality level information sorted by score (best to worst)
  */
 export const getAllQualityLevels = () => {
   return QUALITY_LEVELS_BY_SCORE.map(([levelKey, config]) => ({
     range: `${config.lowScore}-${config.highScore}`,
     level: levelKey as QualityLevel,
-    badge: config.shortLabel,
-    description: config.name,
     color: config.color
   }));
 };

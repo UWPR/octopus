@@ -7,6 +7,7 @@ import ExcelExportModal from './components/ExcelExportModal';
 import PlatesGrid from './components/PlatesGrid';
 import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
+import QualitySwatch from './components/QualitySwatch';
 import SubjectPlacementPanel from './components/SubjectPlacementPanel';
 import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig, NaPolicy, DEFAULT_NA_POLICY } from './utils/types';
 import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp, buildLayoutFileName, detectNaTypeValues, NaDetectionResult } from './utils/utils';
@@ -1145,13 +1146,7 @@ const App: React.FC = () => {
                       <span style={styles.qualityScore}>
                         {formatScore(metrics.overallQuality.score)}
                       </span>
-                      <span style={{
-                        ...styles.qualityBadge,
-                        backgroundColor:
-                          getQualityLevelColor(metrics.overallQuality.level)
-                      }}>
-                        {metrics.overallQuality.level.charAt(0).toUpperCase() + metrics.overallQuality.level.slice(1)}
-                      </span>
+                      <QualitySwatch color={getQualityLevelColor(metrics.overallQuality.level)} size={12} />
                     </div>
                   </button>
                 )}
@@ -1511,14 +1506,6 @@ const styles = {
   qualityScore: {
     fontWeight: '600',
     color: '#495057',
-  },
-  qualityBadge: {
-    padding: '2px 6px',
-    borderRadius: '3px',
-    color: '#fff',
-    fontSize: '10px',
-    fontWeight: '600',
-    textTransform: 'uppercase' as const,
   },
   helpSection: {
     width: '100%',

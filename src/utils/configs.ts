@@ -60,36 +60,26 @@ export const ALGORITHM_CONFIG = {
 // Quality levels
 export const QUALITY_LEVEL_CONFIG = {
   excellent: {
-    name: 'Excellent',
-    shortLabel: 'E',
     color: '#4caf50',      // Green
     lowScore: 90,
     highScore: 100
   },
   good: {
-    name: 'Good',
-    shortLabel: 'G',
     color: '#9ACD32',      // Greenish Yellow
     lowScore: 80,
     highScore: 89
   },
   fair: {
-    name: 'Fair',
-    shortLabel: 'F',
     color: '#ff9800',      // Orange
     lowScore: 70,
     highScore: 79
   },
   poor: {
-    name: 'Poor',
-    shortLabel: 'P',
     color: '#D2691E', // Chocolate
     lowScore: 60,
     highScore: 69
   },
   bad: {
-    name: 'Bad',
-    shortLabel: 'B',
     color: '#f44336',      // Red
     lowScore: 0,
     highScore: 59

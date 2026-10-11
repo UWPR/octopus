@@ -159,7 +159,7 @@ function qcRowReason(uncoveredRows: number, usedRows: number, count: number): st
 
 function balanceReason(score: number, plateCount: number): string {
   return (
-    `Balance score ${score} (Poor or Bad). ` +
+    `Balance score ${score} (below ${POOR_BALANCE_THRESHOLD}). ` +
     `This group is spread unevenly across the ${plateCount} plates.`
   );
 }
@@ -186,7 +186,7 @@ function qcCoverageSummary(count: number): string {
 
 function balanceSummary(count: number): string {
   const groupVerb = count === 1 ? 'group is' : 'groups are';
-  return `${count} covariate ${groupVerb} placed unevenly across the plates (Poor or Bad balance).`;
+  return `${count} covariate ${groupVerb} placed unevenly across the plates (balance score below ${POOR_BALANCE_THRESHOLD}).`;
 }
 
 // One line per category that has a flagged group.

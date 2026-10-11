@@ -1,7 +1,8 @@
 import React from 'react';
 import { SearchData, CovariateColorInfo, PlateQualityScore, NaPolicy, DEFAULT_NA_POLICY } from '../utils/types';
 import { QUALITY_DISPLAY_CONFIG } from '../utils/configs';
-import { getCovariateKey, getQualityColor, getCompactQualityLevel, formatScore, effectiveDisplayValue } from '../utils/utils';
+import { getCovariateKey, getQualityColor, formatScore, effectiveDisplayValue } from '../utils/utils';
+import QualitySwatch from './QualitySwatch';
 
 interface PlateDetailsModalProps {
   show: boolean;
@@ -101,12 +102,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                         {formatScore(plateQuality.balanceScore)}
                       </span>
                       {' '}
-                      <span style={{
-                        ...styles.qualityBadge,
-                        backgroundColor: getQualityColor(plateQuality.balanceScore)
-                      }}>
-                        {getCompactQualityLevel(plateQuality.balanceScore)}
-                      </span>
+                      <QualitySwatch color={getQualityColor(plateQuality.balanceScore)} />
                     </span>
                     )}
                     {QUALITY_DISPLAY_CONFIG.showClusteringScore && (
@@ -116,12 +112,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                           {formatScore(plateQuality.clusteringScore)}
                         </span>
                         {' '}
-                        <span style={{
-                          ...styles.qualityBadge,
-                          backgroundColor: getQualityColor(plateQuality.clusteringScore)
-                        }}>
-                          {getCompactQualityLevel(plateQuality.clusteringScore)}
-                        </span>
+                        <QualitySwatch color={getQualityColor(plateQuality.clusteringScore)} />
                       </span>
                     )}
                      {QUALITY_DISPLAY_CONFIG.showRowScore && (
@@ -131,12 +122,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                           {formatScore(plateQuality.rowClusteringScore)}
                         </span>
                         {' '}
-                        <span style={{
-                          ...styles.qualityBadge,
-                          backgroundColor: getQualityColor(plateQuality.rowClusteringScore)
-                        }}>
-                          {getCompactQualityLevel(plateQuality.rowClusteringScore)}
-                        </span>
+                        <QualitySwatch color={getQualityColor(plateQuality.rowClusteringScore)} />
                       </span>
                     )}
                   </>
@@ -158,12 +144,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                           }}>
                             {formatScore(rowScore)}
                           </span>
-                          <span style={{
-                            ...styles.qualityBadge,
-                            backgroundColor: getQualityColor(rowScore)
-                          }}>
-                            {getCompactQualityLevel(rowScore)}
-                          </span>
+                          <QualitySwatch color={getQualityColor(rowScore)} />
                         </div>
                         {/* Optional: Show row composition */}
                         {randomizedPlates && randomizedPlates[plateIndex] && randomizedPlates[plateIndex][rowIndex] && (
@@ -316,12 +297,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                                     ...styles.balanceScore,
                                     color: getQualityColor(balance.balanceScore)
                                   }}>
-                                    <span style={{
-                                      ...styles.qualityBadge,
-                                      backgroundColor: getQualityColor(balance.balanceScore)
-                                    }}>
-                                      {getCompactQualityLevel(balance.balanceScore)}
-                                    </span>
+                                    <QualitySwatch color={getQualityColor(balance.balanceScore)} />
                                     {' '}Balance: {balance.balanceScore}
                                   </div>
                                   <div style={styles.balanceDetailLine}>
@@ -575,14 +551,6 @@ const styles = {
     color: '#666',
     fontStyle: 'italic',
     padding: '20px',
-  },
-  qualityBadge: {
-    padding: '2px 6px',
-    borderRadius: '3px',
-    color: '#fff',
-    fontSize: '10px',
-    fontWeight: '600',
-    textTransform: 'uppercase' as const,
   },
 };
 
