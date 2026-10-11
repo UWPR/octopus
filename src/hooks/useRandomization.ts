@@ -2,26 +2,8 @@ import { useState } from 'react';
 import { SearchData, RandomizationAlgorithm, RepeatedMeasuresConfig, NaPolicy, DEFAULT_NA_POLICY } from '../utils/types';
 import { randomizeSearches } from '../utils/utils';
 import { greedyPlaceInRow } from '../algorithms/greedySpatialPlacement';
-import { groupAwareRandomization, PackingError } from '../algorithms/repeatedMeasuresDistribution';
+import { groupAwareRandomization } from '../algorithms/repeatedMeasuresDistribution';
 import { debugLog } from '../utils/configs';
-
-// Number of extra runs after a PackingError before the error is shown to the user
-export const MAX_PACKING_RETRIES = 5;
-
-/**
- * Runs `generate`, running it again on a PackingError up to MAX_PACKING_RETRIES times. The
- * packing is randomized, so a later run can succeed. Any other error is rethrown at once.
- */
-function retryOnPackingError<T>(generate: () => T): T {
-  for (let retry = 0; ; retry++) {
-    try {
-      return generate();
-    } catch (err) {
-      if (!(err instanceof PackingError) || retry === MAX_PACKING_RETRIES) throw err;
-      debugLog(`Packing failed, retrying (${retry + 1} of ${MAX_PACKING_RETRIES}): ${err.message}`);
-    }
-  }
-}
 
 export function useRandomization() {
   const [isProcessed, setIsProcessed] = useState<boolean>(false);
@@ -39,7 +21,7 @@ export function useRandomization() {
     naPolicy: NaPolicy = DEFAULT_NA_POLICY
   ) => {
     if (searches.length > 0 && selectedCovariates.length > 0) {
-      const result = retryOnPackingError(() => randomizeSearches(
+      const result = randomizeSearches(
         searches,
         selectedCovariates,
         selectedAlgorithm,
@@ -48,7 +30,7 @@ export function useRandomization() {
         plateColumns,
         repeatedMeasuresConfig,
         naPolicy
-      ));
+      );
       setRandomizedPlates(result.plates);
       setPlateAssignments(result.plateAssignments);
       setIsProcessed(true);
@@ -68,7 +50,7 @@ export function useRandomization() {
     naPolicy: NaPolicy = DEFAULT_NA_POLICY
   ) => {
     if (searches.length > 0 && selectedCovariates.length > 0) {
-      const result = retryOnPackingError(() => randomizeSearches(
+      const result = randomizeSearches(
         searches,
         selectedCovariates,
         selectedAlgorithm,
@@ -77,7 +59,7 @@ export function useRandomization() {
         plateColumns,
         repeatedMeasuresConfig,
         naPolicy
-      ));
+      );
       setRandomizedPlates(result.plates);
       setPlateAssignments(result.plateAssignments);
     }
@@ -189,7 +171,7 @@ export function useRandomization() {
       if (repeatedMeasuresConfig?.subjectColumn) {
         debugLog(`Re-randomizing plate ${plateIndex + 1} using group-aware randomization`);
 
-        const result = retryOnPackingError(() => groupAwareRandomization(
+        const result = groupAwareRandomization(
           plateSamples,
           selectedCovariates,
           repeatedMeasuresConfig,
@@ -197,7 +179,7 @@ export function useRandomization() {
           plateRows,
           plateColumns,
           naPolicy
-        ));
+        );
 
         // The result should produce exactly 1 plate since we're passing just this plate's samples
         if (result.plates.length > 0) {

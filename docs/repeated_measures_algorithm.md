@@ -293,11 +293,11 @@ When the grouping constraint is "Same Plate" instead of "Same Row", the pipeline
 
 ---
 
-## Packing Failures and Retry
+## Packing Failures
 
-When one run cannot fit the subject groups into the plates or rows, the pipeline throws a `PackingError`. The packing is randomized, so `useRandomization` runs the whole pipeline again, up to 5 more times, before the error message is displayed. This applies to Generate, Re-randomize and single-plate re-randomize. Other errors are displayed at once.
+When the pipeline cannot fit the subject groups into the plates or rows, it throws a `PackingError`, and Generate, Re-randomize and single-plate re-randomize display its message.
 
-The retry does not cover every multi-plate Same Row request that has a layout. Plate assignment (Stage 3) does not consider row shapes, and for some inputs it makes the same choice every run. For example, two 2×5 plates with subjects of 5, 3, 2, 1, 4, 4 and 1 samples, with treatments alternating Placebo, Drug, Placebo and so on, always put the groups of 4, 4 and 2 on one plate, which no row split can hold.
+Some multi-plate Same Row requests that have a layout fail on every run. Plate assignment (Stage 3) does not consider row shapes, and for some inputs it makes the same choice every run. For example, two 2×5 plates with subjects of 5, 3, 2, 1, 4, 4 and 1 samples, with treatments alternating Placebo, Drug, Placebo and so on, always put the groups of 4, 4 and 2 on one plate, which no row split can hold.
 
 ---
 

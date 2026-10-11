@@ -4,8 +4,8 @@ import { greedyPlaceInRow } from './greedySpatialPlacement';
 import { distributeToBlocks, calculateExpectedMinimums } from './balancedRandomization';
 
 /**
- * Thrown when one run of the packing cannot fit the subject groups into the plates or rows.
- * The packing is randomized, so another run on the same input can succeed.
+ * Thrown when the packing cannot fit the subject groups into the plates or rows. A subject larger
+ * than every plate throws a plain Error instead.
  */
 export class PackingError extends Error {
   constructor(message: string) {

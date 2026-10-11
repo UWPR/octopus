@@ -37,11 +37,11 @@ const PACKING_ERROR = new RegExp('^(' + [
   /Total samples \(\d+\) exceed total row capacity/,
 ].map(r => r.source).join('|') + ')');
 
-// A subject larger than every plate is a plain Error, since no rerun can fit it.
+// A subject larger than every plate is a plain Error.
 const SUBJECT_EXCEEDS_PLATE = /^Unable to fit all subject groups into available plates\. Subject \S+ \(size \d+\) exceeds the largest plate capacity/;
 
 // Fails unless `thrown` is one of the packing errors, so a TypeError cannot pass as infeasible.
-// Every packing error except SUBJECT_EXCEEDS_PLATE must be a PackingError, the type useRandomization retries.
+// Every packing error except SUBJECT_EXCEEDS_PLATE must be a PackingError.
 const expectPackingError = (thrown: unknown): void => {
   expect(thrown).toBeInstanceOf(Error);
   const message = (thrown as Error).message;
