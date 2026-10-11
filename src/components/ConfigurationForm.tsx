@@ -167,7 +167,7 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
         {/* Left Column: ID Column Selection and Algorithm */}
         <div style={styles.compactColumn}>
           <label htmlFor="idColumn" style={styles.compactLabel}>Select ID Column:</label>
-          {/* A saved layout has no CSV rows to rebuild the sample names from, so it keeps its ID column */}
+          {/* Disabled for a saved layout, see useFileUpload.handleIdColumnChange */}
           <select
             id="idColumn"
             value={selectedIdColumn}

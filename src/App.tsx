@@ -204,8 +204,6 @@ const App: React.FC = () => {
   // Set true for one render while a saved layout is being loaded, so the new-file reset
   // effect does not wipe the settings we are restoring.
   const isRestoringRef = useRef<boolean>(false);
-  // Set by handleIdColumnChangeWithReset and consumed by the effect that re-derives the N/A policy
-  const idColumnChangedRef = useRef<boolean>(false);
 
   // Subject placement panel state
   const [showSubjectPlacements, setShowSubjectPlacements] = useState<boolean>(false);
@@ -376,15 +374,6 @@ const App: React.FC = () => {
     [searches, availableColumns, selectedIdColumn]
   );
 
-  // After an ID column change, set the N/A policy as a file load with the new ID column would.
-  // naDetection also changes on a file load, which the reset effect handles, so this runs only
-  // when handleIdColumnChangeWithReset has set the flag.
-  useEffect(() => {
-    if (!idColumnChangedRef.current) return;
-    idColumnChangedRef.current = false;
-    setNaPolicy(initialNaPolicy(naDetection));
-  }, [naDetection]);
-
   // Toggle one entry of the "N/A values" checklist. Blank uses the empty-string token. The
   // literal N/A is always folded (its box is disabled), so it never reaches here. Changing the
   // policy invalidates the current layout, matching a covariate change, so the user re-Generates.
@@ -454,11 +443,14 @@ const App: React.FC = () => {
 
   // ID column change handler with reset
   const handleIdColumnChangeWithReset = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    // A saved layout has no CSV rows to rebuild the sample names from, so it keeps its ID column
-    if (isLayoutFile) return;
     const newIdColumn = event.target.value;
-    handleIdColumnChange(event);
-    idColumnChangedRef.current = true;
+    const newSearches = handleIdColumnChange(event);
+    if (!newSearches) return; // a saved layout keeps its ID column
+
+    // Set the N/A checklist as a file load with the new ID column would
+    setNaPolicy(initialNaPolicy(
+      detectNaTypeValues(newSearches, availableColumns.filter(col => col !== newIdColumn))
+    ));
 
     // Conflict resolution: the ID column cannot also be a covariate, the QC column or the subject
     // column, and the selects no longer list it, so clear any selection that names it.
@@ -669,10 +661,8 @@ const App: React.FC = () => {
     plateAssignmentsToRestore: Map<number, SearchData[]>,
     storedColors: ReturnType<typeof parseLayout>['covariateColors']
   ) => {
-    // Suppress the new-file reset effect so the settings below survive. Also drop any pending
-    // ID column change, so its N/A reset cannot overwrite the N/A policy restored below.
+    // Suppress the new-file reset effect so the settings below survive.
     isRestoringRef.current = true;
-    idColumnChangedRef.current = false;
 
     // Restore samples and every setting.
     loadSearches(loadedSearches, fileName, settings.selectedIdColumn, settings.metadataColumns);

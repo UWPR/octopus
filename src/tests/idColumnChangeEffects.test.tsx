@@ -1,7 +1,9 @@
 /**
- * Component tests for what an ID column change does beyond clearing conflicting selections. The
- * N/A values checklist is set as a file load with the new ID column would set it, and a loaded
- * layout keeps its ID column, since it has no CSV rows to rebuild the samples from.
+ * Component tests for what an ID column change does beyond clearing conflicting selections, and
+ * for the settings that stay usable on a loaded layout.
+ * - The N/A values checklist is set as a file load with the new ID column would set it.
+ * - A loaded layout keeps its ID column, since it has no CSV rows to rebuild the samples from.
+ *   Covariates and the QC column can still be changed on it.
  */
 
 import React from 'react';

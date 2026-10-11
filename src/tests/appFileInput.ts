@@ -33,14 +33,16 @@ export const changeSelect = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 /**
- * A saved layout file of the given samples on one 2x2 plate, filled row by row with empty wells at
- * the end. The covariate is Cond with the values a and b. `settings` overrides the defaults.
+ * A saved layout file of up to 4 samples on one 2x2 plate, filled row by row with empty wells at
+ * the end. The covariate is Cond with the values a and b, which the stored colors cover.
+ * `naPolicy` overrides the saved N/A policy.
  */
 export function layoutFile(
   samples: SearchData[],
   metadataColumns: string[],
-  settings: Partial<LayoutSettings> = {}
+  settings: Pick<Partial<LayoutSettings>, 'naPolicy'> = {}
 ): File {
+  if (samples.length > 4) throw new Error(`layoutFile fits 4 samples on its 2x2 plate, got ${samples.length}`);
   const fullSettings: LayoutSettings = {
     selectedIdColumn: 'Sample ID',
     selectedCovariates: ['Cond'],
