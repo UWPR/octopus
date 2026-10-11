@@ -167,10 +167,13 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
         {/* Left Column: ID Column Selection and Algorithm */}
         <div style={styles.compactColumn}>
           <label htmlFor="idColumn" style={styles.compactLabel}>Select ID Column:</label>
+          {/* Disabled for a saved layout, see useFileUpload.handleIdColumnChange */}
           <select
             id="idColumn"
             value={selectedIdColumn}
             onChange={onIdColumnChange}
+            disabled={isLayoutFile}
+            aria-describedby={isLayoutFile ? 'idColumnLayoutNote' : undefined}
             style={styles.compactSelect}
           >
             {availableColumns.map((column) => (
@@ -179,6 +182,11 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
               </option>
             ))}
           </select>
+          {isLayoutFile && (
+            <small id="idColumnLayoutNote" style={styles.compactHint}>
+              ID column of a saved layout cannot be changed
+            </small>
+          )}
 
           <label htmlFor="qcColumn" style={{ ...styles.compactLabel, marginTop: '10px' }}>
             QC/Reference Column (optional):

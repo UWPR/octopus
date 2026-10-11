@@ -7,9 +7,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from '../App';
-import { serializeLayout, LayoutSettings, CovariateColorMap } from '../utils/layoutIO';
 import { SearchData } from '../utils/types';
-import { loadFile, csvFile, selectCovariate } from './appFileInput';
+import { loadFile, csvFile, selectCovariate, layoutFile } from './appFileInput';
 
 const REPLACE_DESIGN_MESSAGE = 'This will replace the current plate design and settings. Continue?';
 
@@ -20,37 +19,11 @@ const plateDimensionInputs = () =>
   (screen.getAllByRole('spinbutton') as HTMLInputElement[]).map(input => input.value);
 
 // A saved layout of 3 samples on one 2x2 plate, covariate Cond.
-function layoutJson(): string {
-  const samples: SearchData[] = [
-    { name: 'L1', metadata: { Cond: 'a' } },
-    { name: 'L2', metadata: { Cond: 'b' } },
-    { name: 'L3', metadata: { Cond: 'a' } },
-  ];
-  const settings: LayoutSettings = {
-    selectedIdColumn: 'Sample ID',
-    selectedCovariates: ['Cond'],
-    qcColumn: '',
-    selectedQcValues: [],
-    selectedAlgorithm: 'balanced',
-    keepEmptyInLastPlate: false,
-    plateRows: 2,
-    plateColumns: 2,
-    subjectColumn: '',
-    groupingConstraint: 'none',
-    metadataColumns: ['Cond'],
-    naPolicy: { foldBlank: false, foldSpellings: [] },
-  };
-  const colors: CovariateColorMap = {
-    a: { color: '#111111', useOutline: false, useStripes: false, textColor: '#fff' },
-    b: { color: '#222222', useOutline: false, useStripes: false, textColor: '#fff' },
-  };
-  return serializeLayout({
-    searches: samples,
-    randomizedPlates: [[[samples[0], samples[1]], [samples[2], undefined]]],
-    settings,
-    covariateColors: colors,
-  });
-}
+const layoutSamples: SearchData[] = [
+  { name: 'L1', metadata: { Cond: 'a' } },
+  { name: 'L2', metadata: { Cond: 'b' } },
+  { name: 'L3', metadata: { Cond: 'a' } },
+];
 
 let confirmSpy: jest.SpyInstance;
 
@@ -84,15 +57,14 @@ describe('App new-file reset', () => {
 
   it('clears a layout loaded twice when a sample CSV is chosen next', async () => {
     render(<App />);
-    const json = layoutJson();
 
-    await loadFile('Load Layout', new File([json], 'lay.json', { type: 'application/json' }));
+    await loadFile('Load Layout', layoutFile(layoutSamples, ['Cond']));
     expect(screen.getByText('Layout file')).toBeInTheDocument();
     expect(screen.getByTestId('plate-grid-0')).toBeInTheDocument();
     expect(plateDimensionInputs()).toEqual(['2', '2']);
     expect(confirmSpy).toHaveBeenCalledTimes(0);
 
-    await loadFile('Load Layout', new File([json], 'lay.json', { type: 'application/json' }));
+    await loadFile('Load Layout', layoutFile(layoutSamples, ['Cond']));
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('plate-grid-0')).toBeInTheDocument();
     expect(plateDimensionInputs()).toEqual(['2', '2']);

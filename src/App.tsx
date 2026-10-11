@@ -9,7 +9,7 @@ import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
 import SubjectPlacementPanel from './components/SubjectPlacementPanel';
 import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig, NaPolicy, DEFAULT_NA_POLICY } from './utils/types';
-import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp, buildLayoutFileName, detectNaTypeValues } from './utils/utils';
+import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp, buildLayoutFileName, detectNaTypeValues, NaDetectionResult } from './utils/utils';
 import { exportToExcel } from './utils/excelExport';
 import {
   serializeLayout,
@@ -44,6 +44,16 @@ const REPLACE_DESIGN_MESSAGE =
 // The single-file offline build has no sibling files to link to, so the help links
 // (documentation, quick start, and sample downloads) are all hidden there.
 const IS_SINGLE_FILE = process.env.REACT_APP_SINGLEFILE === '1';
+
+// The N/A policy a file load starts with, also set after an ID column change. When a column mixes
+// spellings, fold every detected spelling (all checklist boxes checked), otherwise fold nothing.
+const fileLoadNaPolicy = (detection: NaDetectionResult): NaPolicy =>
+  detection.hasAmbiguousColumn
+    ? {
+        foldBlank: detection.spellings.has(''),
+        foldSpellings: Array.from(detection.spellings).filter(t => t !== '' && t !== 'N/A'),
+      }
+    : DEFAULT_NA_POLICY;
 
 const App: React.FC = () => {
 
@@ -247,6 +257,18 @@ const App: React.FC = () => {
     }
   }, [isProcessed, randomizedPlates, plateAssignments, selectedCovariates, searches, calculateMetrics, groupingConstraint]);
 
+  const clearQcSelection = () => {
+    setQcColumn('');
+    setQcColumnValues([]);
+    setSelectedQcValues([]);
+  };
+
+  const clearSubjectSelection = () => {
+    setSubjectColumn('');
+    setGroupingConstraint('none');
+    setGroupValidation(null);
+  };
+
   // Clear all configuration, layout, colors, metrics, error, and UI state (everything derived
   // from a loaded file), leaving the uploaded file itself in place.
   const clearConfigAndLayout = () => {
@@ -259,14 +281,10 @@ const App: React.FC = () => {
 
     // Configuration
     setSelectedCovariates([]);
-    setQcColumn('');
-    setQcColumnValues([]);
-    setSelectedQcValues([]);
+    clearQcSelection();
 
     // Repeated-measures
-    setSubjectColumn('');
-    setGroupingConstraint('none');
-    setGroupValidation(null);
+    clearSubjectSelection();
 
     // N/A grouping (re-derived from the new data by the upload effect)
     setNaPolicy(DEFAULT_NA_POLICY);
@@ -309,16 +327,7 @@ const App: React.FC = () => {
     }
     if (selectedFileName) {
       clearConfigAndLayout();
-      // Initialize the N/A policy from the new data. When a column mixes spellings, default to
-      // folding every detected spelling (all checklist boxes checked); otherwise fold nothing.
-      setNaPolicy(
-        naDetection.hasAmbiguousColumn
-          ? {
-              foldBlank: naDetection.spellings.has(''),
-              foldSpellings: Array.from(naDetection.spellings).filter(t => t !== '' && t !== 'N/A'),
-            }
-          : DEFAULT_NA_POLICY
-      );
+      setNaPolicy(fileLoadNaPolicy(naDetection));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadCounter]);
@@ -426,9 +435,7 @@ const App: React.FC = () => {
 
     // Conflict resolution: clear subject column if it's now a selected covariate
     if (subjectColumn && selectedOptions.includes(subjectColumn)) {
-      setSubjectColumn('');
-      setGroupingConstraint('none');
-      setGroupValidation(null);
+      clearSubjectSelection();
     }
 
     resetCovariateState();
@@ -437,7 +444,13 @@ const App: React.FC = () => {
   // ID column change handler with reset
   const handleIdColumnChangeWithReset = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const newIdColumn = event.target.value;
-    handleIdColumnChange(event);
+    const newSearches = handleIdColumnChange(event);
+    if (!newSearches) return; // a saved layout keeps its ID column
+
+    // Set the N/A checklist as a file load with the new ID column would
+    setNaPolicy(fileLoadNaPolicy(
+      detectNaTypeValues(newSearches, availableColumns.filter(col => col !== newIdColumn))
+    ));
 
     // Conflict resolution: the ID column cannot also be a covariate, the QC column or the subject
     // column, and the selects no longer list it, so clear any selection that names it.
@@ -445,14 +458,10 @@ const App: React.FC = () => {
       setSelectedCovariates(prev => prev.filter(c => c !== newIdColumn));
     }
     if (qcColumn === newIdColumn) {
-      setQcColumn('');
-      setQcColumnValues([]);
-      setSelectedQcValues([]);
+      clearQcSelection();
     }
     if (subjectColumn === newIdColumn) {
-      setSubjectColumn('');
-      setGroupingConstraint('none');
-      setGroupValidation(null);
+      clearSubjectSelection();
     }
 
     resetCovariateState();
@@ -466,9 +475,7 @@ const App: React.FC = () => {
 
     // Conflict resolution: clear subject column if it matches the new QC column
     if (subjectColumn && newQcColumn === subjectColumn) {
-      setSubjectColumn('');
-      setGroupingConstraint('none');
-      setGroupValidation(null);
+      clearSubjectSelection();
     }
 
     resetCovariateState();
@@ -498,9 +505,7 @@ const App: React.FC = () => {
       }
       // Conflict resolution: clear QC column if it matches
       if (qcColumn === newSubjectColumn) {
-        setQcColumn('');
-        setQcColumnValues([]);
-        setSelectedQcValues([]);
+        clearQcSelection();
       }
       // Default to same-row constraint when subject column is selected
       if (groupingConstraint === 'none') {

@@ -206,14 +206,18 @@ export function useFileUpload() {
     setIsLayoutFile(false);
   };
 
-  const handleIdColumnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  /**
+   * Rebuild the samples with the chosen ID column and return them. Returns null and changes
+   * nothing for a saved layout, which has no CSV rows to rebuild the sample names from, so it
+   * keeps its ID column.
+   */
+  const handleIdColumnChange = (event: React.ChangeEvent<HTMLSelectElement>): SearchData[] | null => {
+    if (isLayoutFile || parsedData.length === 0) return null;
     const newIdColumn = event.target.value;
+    const processedSearches = processSearchData(parsedData, newIdColumn);
     setSelectedIdColumn(newIdColumn);
-
-    if (parsedData.length > 0) {
-      const processedSearches = processSearchData(parsedData, newIdColumn);
-      setSearches(processedSearches);
-    }
+    setSearches(processedSearches);
+    return processedSearches;
   };
 
   return {

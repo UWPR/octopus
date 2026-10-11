@@ -7,10 +7,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from '../App';
-import { loadFile, csvFile, selectCovariate } from './appFileInput';
-
-const changeSelect = (label: string, value: string) =>
-  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+import { loadFile, csvFile, selectCovariate, changeSelect } from './appFileInput';
 
 const selectedCovariateCount = () =>
   (screen.getByLabelText('Select Covariates:') as HTMLSelectElement).selectedOptions.length;
