@@ -438,9 +438,13 @@ describe('computeQcRowCoverage', () => {
   });
 });
 
-// Metrics with only the per-plate counts set. countsByPlate[i] maps combination -> [actual, expected].
+// Metrics with the per-plate counts set and each plate's group score computed from them as
+// calculatePlateBalance does. countsByPlate[i] maps combination -> [actual, expected].
 function makeCountMetrics(countsByPlate: Array<Record<string, [number, number]>>): QualityMetrics {
-  const metrics = makeMetrics(countsByPlate.map(groups => Object.fromEntries(Object.keys(groups).map(k => [k, 0]))));
+  const score = (actual: number, expected: number) =>
+    Math.round(Math.max(0, 100 - Math.min(Math.abs(actual - expected) / expected, 1) * 100));
+  const metrics = makeMetrics(countsByPlate.map(groups =>
+    Object.fromEntries(Object.entries(groups).map(([k, [actual, expected]]) => [k, score(actual, expected)]))));
   metrics.plateDiversity.plateScores.forEach((plate, i) => {
     Object.entries(countsByPlate[i]).forEach(([combination, [actual, expected]]) => {
       plate.covariateGroupBalance[combination].actualCount = actual;
@@ -470,6 +474,28 @@ describe('groupsAtBestAchievableBalance', () => {
       { E: [10, expected[2]], P: [3, expected[2]] },
     ]);
     expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['P']);
+  });
+
+  it('rounds up the plates where it raises the score most, so a worse rounding is not included', () => {
+    // 3 samples on two plates expected to hold 1.9 and 1.1. Both 2/1 and 1/2 round each plate down
+    // or up, but 2/1 scores 95 + 91 and 1/2 scores 53 + 18, so only 2/1 is the best achievable.
+    const metrics = makeCountMetrics([
+      { X: [2, 1.9], Y: [1, 1.9] },
+      { X: [1, 1.1], Y: [2, 1.1] },
+    ]);
+    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['X']);
+  });
+
+  it('finds the best rounding on three plates with a partly filled last plate', () => {
+    // 5 samples on plates of 96, 96 and 40 samples out of 232: expected 2.07, 2.07 and 0.86.
+    // Floors are 2, 2 and 0, so one plate rounds up. Rounding up the small plate (2/2/1) is best.
+    const e = [5 * 96 / 232, 5 * 96 / 232, 5 * 40 / 232];
+    const metrics = makeCountMetrics([
+      { A: [2, e[0]], B: [3, e[0]] },
+      { A: [2, e[1]], B: [2, e[1]] },
+      { A: [1, e[2]], B: [0, e[2]] },
+    ]);
+    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['A']);
   });
 });
 

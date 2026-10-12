@@ -66,7 +66,7 @@ export interface WarningOptions {
   // rule.
   qcRowCoverage?: Map<string, GroupRowCoverage>;
   // Groups at their best achievable balance, from groupsAtBestAchievableBalance. A group in
-  // this set gets no balance warning, since no placement could raise its score.
+  // this set gets no balance warning, since no even placement could raise its score.
   bestAchievableGroups?: Set<string>;
 }
 
@@ -101,25 +101,59 @@ export function aggregateObservedGroupBalance(metrics: QualityMetrics): Map<stri
 }
 
 /**
- * The groups at their best achievable balance, placed as evenly as their sample count allows. On
- * every plate the group's count is its expected count (its share of that plate's samples) rounded
- * down or up. A small group can score below 70 even then, for example 4 samples on 3 equal plates
- * split 2/1/1, and no placement can do better. Plates of different sizes are judged by their own
- * expected counts.
+ * The groups at their best achievable balance. The group's balance score in the layout already
+ * equals the best score it can reach when each plate holds its expected count (its share of that
+ * plate's samples) rounded down or up. A small group can score below 70 even then, for example
+ * 4 samples on 3 equal plates split 2/1/1. With plates of different sizes, which plates are rounded
+ * up changes the score, so a split that only rounds every plate is not enough.
  */
 export function groupsAtBestAchievableBalance(metrics: QualityMetrics): Set<string> {
-  const notEven = new Set<string>();
-  const seen = new Set<string>();
+  const platesByGroup = new Map<string, { actual: number; expected: number; score: number }[]>();
   metrics.plateDiversity.plateScores.forEach((plate) => {
     Object.entries(plate.covariateGroupBalance).forEach(([combination, detail]) => {
-      seen.add(combination);
-      const { actualCount, expectedCount } = detail;
-      if (actualCount < Math.floor(expectedCount) || actualCount > Math.ceil(expectedCount)) {
-        notEven.add(combination);
-      }
+      const plates = platesByGroup.get(combination) ?? [];
+      plates.push({ actual: detail.actualCount, expected: detail.expectedCount, score: detail.balanceScore });
+      platesByGroup.set(combination, plates);
     });
   });
-  return new Set(Array.from(seen).filter((combination) => !notEven.has(combination)));
+
+  const best = new Set<string>();
+  platesByGroup.forEach((plates, combination) => {
+    const observedSum = plates.reduce((sum, plate) => sum + plate.score, 0);
+    if (observedSum >= bestRoundedScoreSum(plates)) best.add(combination);
+  });
+  return best;
+}
+
+// A plate's balance score for one group, computed as calculatePlateBalance does: the relative
+// deviation from the expected count, capped at 1, as a rounded score out of 100.
+function plateGroupScore(actual: number, expected: number): number {
+  if (expected <= 0) return actual > 0 ? 0 : 100;
+  const deviation = Math.min(Math.abs(actual - expected) / expected, 1);
+  return Math.round(Math.max(0, 100 - deviation * 100));
+}
+
+// The highest sum of plate scores a group reaches when each plate holds its expected count rounded
+// down or up. The group's total fixes how many plates round up. Each plate's score depends only on
+// its own count, so rounding up the plates with the largest gain gives the highest sum.
+function bestRoundedScoreSum(plates: { actual: number; expected: number }[]): number {
+  // Tolerance for expected counts that are whole numbers up to floating-point error
+  const EPSILON = 1e-9;
+  let roundUps = plates.reduce((sum, plate) => sum + plate.actual, 0);
+  let sum = 0;
+  const gains: number[] = [];
+  plates.forEach(({ expected }) => {
+    const low = Math.floor(expected + EPSILON);
+    const lowScore = plateGroupScore(low, expected);
+    sum += lowScore;
+    roundUps -= low;
+    if (expected - low > EPSILON) gains.push(plateGroupScore(low + 1, expected) - lowScore);
+  });
+  gains.sort((a, b) => b - a);
+  gains.slice(0, Math.max(0, roundUps)).forEach((gain) => {
+    sum += gain;
+  });
+  return sum;
 }
 
 /**
