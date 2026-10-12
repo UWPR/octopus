@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SummaryItem } from '../utils/types';
 import { GroupDistributionWarnings, WarningSeverity, hasCoverageError } from '../utils/groupDistributionWarnings';
+import DistributionWarningBanner from './DistributionWarningBanner';
 
 type FillStyle = 'solid' | 'outline' | 'diagonal';
 
@@ -104,30 +105,14 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
             </div>
           )}
         </div>
-        {warnings && warnings.summaries.length > 0 && (() => {
-          // Red accent for a coverage error, amber when the only issues are
-          // balance (UNEVEN) warnings, matching the collapsed indicator.
-          const bannerHasError = hasCoverageError(warnings);
-          const accent = bannerHasError ? '#dc3545' : '#ff9800';
-          return (
-            // Polite live region, not role="alert": these warnings update as the
-            // user drags samples, so they should not interrupt a screen reader.
-            <div
-              style={{ ...styles.warningBanner, borderLeftColor: accent }}
-              role="status"
-              aria-live="polite"
-              data-testid="distribution-warning-banner"
-              data-severity={bannerHasError ? 'error' : 'warning'}
-            >
-              <span style={{ ...styles.warningBannerIcon, backgroundColor: accent }} aria-hidden="true">!</span>
-              <div style={styles.warningBannerText}>
-                {warnings.summaries.map((line, i) => (
-                  <div key={i}>{line}</div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+        {warnings && (
+          <DistributionWarningBanner
+            severity={hasCoverageError(warnings) ? 'error' : 'warning'}
+            lines={warnings.summaries}
+            sparseGroups={[]}
+            testId="distribution-warning-banner"
+          />
+        )}
         <div style={styles.summaryGrid}>
           {summaryData.map((item, index) => {
             const isQC = item.qcColumnValue !== undefined &&
@@ -318,38 +303,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '3px',
     padding: '1px 4px',
     marginLeft: 'auto',
-  },
-  warningBanner: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '8px',
-    padding: '8px 10px',
-    marginBottom: '12px',
-    backgroundColor: '#fff3cd',
-    border: '1px solid #ffc107',
-    borderLeft: '4px solid #dc3545',
-    borderRadius: '4px',
-    color: '#663c00',
-    fontSize: '12px',
-    lineHeight: '1.4',
-  },
-  warningBannerText: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  warningBannerIcon: {
-    flexShrink: 0,
-    width: '18px',
-    height: '18px',
-    borderRadius: '50%',
-    backgroundColor: '#dc3545',
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: '12px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   // Filled pill in the card header. Solid color contrasts with the white,
   // red-outlined QC badge so the two read as different things.

@@ -1,23 +1,18 @@
 import React from 'react';
 import { getAllQualityLevels } from '../utils/utils';
+import QualitySwatch from './QualitySwatch';
 
 const QualityLegend: React.FC = () => {
   const qualityLevels = getAllQualityLevels();
 
   return (
-    <div style={styles.legend}>
+    <div style={styles.legend} data-testid="quality-legend">
       <div style={styles.legendTitle}>Quality Scores:</div>
       <div style={styles.legendItems}>
         {qualityLevels.map((item) => (
           <div key={item.level} style={styles.legendItem}>
-            <span style={{
-              ...styles.badge,
-              backgroundColor: item.color
-            }}>
-              {item.badge}
-            </span>
+            <QualitySwatch color={item.color} />
             <span style={styles.range}>{item.range}</span>
-            <span style={styles.description}>({item.description})</span>
           </div>
         ))}
       </div>
@@ -53,24 +48,9 @@ const styles = {
     alignItems: 'center',
     gap: '4px',
   },
-  badge: {
-    padding: '1px 3px',
-    borderRadius: '2px',
-    color: '#fff',
-    fontSize: '9px',
-    fontWeight: '600',
-    textTransform: 'uppercase' as const,
-    display: 'inline-block',
-    minWidth: '12px',
-    textAlign: 'center' as const,
-  },
   range: {
     fontWeight: '500',
     color: '#495057',
-  },
-  description: {
-    color: '#6c757d',
-    fontStyle: 'italic',
   },
 };
 

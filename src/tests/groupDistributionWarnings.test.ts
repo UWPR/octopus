@@ -1,6 +1,7 @@
 import {
   computeGroupDistributionWarnings,
   aggregateObservedGroupBalance,
+  groupsAtBestAchievableBalance,
   computeQcRowCoverage,
   hasCoverageError,
   POOR_BALANCE_THRESHOLD,
@@ -71,7 +72,7 @@ function makeMetrics(scoresByPlate: Array<Record<string, number>>): QualityMetri
 }
 
 describe('computeGroupDistributionWarnings', () => {
-  it('threshold constant is the Fair floor (70)', () => {
+  it('threshold constant is 70', () => {
     expect(POOR_BALANCE_THRESHOLD).toBe(70);
   });
 
@@ -121,7 +122,7 @@ describe('computeGroupDistributionWarnings', () => {
     const warning = result.byCombination.get('A')!;
     expect(warning.severity).toBe('warning');
     expect(warning.reason).toBe(
-      'Balance score 60 (Poor or Bad). This group is spread unevenly across the 3 plates.'
+      'Balance score 60 (below 70). This group is spread unevenly across the 3 plates.'
     );
   });
 
@@ -275,7 +276,7 @@ describe('computeGroupDistributionWarnings', () => {
       observedGroupBalance: new Map([['A', 55]]),
     });
     expect(result.summaries).toEqual([
-      '1 covariate group is placed unevenly across the plates (Poor or Bad balance).',
+      '1 covariate group is placed unevenly across the plates (balance score below 70).',
     ]);
   });
 
@@ -288,14 +289,14 @@ describe('computeGroupDistributionWarnings', () => {
 
   it('a flagged group never displays a balance score of 70 (floors the mean, not rounds)', () => {
     // Mean (70 + 69) / 2 = 69.5 is below the 70 threshold, so the group is flagged.
-    // Rounding would show "70", which contradicts 70 being the acceptable Fair floor.
+    // Rounding would show "70", which contradicts 70 being acceptable.
     // Flooring shows 69.
     const observed = aggregateObservedGroupBalance(makeMetrics([{ A: 70 }, { A: 69 }]));
     const result = computeGroupDistributionWarnings([makeItem('A', 30)], 2, { observedGroupBalance: observed });
     const warning = result.byCombination.get('A')!;
     expect(warning.severity).toBe('warning');
     expect(warning.reason).toBe(
-      'Balance score 69 (Poor or Bad). This group is spread unevenly across the 2 plates.'
+      'Balance score 69 (below 70). This group is spread unevenly across the 2 plates.'
     );
   });
 
@@ -434,5 +435,77 @@ describe('computeQcRowCoverage', () => {
     ];
     const coverage = computeQcRowCoverage(allEmpty, new Set(['QC']), keyOf);
     expect(coverage.get('QC')).toEqual({ usedRows: 0, uncoveredRows: 0 });
+  });
+});
+
+// Metrics with the per-plate counts set and each plate's group score computed from them as
+// calculatePlateBalance does. countsByPlate[i] maps combination -> [actual, expected].
+function makeCountMetrics(countsByPlate: Array<Record<string, [number, number]>>): QualityMetrics {
+  const score = (actual: number, expected: number) =>
+    Math.round(Math.max(0, 100 - Math.min(Math.abs(actual - expected) / expected, 1) * 100));
+  const metrics = makeMetrics(countsByPlate.map(groups =>
+    Object.fromEntries(Object.entries(groups).map(([k, [actual, expected]]) => [k, score(actual, expected)]))));
+  metrics.plateDiversity.plateScores.forEach((plate, i) => {
+    Object.entries(countsByPlate[i]).forEach(([combination, [actual, expected]]) => {
+      plate.covariateGroupBalance[combination].actualCount = actual;
+      plate.covariateGroupBalance[combination].expectedCount = expected;
+    });
+  });
+  return metrics;
+}
+
+describe('groupsAtBestAchievableBalance', () => {
+  it('includes a group whose count on every plate is its expected count rounded down or up', () => {
+    // 4 samples on 3 equal plates: expected 1.33 each, so 2/1/1 is the most even split
+    const metrics = makeCountMetrics([
+      { V: [2, 4 / 3], D: [3, 4 / 3] },
+      { V: [1, 4 / 3], D: [1, 4 / 3] },
+      { V: [1, 4 / 3], D: [0, 4 / 3] },
+    ]);
+    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['V']);
+  });
+
+  it('judges each plate by its own expected count, so an even split onto a small plate is not included', () => {
+    // 30 samples on plates of 96, 96 and 20 samples out of 212: 10/10/10 overloads the small plate
+    const expected = [30 * 96 / 212, 30 * 96 / 212, 30 * 20 / 212];
+    const metrics = makeCountMetrics([
+      { E: [10, expected[0]], P: [14, expected[0]] },
+      { E: [10, expected[1]], P: [13, expected[1]] },
+      { E: [10, expected[2]], P: [3, expected[2]] },
+    ]);
+    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['P']);
+  });
+
+  it('rounds up the plates where it raises the score most, so a worse rounding is not included', () => {
+    // 3 samples on two plates expected to hold 1.9 and 1.1. Both 2/1 and 1/2 round each plate down
+    // or up, but 2/1 scores 95 + 91 and 1/2 scores 53 + 18, so only 2/1 is the best achievable.
+    const metrics = makeCountMetrics([
+      { X: [2, 1.9], Y: [1, 1.9] },
+      { X: [1, 1.1], Y: [2, 1.1] },
+    ]);
+    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['X']);
+  });
+
+  it('finds the best rounding on three plates with a partly filled last plate', () => {
+    // 5 samples on plates of 96, 96 and 40 samples out of 232: expected 2.07, 2.07 and 0.86.
+    // Floors are 2, 2 and 0, so one plate rounds up. Rounding up the small plate (2/2/1) is best.
+    const e = [5 * 96 / 232, 5 * 96 / 232, 5 * 40 / 232];
+    const metrics = makeCountMetrics([
+      { A: [2, e[0]], B: [3, e[0]] },
+      { A: [2, e[1]], B: [2, e[1]] },
+      { A: [1, e[2]], B: [0, e[2]] },
+    ]);
+    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['A']);
+  });
+});
+
+describe('computeGroupDistributionWarnings with groups at their best achievable balance', () => {
+  it('gives no balance warning to a group placed as evenly as its count allows', () => {
+    const summary = [{ combination: 'V', count: 4 }, { combination: 'D', count: 4 }];
+    const warnings = computeGroupDistributionWarnings(summary, 3, {
+      observedGroupBalance: new Map([['V', 66], ['D', 40]]),
+      bestAchievableGroups: new Set(['V']),
+    });
+    expect(Array.from(warnings.byCombination.keys())).toEqual(['D']);
   });
 });

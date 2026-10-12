@@ -1,5 +1,6 @@
-import { SummaryItem, QualityMetrics, SearchData } from './types';
+import { SummaryItem, QualityMetrics, SearchData, NaPolicy } from './types';
 import { QUALITY_LEVEL_CONFIG } from './configs';
+import { buildCovariateKey, effectiveDisplayValue } from './utils';
 
 /**
  * Group distribution warnings.
@@ -15,8 +16,9 @@ import { QUALITY_LEVEL_CONFIG } from './configs';
  *   one used row of the generated layout. QC samples are meant to be interspersed
  *   through the run, so one per plate is not enough. Every used row should have
  *   one. This is layout-based and only available after generation.
- * - Balance warning: the group is covered but its measured balance score is Poor
- *   or Bad. Balance is only known after a layout is generated, so this tier is
+ * - Balance warning: the group is covered but its measured balance score is below
+ *   70, and it is not already placed as evenly as its count allows.
+ *   Balance is only known after a layout is generated, so this tier is
  *   skipped when no observed balance is supplied.
  *
  * A coverage error outranks the balance warning. A group that fails both is
@@ -24,6 +26,9 @@ import { QUALITY_LEVEL_CONFIG } from './configs';
  */
 
 export type WarningSeverity = 'error' | 'warning';
+
+// The fields of a covariate group that the warnings read.
+export type WarningGroup = Pick<SummaryItem, 'combination' | 'count' | 'qcColumnValue'>;
 
 export interface GroupWarning {
   combination: string; // covariate-key, matches SummaryItem.combination
@@ -60,11 +65,14 @@ export interface WarningOptions {
   // here with uncoveredRows > 0, it is flagged instead of the treatment coverage
   // rule.
   qcRowCoverage?: Map<string, GroupRowCoverage>;
+  // Groups at their best achievable balance, from groupsAtBestAchievableBalance. A group in
+  // this set gets no balance warning, since no even placement could raise its score.
+  bestAchievableGroups?: Set<string>;
 }
 
 // A group whose balance score falls below this is flagged as a balance warning.
-// Mapped to the Fair floor in QUALITY_LEVEL_CONFIG, so Poor and Bad groups are
-// flagged and Fair or better is treated as acceptable.
+// Mapped to the floor of the 70-79 band in QUALITY_LEVEL_CONFIG, so a group below 70 is
+// flagged and 70 or above is treated as acceptable.
 export const POOR_BALANCE_THRESHOLD = QUALITY_LEVEL_CONFIG.fair.lowScore; // 70
 
 /**
@@ -90,6 +98,62 @@ export function aggregateObservedGroupBalance(metrics: QualityMetrics): Map<stri
     means.set(combination, acc.sum / acc.plates);
   });
   return means;
+}
+
+/**
+ * The groups at their best achievable balance. The group's balance score in the layout already
+ * equals the best score it can reach when each plate holds its expected count (its share of that
+ * plate's samples) rounded down or up. A small group can score below 70 even then, for example
+ * 4 samples on 3 equal plates split 2/1/1. With plates of different sizes, which plates are rounded
+ * up changes the score, so a split that only rounds every plate is not enough.
+ */
+export function groupsAtBestAchievableBalance(metrics: QualityMetrics): Set<string> {
+  const platesByGroup = new Map<string, { actual: number; expected: number; score: number }[]>();
+  metrics.plateDiversity.plateScores.forEach((plate) => {
+    Object.entries(plate.covariateGroupBalance).forEach(([combination, detail]) => {
+      const plates = platesByGroup.get(combination) ?? [];
+      plates.push({ actual: detail.actualCount, expected: detail.expectedCount, score: detail.balanceScore });
+      platesByGroup.set(combination, plates);
+    });
+  });
+
+  const best = new Set<string>();
+  platesByGroup.forEach((plates, combination) => {
+    const observedSum = plates.reduce((sum, plate) => sum + plate.score, 0);
+    if (observedSum >= bestRoundedScoreSum(plates)) best.add(combination);
+  });
+  return best;
+}
+
+// A plate's balance score for one group, computed as calculatePlateBalance does: the relative
+// deviation from the expected count, capped at 1, as a rounded score out of 100.
+function plateGroupScore(actual: number, expected: number): number {
+  if (expected <= 0) return actual > 0 ? 0 : 100;
+  const deviation = Math.min(Math.abs(actual - expected) / expected, 1);
+  return Math.round(Math.max(0, 100 - deviation * 100));
+}
+
+// The highest sum of plate scores a group reaches when each plate holds its expected count rounded
+// down or up. The group's total fixes how many plates round up. Each plate's score depends only on
+// its own count, so rounding up the plates with the largest gain gives the highest sum.
+function bestRoundedScoreSum(plates: { actual: number; expected: number }[]): number {
+  // Tolerance for expected counts that are whole numbers up to floating-point error
+  const EPSILON = 1e-9;
+  let roundUps = plates.reduce((sum, plate) => sum + plate.actual, 0);
+  let sum = 0;
+  const gains: number[] = [];
+  plates.forEach(({ expected }) => {
+    const low = Math.floor(expected + EPSILON);
+    const lowScore = plateGroupScore(low, expected);
+    sum += lowScore;
+    roundUps -= low;
+    if (expected - low > EPSILON) gains.push(plateGroupScore(low + 1, expected) - lowScore);
+  });
+  gains.sort((a, b) => b - a);
+  gains.slice(0, Math.max(0, roundUps)).forEach((gain) => {
+    sum += gain;
+  });
+  return sum;
 }
 
 /**
@@ -159,7 +223,7 @@ function qcRowReason(uncoveredRows: number, usedRows: number, count: number): st
 
 function balanceReason(score: number, plateCount: number): string {
   return (
-    `Balance score ${score} (Poor or Bad). ` +
+    `Balance score ${score} (below ${POOR_BALANCE_THRESHOLD}). ` +
     `This group is spread unevenly across the ${plateCount} plates.`
   );
 }
@@ -186,7 +250,7 @@ function qcCoverageSummary(count: number): string {
 
 function balanceSummary(count: number): string {
   const groupVerb = count === 1 ? 'group is' : 'groups are';
-  return `${count} covariate ${groupVerb} placed unevenly across the plates (Poor or Bad balance).`;
+  return `${count} covariate ${groupVerb} placed unevenly across the plates (balance score below ${POOR_BALANCE_THRESHOLD}).`;
 }
 
 // One line per category that has a flagged group.
@@ -218,11 +282,11 @@ function buildSummaries(warnings: GroupWarning[]): string[] {
  *   coverage. All optional; each tier is skipped when its input is absent.
  */
 export function computeGroupDistributionWarnings(
-  summaryData: SummaryItem[],
+  summaryData: WarningGroup[],
   plateCount: number,
   options: WarningOptions = {}
 ): GroupDistributionWarnings {
-  const { observedGroupBalance, selectedQcValues = [], qcRowCoverage } = options;
+  const { observedGroupBalance, selectedQcValues = [], qcRowCoverage, bestAchievableGroups } = options;
   const byCombination = new Map<string, GroupWarning>();
   const totalGroups = summaryData.length;
 
@@ -265,12 +329,12 @@ export function computeGroupDistributionWarnings(
       // generated layout with a real score.
       if (plateCount > 1) {
         const observed = observedGroupBalance?.get(item.combination);
-        if (observed !== undefined && observed < POOR_BALANCE_THRESHOLD) {
+        if (observed !== undefined && observed < POOR_BALANCE_THRESHOLD && !bestAchievableGroups?.has(item.combination)) {
           byCombination.set(item.combination, {
             combination: item.combination,
             severity: 'warning',
             // Floor, not round, so a flagged group (observed < 70) can never
-            // display a score of 70 or above, which is the acceptable Fair floor.
+            // display a score of 70 or above, which is acceptable.
             reason: balanceReason(Math.floor(observed), plateCount),
             count: item.count,
             isQc,
@@ -293,4 +357,59 @@ export function computeGroupDistributionWarnings(
  */
 export function hasCoverageError(warnings: GroupDistributionWarnings): boolean {
   return Array.from(warnings.byCombination.values()).some((w) => w.severity === 'error');
+}
+
+/**
+ * The name of a covariate group in a warning, its display values in the order of the selected
+ * covariates, such as "Drug | T0 | A". `values` holds the display values, as in SummaryItem.values.
+ */
+export function covariateGroupLabel(values: { [covariate: string]: string }, selectedCovariates: string[]): string {
+  // A blank kept distinct from N/A displays as '', so name it as the N/A values checklist does
+  return selectedCovariates.map((covariate) => values[covariate] || '(blank)').join(' | ');
+}
+
+/**
+ * The treatment groups of the samples before Generate, keyed with buildCovariateKey as the layout
+ * keys them. Samples with a selected value in the QC column are left out, since the QC coverage
+ * rule needs a generated layout. Each group carries its covariateGroupLabel.
+ * Groups are in the order their first sample appears.
+ */
+export function plannedTreatmentGroups(
+  samples: SearchData[],
+  selectedCovariates: string[],
+  naPolicy: NaPolicy,
+  qcColumn: string,
+  selectedQcValues: string[]
+): (WarningGroup & { label: string })[] {
+  const groups = new Map<string, WarningGroup & { label: string }>();
+  samples.forEach((sample) => {
+    if (qcColumn && selectedQcValues.includes(sample.metadata[qcColumn])) return;
+    const key = buildCovariateKey(sample, { selectedCovariates, naPolicy });
+    const group = groups.get(key);
+    if (group) {
+      group.count += 1;
+    } else {
+      const values: { [covariate: string]: string } = {};
+      selectedCovariates.forEach((covariate) => {
+        values[covariate] = effectiveDisplayValue(sample.metadata[covariate] ?? '', naPolicy);
+      });
+      groups.set(key, { combination: key, count: 1, label: covariateGroupLabel(values, selectedCovariates) });
+    }
+  });
+  return Array.from(groups.values());
+}
+
+/** The warning shown before Generate when some treatment groups cannot reach every plate. */
+export function plannedCoverageSummary(
+  count: number,
+  totalGroups: number,
+  covariateCount: number
+): string {
+  const fewer = count === 1 ? 'has fewer samples' : 'have fewer samples';
+  const pronoun = count === 1 ? 'it' : 'they';
+  const summary =
+    `With these covariates, ${count} of the ${totalGroups} treatment groups ${fewer} than the ` +
+    `number of plates, so ${pronoun} cannot appear on every plate.`;
+  // With one covariate there is no fewer-covariates option to suggest
+  return covariateCount > 1 ? `${summary} Try selecting fewer covariates.` : summary;
 }

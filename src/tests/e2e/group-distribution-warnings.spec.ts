@@ -21,6 +21,9 @@ const DEMO = path.join(__dirname, '../../../test-data/group-distribution-demo.cs
 
 // Vehicle|T0|A, Vehicle|T24|B, Drug|T24|B, Placebo|T0|A all fall below 3 samples.
 const EXPECTED_TREATMENT_ERRORS = 4;
+const SMALLEST_GROUPS =
+  'Smallest groups: Drug | T24 | B (1 sample), Placebo | T0 | A (1 sample), ' +
+  'Vehicle | T0 | A (2 samples), Vehicle | T24 | B (2 samples)';
 
 test.describe('group distribution warnings', () => {
   test.beforeEach(async ({ page }) => {
@@ -72,5 +75,44 @@ test.describe('group distribution warnings', () => {
       '[data-testid^="distribution-warning-label-"][title*="used row"]'
     );
     expect(await rowCoverageErrors.count()).toBeGreaterThanOrEqual(1);
+  });
+
+  test('warns before Generate and shows the warnings above the plates after Generate', async ({ page }) => {
+    await page.locator('#file-upload').setInputFiles(DEMO);
+    await page.locator('#qcColumn').selectOption('SampleType');
+    await page.getByRole('checkbox', { name: 'QC', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Ref', exact: true }).check();
+    await page.locator('#covariates').selectOption(['Treatment', 'Timepoint', 'Site']);
+
+    // Before Generate: the 10 study groups are counted without the QC and Ref samples.
+    const planned = page.getByTestId('planned-coverage-banner');
+    await expect(planned).toBeVisible();
+    await expect(planned.getByText(
+      `With these covariates, ${EXPECTED_TREATMENT_ERRORS} of the 10 treatment groups have fewer samples than ` +
+      'the number of plates, so they cannot appear on every plate. Try selecting fewer covariates.',
+      { exact: true }
+    )).toBeVisible();
+    await expect(planned.getByText(SMALLEST_GROUPS, { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeEnabled();
+
+    await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
+
+    // After Generate: the banner is above the plates while the Covariate Summary is still collapsed.
+    await expect(planned).toHaveCount(0);
+    await expect(page.getByTestId('distribution-warning-banner')).toHaveCount(0);
+    const layoutBanner = page.getByTestId('layout-warning-banner');
+    await expect(layoutBanner).toBeVisible();
+    await expect(layoutBanner).toHaveAttribute('data-severity', 'error');
+    await expect(layoutBanner.getByText(
+      `${EXPECTED_TREATMENT_ERRORS} of the treatment covariate groups are not represented on every plate. ` +
+      'Ideally, each plate should have at least one sample from every treatment covariate group.',
+      { exact: true }
+    )).toBeVisible();
+    await expect(layoutBanner.getByText(SMALLEST_GROUPS, { exact: true })).toBeVisible();
+
+    // The summary shows the same warnings, so the banner above the plates hides while it is open.
+    await layoutBanner.getByRole('button', { name: 'Show affected groups' }).click();
+    await expect(page.getByTestId('distribution-warning-banner')).toBeVisible();
+    await expect(layoutBanner).toHaveCount(0);
   });
 });

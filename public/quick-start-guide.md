@@ -143,7 +143,7 @@ See [octopus_doc.html](octopus_doc.html#step-7-export-injection-sequence-optiona
 - 12 Blinded samples per focus area (2 × 12 = 24)
 
 **Quality Scores:**
-- Both balance and clustering scores should be excellent (90+)
+- Both balance and clustering scores should be 90 or above
 
 ### Full Dataset (936 samples, 10 plates)
 
@@ -153,7 +153,7 @@ See [octopus_doc.html](octopus_doc.html#step-7-export-injection-sequence-optiona
 - Blinded and Partial samples evenly distributed
 
 **Quality Scores:**
-- Both balance and clustering scores should be good to excellent
+- Both balance and clustering scores should be 80 or above
 
 ## Understanding the Covariate Groups
 

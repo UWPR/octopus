@@ -7,6 +7,8 @@ import ExcelExportModal from './components/ExcelExportModal';
 import PlatesGrid from './components/PlatesGrid';
 import QualityMetricsPanel from './components/QualityMetricsPanel';
 import QualityLegend from './components/QualityLegend';
+import QualitySwatch from './components/QualitySwatch';
+import DistributionWarningBanner from './components/DistributionWarningBanner';
 import SubjectPlacementPanel from './components/SubjectPlacementPanel';
 import { SearchData, RandomizationAlgorithm, GroupingConstraint, GroupValidationResult, RepeatedMeasuresConfig, NaPolicy, DEFAULT_NA_POLICY } from './utils/types';
 import { downloadCSV, buildProcessedSearches, getCovariateKey, getQualityLevelColor, formatScore, withTimestamp, buildLayoutFileName, detectNaTypeValues, NaDetectionResult } from './utils/utils';
@@ -24,7 +26,7 @@ import { useRandomization } from './hooks/useRandomization';
 import { useCovariateColors } from './hooks/useCovariateColors';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useQualityMetrics } from './hooks/useQualityMetrics';
-import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, computeQcRowCoverage, hasCoverageError } from './utils/groupDistributionWarnings';
+import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, groupsAtBestAchievableBalance, computeQcRowCoverage, hasCoverageError, plannedTreatmentGroups, plannedCoverageSummary, covariateGroupLabel } from './utils/groupDistributionWarnings';
 import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
@@ -155,6 +157,10 @@ const App: React.FC = () => {
     () => (metrics ? aggregateObservedGroupBalance(metrics) : undefined),
     [metrics]
   );
+  const bestAchievableGroups = useMemo(
+    () => (metrics ? groupsAtBestAchievableBalance(metrics) : undefined),
+    [metrics]
+  );
   // QC/reference groups must appear in every used row, not just every plate. This
   // reads the generated layout to find rows a QC group is missing from.
   const qcRowCoverage = useMemo(() => {
@@ -175,8 +181,9 @@ const App: React.FC = () => {
         observedGroupBalance,
         selectedQcValues,
         qcRowCoverage,
+        bestAchievableGroups,
       }),
-    [summaryData, plateCount, observedGroupBalance, selectedQcValues, qcRowCoverage]
+    [summaryData, plateCount, observedGroupBalance, selectedQcValues, qcRowCoverage, bestAchievableGroups]
   );
   // Color the collapsed indicator red when any group fails coverage, amber when the
   // only issues are balance (UNEVEN) warnings.
@@ -372,6 +379,37 @@ const App: React.FC = () => {
   const naDetection = useMemo(
     () => detectNaTypeValues(searches, availableColumns.filter(col => col !== selectedIdColumn)),
     [searches, availableColumns, selectedIdColumn]
+  );
+
+  // Before Generate: the treatment groups and the plate count a layout of these samples will have,
+  // so groups too small to reach every plate are flagged while the covariates are chosen.
+  const plannedPlateCount = Math.ceil(searches.length / (plateRows * plateColumns));
+  const plannedGroups = useMemo(
+    // Only the balanced algorithm uses the chosen plate size. The dev-mode greedy algorithm always
+    // uses 96-well plates, so the planned plate count would be wrong for it.
+    () => (isProcessed || selectedCovariates.length === 0 || selectedAlgorithm !== 'balanced'
+      ? []
+      : plannedTreatmentGroups(searches, selectedCovariates, naPolicy, qcColumn, selectedQcValues)),
+    [isProcessed, searches, selectedCovariates, naPolicy, qcColumn, selectedQcValues, selectedAlgorithm]
+  );
+  const plannedWarnings = useMemo(
+    () => computeGroupDistributionWarnings(plannedGroups, plannedPlateCount),
+    [plannedGroups, plannedPlateCount]
+  );
+  const plannedSparseGroups = useMemo(
+    () => plannedGroups.filter(group => plannedWarnings.byCombination.has(group.combination)),
+    [plannedGroups, plannedWarnings]
+  );
+
+  // After Generate: the treatment groups that miss a plate, labeled with their covariate values
+  const layoutSparseGroups = useMemo(
+    () => summaryData
+      .filter(item => {
+        const warning = distributionWarnings.byCombination.get(item.combination);
+        return warning?.severity === 'error' && !warning.isQc;
+      })
+      .map(item => ({ label: covariateGroupLabel(item.values, selectedCovariates), count: item.count })),
+    [summaryData, distributionWarnings, selectedCovariates]
   );
 
   // Toggle one entry of the "N/A values" checklist. Blank uses the empty-string token. The
@@ -1114,6 +1152,20 @@ const App: React.FC = () => {
             'ID column must have a value for each sample.'
           )}
 
+          {/* Treatment groups too small to reach every plate - shown while the covariates are chosen */}
+          {searches.length > 0 && !isProcessed && (
+            <DistributionWarningBanner
+              severity="error"
+              lines={plannedWarnings.warningCount > 0
+                ? [plannedCoverageSummary(
+                    plannedWarnings.warningCount, plannedWarnings.totalGroups, selectedCovariates.length
+                  )]
+                : []}
+              sparseGroups={plannedSparseGroups}
+              testId="planned-coverage-banner"
+            />
+          )}
+
           {/* Process Button */}
           {searches.length > 0 && !isProcessed && (
             <button
@@ -1131,6 +1183,19 @@ const App: React.FC = () => {
           {/* Randomization / infeasibility error - shown by the Generate button that triggers it */}
           {randomizationError && renderBanner(randomizationError)}
 
+          {/* Group distribution warnings above the plates while the Covariate Summary, which shows the
+              same warnings, is closed. Rendered from the file load on, so its live region exists before
+              Generate fills it and screen readers announce the warnings. */}
+          {searches.length > 0 && (
+            <DistributionWarningBanner
+              severity={warningsHaveError ? 'error' : 'warning'}
+              lines={isProcessed && !showSummary ? distributionWarnings.summaries : []}
+              sparseGroups={layoutSparseGroups}
+              testId="layout-warning-banner"
+              onShowGroups={() => setShowSummary(true)}
+            />
+          )}
+
           {/* Plates Visualization */}
           {isProcessed && randomizedPlates.length > 0 && (
             <>
@@ -1145,13 +1210,7 @@ const App: React.FC = () => {
                       <span style={styles.qualityScore}>
                         {formatScore(metrics.overallQuality.score)}
                       </span>
-                      <span style={{
-                        ...styles.qualityBadge,
-                        backgroundColor:
-                          getQualityLevelColor(metrics.overallQuality.level)
-                      }}>
-                        {metrics.overallQuality.level.charAt(0).toUpperCase() + metrics.overallQuality.level.slice(1)}
-                      </span>
+                      <QualitySwatch color={getQualityLevelColor(metrics.overallQuality.level)} size={12} />
                     </div>
                   </button>
                 )}
@@ -1511,14 +1570,6 @@ const styles = {
   qualityScore: {
     fontWeight: '600',
     color: '#495057',
-  },
-  qualityBadge: {
-    padding: '2px 6px',
-    borderRadius: '3px',
-    color: '#fff',
-    fontSize: '10px',
-    fontWeight: '600',
-    textTransform: 'uppercase' as const,
   },
   helpSection: {
     width: '100%',
