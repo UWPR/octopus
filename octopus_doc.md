@@ -1,6 +1,6 @@
 # Octopus
 
-*Version 1.1.0*
+*Version 1.2.0*
 
 ## What is Octopus?
 
@@ -142,7 +142,7 @@ For experiments where the same subject is measured multiple times (e.g., multipl
 
 **Validation:** The app validates whether the chosen constraint is feasible given the plate dimensions. For example, if a subject has 15 samples but the plate only has 12 columns, the Same Row constraint is infeasible and an error message will appear. The "Generate Randomized Plates" button is disabled until all validation errors are resolved.
 
-**Note:** The "Keep empty spots in last plate" option is hidden when a subject grouping constraint is active, as the subject-group-aware algorithm manages plate capacity differently.
+**Note:** The "Keep empty spots in last plate" option is hidden when a subject grouping constraint is active, and it does not change how many samples go on each plate, because whole subject groups cannot fill a plate exactly.
 
 #### Configure Plate Dimensions
 - **Rows**: Set from 1-16 (default: 8)
@@ -209,7 +209,12 @@ Click **"Show/Hide Covariate Summary"** to display:
 
 #### Group Distribution Warnings
 
-After you generate a layout, Octopus flags covariate groups that are poorly distributed across plates or rows. Flagged covariate group cards in the Covariate Summary panel carry a **SPARSE** label (red) or an **UNEVEN** label (amber). A banner at the top of the panel reports how many groups are affected. The collapsed toggle shows a warning count. Hover a label to read the full reason. The warnings are informational only and never block plate generation.
+Octopus flags covariate groups that are poorly distributed across plates or rows. The warnings are informational only and never block plate generation.
+
+- **Before you generate**, a red banner below the configuration appears when a treatment group has fewer samples than the number of plates the layout will use. It names the smallest groups. Selecting fewer covariates makes the groups larger.
+- **After you generate**, a banner above the plates lists the problems. It is red when a group misses a plate or a row, and amber when the only problem is uneven balance (a group balance score below 70). A group already split as evenly as its sample count allows is not flagged, since no placement can improve it. For example, 4 samples on 3 plates split 2, 1 and 1. **Show affected groups** opens the Covariate Summary, where flagged group cards carry a **SPARSE** label (red) or an **UNEVEN** label (amber). Hover a label to read the full reason. The collapsed Covariate Summary toggle also shows a warning count.
+
+The groups are judged as follows.
 
 - **Treatment groups** are flagged when a group has fewer samples than there are plates, making it impossible to place at least one sample on every plate.
 
@@ -244,12 +249,12 @@ Subject highlighting and covariate highlighting are mutually exclusive — click
 
 #### Quality Metrics
 
-**Overall Quality Button**: Shows experiment-wide quality score and level (Excellent, Good, Fair, Poor, or Bad)
+**Overall Quality Button**: Shows the experiment-wide quality score, with a swatch in the color of its score band (see Score Bands below)
 
 Click the quality button to open the **Quality Assessment Dialog** showing:
-- Overall quality score and level
+- Overall quality score
 - Average balance and clustering scores across all plates
-- Individual scores for each plate with quality badges
+- Individual scores for each plate, each with a color swatch
 
 **Plate Headers**: Each plate displays:
 - **Bal**: Balance score (0-100) for that plate (not shown with a single plate — see Balance Score section below)
@@ -444,15 +449,17 @@ The average of all active score components, calculated at both plate level and e
 - **Multiple plates**: Overall Score = (Balance Score + Clustering Score) / 2
 - **Single plate**: Overall Score = Clustering Score only (balance is excluded because with one plate, the plate's covariate distribution is identical to the overall distribution, making the balance score trivially perfect and uninformative)
 
-### Quality Levels
+### Score Bands
 
-| Score Range | Quality Level |
-|-------------|---------------|
-| 90-100 | Excellent |
-| 80-89 | Good |
-| 70-79 | Fair |
-| 60-69 | Poor |
-| 0-59 | Bad |
+Every score is shown as a number with a small swatch in the color of its band. The bands group the score ranges for display only. A score measures how well a layout meets the balance and spatial separation criteria that Octopus implements. It does not measure the statistical power of the experimental design.
+
+| Score Range | Band Color |
+|-------------|------------|
+| 90-100 | Green |
+| 80-89 | Yellow-green |
+| 70-79 | Orange |
+| 60-69 | Brown |
+| 0-59 | Red |
 
 ### Quality with Grouping Constraints
 

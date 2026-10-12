@@ -1,16 +1,16 @@
 {
   "files": {
     "main.css": "/octopus/static/css/main.e6c13ad2.css",
-    "main.js": "/octopus/static/js/main.59475492.js",
+    "main.js": "/octopus/static/js/main.a556315b.js",
     "static/js/453.d6df9003.chunk.js": "/octopus/static/js/453.d6df9003.chunk.js",
     "static/media/octopus-logo.svg": "/octopus/static/media/octopus-logo.33fd38ff073974bd02addd1d0337004d.svg",
     "index.html": "/octopus/index.html",
     "main.e6c13ad2.css.map": "/octopus/static/css/main.e6c13ad2.css.map",
-    "main.59475492.js.map": "/octopus/static/js/main.59475492.js.map",
+    "main.a556315b.js.map": "/octopus/static/js/main.a556315b.js.map",
     "453.d6df9003.chunk.js.map": "/octopus/static/js/453.d6df9003.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.59475492.js"
+    "static/js/main.a556315b.js"
   ]
 }
