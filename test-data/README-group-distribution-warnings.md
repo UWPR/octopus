@@ -10,7 +10,7 @@ It is sized so it produces flagged groups at the **default 96-well plate (8 rows
 
 ## Two coverage rules
 
-- **Treatment covariate groups: one per plate.** With more than one plate, a group
+- **Covariate groups: one per plate.** With more than one plate, a group
   with fewer than 3 samples cannot appear on all 3 plates, so it is flagged.
 - **QC/reference groups: one per used row.** QC samples are meant to be
   interspersed through the run, so per-plate is not enough. Each selected QC group
@@ -62,9 +62,8 @@ Expect:
 
 - A warning banner at the top of the Covariate Summary, with a separate line per
   category, for example:
-  - "4 of the treatment covariate groups are not represented on every plate.
-    Ideally, each plate should have at least one sample from every treatment
-    covariate group."
+  - "4 of the covariate groups are not represented on every plate. Ideally, each
+    plate should have at least one sample from every covariate group."
   - "2 of the QC/Reference groups are not represented on every row. Ideally, each
     row should have at least one sample from every QC/Reference group."
 - A red `SPARSE` label on each flagged card. Its tooltip carries the full reason:

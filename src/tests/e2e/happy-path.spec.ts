@@ -142,7 +142,7 @@ test.describe('Happy Path Workflow', () => {
 
     // Verify header info is displayed
     await expect(page.getByText('QC/Reference Column:')).toBeVisible();
-    await expect(page.getByText('Treatment Covariates:')).toBeVisible();
+    await expect(page.getByText('Covariates:', { exact: true })).toBeVisible();
 
     // Scrape each summary card using data-testid: extract covariate key and sample count
     const summaryCards = await page.evaluate(() => {
@@ -187,7 +187,7 @@ test.describe('Happy Path Workflow', () => {
     // Close summary and verify content is removed from DOM
     await page.getByRole('button', { name: /Hide.*Covariate Summary/ }).click();
     await expect(page.getByRole('button', { name: /Show.*Covariate Summary/ })).toBeVisible();
-    await expect(page.getByText('Treatment Covariates:')).not.toBeVisible();
+    await expect(page.getByText('Covariates:', { exact: true })).not.toBeVisible();
   });
 
   test('quality metrics modal displays per-plate scores', async ({ page }) => {

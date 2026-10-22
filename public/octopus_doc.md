@@ -115,8 +115,8 @@ Select a column that identifies quality control or reference samples, then check
 3. Samples with these values will be marked as QC/Reference samples
 
 **Covariate key generation:**
-- If the QC column is NOT selected as a treatment covariate, the QC value is prepended to the covariate key (e.g., `QC|DrugA|0h`)
-- If the QC column IS selected as a treatment covariate, it's treated like any other covariate (no prefix)
+- If the QC column is NOT selected as a covariate, the QC value is prepended to the covariate key (e.g., `QC|DrugA|0h`)
+- If the QC column IS selected as a covariate, it's treated like any other covariate (no prefix)
 
 QC/Reference samples will be visually distinguished in the summary panel (see Covariate Summary Panel section below).
 
@@ -129,7 +129,7 @@ For experiments where the same subject is measured multiple times (e.g., multipl
 2. Choose a grouping constraint (see below)
 3. The app groups all samples sharing the same subject ID into a subject group that will be kept together during randomization
 
-**Mutual exclusivity:** The Subject ID Column cannot be the same as a selected treatment covariate or the QC column. Selecting a column as the subject ID will automatically remove it from the covariates list (and vice versa).
+**Mutual exclusivity:** The Subject ID Column cannot be the same as a selected covariate or the QC column. Selecting a column as the subject ID will automatically remove it from the covariates list (and vice versa).
 
 **Subject Group Summary:** When a subject column is selected, a summary appears showing the number of subject groups, their size range, and a breakdown by size (e.g., "5 groups of size 4, 6 groups of size 3"). Samples with empty or missing subject IDs become singletons.
 
@@ -211,14 +211,14 @@ Click **"Show/Hide Covariate Summary"** to display:
 
 Octopus flags covariate groups that are poorly distributed across plates or rows. The warnings are informational only and never block plate generation.
 
-- **Before you generate**, a red banner below the configuration appears when a treatment group has fewer samples than the number of plates the layout will use. It names the smallest groups. Selecting fewer covariates makes the groups larger.
-- **After you generate**, a banner above the plates lists the problems. It is red when a group misses a plate or a row, and amber when the only problem is uneven balance (a group balance score below 70). A group already split as evenly as its sample count allows is not flagged, since no placement can improve it. For example, 4 samples on 3 plates split 2, 1 and 1. **Show affected groups** opens the Covariate Summary, where flagged group cards carry a **SPARSE** label (red) or an **UNEVEN** label (amber). Hover a label to read the full reason. The collapsed Covariate Summary toggle also shows a warning count.
+- **Before you generate**, a red banner below the configuration appears when a covariate group has fewer samples than the number of plates the layout will use. It names the smallest groups. Selecting fewer covariates makes the groups larger.
+- **After you generate**, a banner above the plates lists the problems, each line followed by the groups it concerns. It is red when a group misses a plate or a row, and amber when the only problem is uneven balance (a group whose mean per-plate balance score is below 70). A group already split as evenly as its sample count allows is not flagged, since no placement can improve it. For example, 4 samples on 3 plates split 2, 1 and 1. **Show affected groups** opens the Covariate Summary, where flagged group cards carry a **SPARSE** label (red) or an **UNEVEN** label (amber). Hover a label to read the full reason. For an uneven group it gives the group's count on each plate and the most even split its sample count allows, with the score that split would reach. The collapsed Covariate Summary toggle also shows a warning count.
 
 The groups are judged as follows.
 
-- **Treatment groups** are flagged when a group has fewer samples than there are plates, making it impossible to place at least one sample on every plate.
+- **Covariate groups** are flagged when a group has fewer samples than there are plates, making it impossible to place at least one sample on every plate.
 
-![Treatment group flagged in the Covariate Summary](images/octopus_group-distribution-treatment.png)
+![Covariate group flagged in the Covariate Summary](images/octopus_group-distribution-treatment.png)
 
 - **QC/Reference groups** are flagged when the group is missing from any used row. Ideally, QC/reference samples should be placed in every row, not just on every plate.
 
@@ -254,6 +254,7 @@ Subject highlighting and covariate highlighting are mutually exclusive — click
 Click the quality button to open the **Quality Assessment Dialog** showing:
 - Overall quality score
 - Average balance and clustering scores across all plates
+- The formula for the overall score (see Overall Score below)
 - Individual scores for each plate, each with a color swatch
 
 **Plate Headers**: Each plate displays:
@@ -265,12 +266,30 @@ Click the quality button to open the **Quality Assessment Dialog** showing:
 Click the **"i"** icon in any plate header to view:
 - Plate capacity and sample count
 - Quality scores (balance and clustering)
-- Detailed breakdown of each covariate group on that plate:
-  - Color indicator matching the plate display
-  - Sample proportions (plate count / total group count)
-  - Expected vs. actual sample counts
-  - Deviation percentages
-  - Individual balance scores
+- A table with one row per covariate group, largest group in the study first:
+  - Color indicator matching the plate display, and the group's covariate values
+  - Total samples: the group's count in the study
+  - On plate: the group's count on this plate
+  - Expected: the count the group would have if it were spread evenly across the plates
+  - Penalty: the points the group takes off the plate's balance score. The column sums to 100
+    minus the plate's balance score, so the groups with the largest penalty are the ones to
+    move. A group absent from the plate is penalized its share of the study.
+  - Group score: the group's own balance score on this plate, with its color swatch
+
+Under the table, the formulas behind the two columns. Samples is the plate's sample count from the
+header line.
+
+```
+Penalty       = |On plate - Expected| / Samples × 100
+Group score   = 100 - |On plate - Expected| / Expected × 100, at least 0
+Plate balance = 100 - Total penalty, rounded and at least 0
+```
+
+Penalty and Group score share the gap between On plate and Expected. Penalty divides it by the
+plate's samples, so every group is in the same unit, a share of the plate. Group score divides it
+by the group's own Expected, so a small group can score low while taking little off the plate.
+
+With a single plate there is no balance score, so the table shows only the counts.
 
 
 ### Step 5: Refine Your Randomization (Optional)
@@ -292,7 +311,7 @@ Once satisfied with the distribution, open the **Export** menu and choose **CSV*
 
 **CSV Export**: Includes all original sample data plus assigned plate numbers and well positions.
 
-**Excel Export**: Opens a dialog allowing you to select which covariates to include in the Excel file. Treatment covariates, the subject column (if configured), and the QC column (if configured) are pre-selected by default. The exported file contains:
+**Excel Export**: Opens a dialog allowing you to select which covariates to include in the Excel file. The selected covariates, the subject column (if configured), and the QC column (if configured) are pre-selected by default. The exported file contains:
 - Color-coded plates matching the visual display
 - Selected covariate information for each sample
 - Plate and well position assignments
@@ -419,19 +438,20 @@ If you configured serial sample IDs with mapping enabled, an **Export Mapping CS
 ## Understanding Quality Scores
 
 ### Balance Score (0-100)
-Measures how proportionally each covariate group is represented on each plate compared to the overall population. Higher scores indicate better balance.
+Measures how closely each covariate group's share of a plate matches its share of the study. Higher scores indicate better balance.
 
 **Note:** With a single plate, the balance score is not displayed because the plate's covariate distribution is identical to the overall distribution, making the score trivially perfect and uninformative. Only the clustering score is shown in this case.
 
 **Calculation:**
-For each covariate group on each plate:
+For each covariate group on each plate, where Samples is the number of samples on the plate:
 ```
-Actual Proportion = Actual Count / Plate Capacity
-Expected Proportion = Group Size / Total Samples
-Relative Deviation = |Actual Proportion - Expected Proportion| / Expected Proportion
+Expected      = Group size / Total samples × Samples
+Penalty       = |On plate - Expected| / Samples × 100
+Group score   = 100 - |On plate - Expected| / Expected × 100, at least 0
+Plate balance = 100 - sum of the penalties, rounded and at least 0
 ```
 
-The overall plate balance uses weighted averaging based on global covariate group proportions, ensuring large groups influence the score proportionally while very rare groups have limited impact.
+A group's penalty is its gap from its expected count as a share of the plate, so a large group that is off by several samples costs more than a small group off by one, and a group missing from the plate costs its whole share. The Plate Details popup shows these numbers for every group.
 
 ### Clustering Score (0-100)
 Measures spatial clustering by counting same-covariate group adjacencies across the entire plate. The score evaluates three types of adjacencies:
@@ -441,7 +461,7 @@ Measures spatial clustering by counting same-covariate group adjacencies across 
 
 The score is calculated as: `Score = (1 - actualClusters / maxPossibleAdjacencies) × 100`
 
-Higher scores indicate better spatial distribution with fewer same-treatment samples adjacent to each other. A score of 100 means no same-treatment adjacencies, while lower scores indicate more clustering.
+Higher scores indicate better spatial distribution with fewer same-group samples adjacent to each other. A score of 100 means no same-group adjacencies, while lower scores indicate more clustering.
 
 ### Overall Score
 The average of all active score components, calculated at both plate level and experiment level:
@@ -574,7 +594,7 @@ Note: Row reordering is not performed under the Same Plate constraint. Because s
 For each covariate group on each plate, the balance score evaluates how closely the actual sample distribution matches the expected proportional distribution:
 
 ```
-Actual Proportion = Actual Count / Plate Capacity
+Actual Proportion = Actual Count / Samples on the Plate
 Expected Proportion = Group Size / Total Samples
 Relative Deviation = |Actual Proportion - Expected Proportion| / Expected Proportion
 Balance Score = max(0, 100 - (Relative Deviation × 100))
@@ -591,10 +611,10 @@ PlateBalanceScore = max(0, 100 − (min(OverallWeightedDeviation, 1) × 100))
 Group-level balance scores are listed separately to identify which combinations drive penalties.
 
 #### Clustering Score
-The clustering score measures spatial distribution quality by analyzing same-treatment adjacencies:
+The clustering score measures spatial distribution quality by analyzing same-group adjacencies:
 
 **Calculation Method:**
-1. **Count actual clusters**: For each filled position, check if adjacent positions (right, below, cross-row) contain samples from the same treatment group
+1. **Count actual clusters**: For each filled position, check if adjacent positions (right, below, cross-row) contain samples from the same covariate group
    - Horizontal adjacency: Same row, next column
    - Vertical adjacency: Same column, next row
    - Cross-row adjacency: Last column of row N to first column of row N+1
@@ -606,10 +626,10 @@ The clustering score measures spatial distribution quality by analyzing same-tre
 4. **Convert to score**: `ClusteringScore = (1 - clusterRatio) × 100`
 
 **Score Interpretation:**
-- **100**: Perfect distribution - no same-treatment adjacencies (ideal checkerboard pattern)
+- **100**: Perfect distribution - no same-group adjacencies (ideal checkerboard pattern)
 - **75-99**: Good distribution - minimal clustering
-- **50-74**: Moderate clustering - some same-treatment neighbors
-- **0-49**: High clustering - many same-treatment adjacencies
+- **50-74**: Moderate clustering - some same-group neighbors
+- **0-49**: High clustering - many same-group adjacencies
 
 
 The clustering score complements the balance score by ensuring samples are not only proportionally distributed but also spatially dispersed to minimize position-based biases.

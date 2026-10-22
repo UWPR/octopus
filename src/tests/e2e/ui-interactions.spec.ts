@@ -4,6 +4,7 @@ import {
   uploadAndConfigure,
   uploadConfigureAndRandomize,
   EXPECTED_GROUPS,
+  NUM_COVARIATE_GROUPS,
   TOTAL_SAMPLES,
 } from './helpers';
 
@@ -152,26 +153,41 @@ test.describe('UI Interactions', () => {
     expect(firstCellTooltip!).toContain(sampleName!);
   });
 
-  test('plate details modal shows expected vs actual counts', async ({ page }) => {
+  test('plate details modal lists every group with its penalty to the plate score', async ({ page }) => {
     await uploadConfigureAndRandomize(page);
 
     // Open plate details for Plate 1
     await page.locator('button[title="Show plate details"]').first().click();
     await expect(page.getByText('Plate 1 Details')).toBeVisible();
 
-    // The modal should show covariate group rows with expected/actual proportion data
-    await expect(page.getByText('Expected Proportion:').first()).toBeVisible();
-    await expect(page.getByText('Actual Proportion:').first()).toBeVisible();
-
-    // Verify the modal contains covariate group entries
     // Scope to the modal to avoid matching config form elements
     const modal = page.locator('[data-modal-content]');
+    await expect(modal.getByRole('columnheader', { name: 'Group (Radiaion Dose_cGy | Focus Area | Condition)' })).toBeVisible();
+    await expect(modal.getByRole('columnheader', { name: 'Penalty' })).toBeVisible();
+
+    // One row per group, labeled with its covariate values joined by a bar, Condition last.
     // 14 covariate groups total: 2 BatchQC/BatchRef, 2 Blinded, 6 Training, 4 Control
-    await expect(modal.getByText('Condition: BatchQC')).toHaveCount(1);
-    await expect(modal.getByText('Condition: BatchRef')).toHaveCount(1);
-    await expect(modal.getByText('Condition: Blinded')).toHaveCount(2);
-    await expect(modal.getByText('Condition: Training')).toHaveCount(6);
-    await expect(modal.getByText('Condition: Control')).toHaveCount(4);
+    const rows = modal.getByTestId('plate-group-row');
+    const rowsOfCondition = (condition: string) =>
+      rows.filter({ has: page.locator('td:first-child', { hasText: new RegExp(`\\| ${condition}$`) }) });
+    await expect(rows).toHaveCount(NUM_COVARIATE_GROUPS);
+    await expect(rowsOfCondition('BatchQC')).toHaveCount(1);
+    await expect(rowsOfCondition('BatchRef')).toHaveCount(1);
+    await expect(rowsOfCondition('Blinded')).toHaveCount(2);
+    await expect(rowsOfCondition('Training')).toHaveCount(6);
+    await expect(rowsOfCondition('Control')).toHaveCount(4);
+
+    // The penalty column sums to 100 minus the plate balance score, which the note states.
+    // Each cell is rounded to one decimal, so the sum of the cells can differ from the total
+    // cell by up to 0.05 per row.
+    const penalties = await rows.locator('td:nth-child(5)').allTextContents();
+    const total = penalties.reduce((sum, penalty) => sum + Number(penalty), 0);
+    const totalCell = await modal.getByTestId('plate-group-total').locator('td:nth-child(2)').textContent();
+    expect(Math.abs(total - Number(totalCell)) <= 0.05 * NUM_COVARIATE_GROUPS).toBe(true);
+    // The header line shows the plate score the total penalty leads to
+    const balance = Math.round(100 - Number(totalCell));
+    await expect(modal.getByText(`${balance}.0`, { exact: true })).toBeVisible();
+    await expect(modal.getByText('Plate balance = 100 - Total penalty, rounded and at least 0')).toBeVisible();
 
     // Close modal
     await page.getByRole('button', { name: '×' }).first().click();

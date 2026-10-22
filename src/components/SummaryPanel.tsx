@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SummaryItem } from '../utils/types';
-import { GroupDistributionWarnings, WarningSeverity, hasCoverageError } from '../utils/groupDistributionWarnings';
+import { GroupDistributionWarnings, WarningSeverity, hasCoverageError, bannerSections } from '../utils/groupDistributionWarnings';
 import DistributionWarningBanner from './DistributionWarningBanner';
 
 type FillStyle = 'solid' | 'outline' | 'diagonal';
@@ -80,7 +80,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
   };
 
   return (
-    <div style={styles.summaryContainer}>
+    <div style={styles.summaryContainer} data-testid="covariate-summary">
       <div style={styles.summaryPanel}>
         {/* Compact Summary Header */}
         <div style={styles.summaryInfo}>
@@ -94,7 +94,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
           )}
           {selectedCovariates.length > 0 && (
             <div style={styles.summaryInfoRow}>
-              <span style={styles.summaryLabel}>Treatment Covariates:</span>
+              <span style={styles.summaryLabel}>Covariates:</span>
               <span style={styles.summaryValue}>
                 {selectedCovariates.map(covariate => {
                   const values = covariateUniqueValues.get(covariate);
@@ -108,8 +108,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
         {warnings && (
           <DistributionWarningBanner
             severity={hasCoverageError(warnings) ? 'error' : 'warning'}
-            lines={warnings.summaries}
-            sparseGroups={[]}
+            sections={bannerSections(warnings, summaryData, selectedCovariates)}
             testId="distribution-warning-banner"
           />
         )}

@@ -2,6 +2,7 @@ import React from 'react';
 import { SearchData, CovariateColorInfo, PlateQualityScore, NaPolicy, DEFAULT_NA_POLICY } from '../utils/types';
 import { QUALITY_DISPLAY_CONFIG } from '../utils/configs';
 import { getCovariateKey, getQualityColor, formatScore, effectiveDisplayValue } from '../utils/utils';
+import { covariateGroupLabel } from '../utils/groupDistributionWarnings';
 import QualitySwatch from './QualitySwatch';
 
 interface PlateDetailsModalProps {
@@ -22,6 +23,8 @@ interface PlateDetailsModalProps {
   randomizedPlates?: (SearchData | undefined)[][][];
   numPlates?: number;
   naPolicy?: NaPolicy;
+  qcColumn?: string;
+  selectedQcValues?: string[];
 }
 
 const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
@@ -42,10 +45,9 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
   randomizedPlates,
   numPlates = 1,
   naPolicy = DEFAULT_NA_POLICY,
+  qcColumn = '',
+  selectedQcValues = [],
 }) => {
-
-
-
   if (!show || plateIndex === null) return null;
 
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -197,9 +199,8 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                   }
                 });
 
-                // Calculate global distribution for percentage calculation.
-                // Also keep one sample per group so covariate values come from
-                // metadata instead of from splitting the key.
+                // Count every group in the study, and keep one sample per group so the
+                // covariate values come from metadata instead of from splitting the key.
                 const globalDistribution = new Map<string, number>();
                 const representativeByKey = new Map<string, SearchData>();
                 searches.forEach(sample => {
@@ -214,110 +215,120 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                   }
                 });
 
+                // The group label the Covariate Summary and the warning banner use, with the QC
+                // value in front of a QC group unless the QC column is a selected covariate
+                const groupLabel = (combination: string): string => {
+                  const representative = representativeByKey.get(combination);
+                  const values: { [covariate: string]: string } = {};
+                  selectedCovariates.forEach((cov) => {
+                    values[cov] = effectiveDisplayValue(representative?.metadata[cov] ?? '', naPolicy);
+                  });
+                  const label = covariateGroupLabel(values, selectedCovariates);
+                  const qcValue = qcColumn ? representative?.metadata[qcColumn] : undefined;
+                  const isQc = qcValue !== undefined && selectedQcValues.includes(qcValue);
+                  return isQc && !Object.values(values).includes(qcValue) ? `${qcValue} | ${label}` : label;
+                };
+
+                const showBalance = plateQuality !== undefined && numPlates > 1;
+                // Points each group takes off the plate's balance score. The plate score is 100
+                // minus the sum over every group, rounded, and 0 at the lowest.
+                const penaltyPoints = (weightedDeviation: number): number => weightedDeviation * 100;
+                const totalPenalty = Object.values(groupBalance)
+                  .reduce((sum, balance) => sum + penaltyPoints(balance.weightedDeviation), 0);
+
+                const rows = Array.from(globalDistribution.entries())
+                  .sort((a, b) => {
+                    const plateCountA = covariateDistribution.get(a[0]) || 0;
+                    const plateCountB = covariateDistribution.get(b[0]) || 0;
+                    // Largest group in the study first, then most on this plate, then by name
+                    return b[1] - a[1] || plateCountB - plateCountA || a[0].localeCompare(b[0]);
+                  });
+
                 return (
-                  <div style={styles.covariateDistribution}>
-                    {numPlates > 1 && <h4 style={styles.sectionTitle}>Balance Scores</h4>}
-                    {Array.from(globalDistribution.entries())
-                      .sort((a, b) => {
-                        // Sort by: 1) total samples in group (descending), 2) samples in plate (descending), 3) group name (ascending)
-                        const globalCountA = a[1];
-                        const globalCountB = b[1];
-                        const plateCountA = covariateDistribution.get(a[0]) || 0;
-                        const plateCountB = covariateDistribution.get(b[0]) || 0;
+                  <div>
+                    {showBalance && <h4 style={styles.sectionTitle}>Balance Scores</h4>}
+                    <table style={styles.groupTable} data-testid="plate-group-table">
+                      <thead>
+                        <tr>
+                          <th style={styles.groupHeaderCell}>Group ({selectedCovariates.join(' | ')})</th>
+                          <th style={styles.numberHeaderCell}>Total samples</th>
+                          <th style={styles.numberHeaderCell}>On plate</th>
+                          {showBalance && (
+                            <>
+                              <th style={styles.numberHeaderCell}>Expected</th>
+                              <th style={styles.numberHeaderCell}>Penalty</th>
+                              <th style={styles.numberHeaderCell}>Group score</th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(([combination, globalCount]) => {
+                          const count = covariateDistribution.get(combination) || 0;
+                          const colorInfo = covariateColors[combination] || { color: '#cccccc', useOutline: false, useStripes: false, textColor: '#000' };
+                          const balance = groupBalance[combination];
+                          const dimmed = count === 0 ? styles.dimmedCell : {};
 
-                        // First: sort by total samples in the covariate group (descending)
-                        if (globalCountB !== globalCountA) return globalCountB - globalCountA;
-
-                        // Second: sort by samples in this plate (descending)
-                        if (plateCountB !== plateCountA) return plateCountB - plateCountA;
-
-                        // Third: sort by group name (ascending)
-                        return a[0].localeCompare(b[0]);
-                      })
-                      .map(([combination, globalCount]) => {
-                        const count = covariateDistribution.get(combination) || 0;
-                        const colorInfo = covariateColors[combination] || { color: '#cccccc', useOutline: false, useStripes: false, textColor: '#000' };
-                        const percentage = globalCount > 0 ? ((count / globalCount) * 100).toFixed(1) : '0.0';
-                        const balance = groupBalance[combination];
-
-                        return (
-                          <div key={combination} style={{
-                            ...styles.distributionItem,
-                            ...(count === 0 ? styles.distributionItemEmpty : {}),
-                            ...(selectedCombination === combination ? styles.distributionItemSelected : {})
-                          }}>
-                            <div
-                              style={{
-                                ...styles.distributionColorIndicator,
-                                backgroundColor: colorInfo.useOutline ? 'transparent' : colorInfo.color,
-                                ...(colorInfo.useStripes && {
-                                  background: `repeating-linear-gradient(45deg, ${colorInfo.color}, ${colorInfo.color} 2px, transparent 2px, transparent 4px)`
-                                }),
-                                border: colorInfo.useOutline ? `2px solid ${colorInfo.color}` : '1px solid rgba(0,0,0,0.2)',
-                                ...(count === 0 ? { opacity: 0.4 } : {})
-                              }}
-                            />
-                            <div style={styles.distributionText}>
-                              <div style={styles.covariateInfo}>
-                                <div style={styles.distributionStats}>
-                                  <span style={{
-                                    ...styles.distributionCount,
-                                    ...(count === 0 ? { color: '#999' } : {})
-                                  }}>
-                                    {count}/{globalCount}
-                                  </span>
-                                  <span style={{
-                                    ...styles.distributionPercentage,
-                                    ...(count === 0 ? { color: '#999' } : {})
-                                  }}>
-                                    ({percentage}%)
-                                  </span>
+                          return (
+                            <tr
+                              key={combination}
+                              data-testid="plate-group-row"
+                              style={selectedCombination === combination ? styles.selectedRow : {}}
+                            >
+                              <td style={{ ...styles.groupCell, ...dimmed }}>
+                                <div style={styles.groupCellContent}>
+                                <span
+                                  style={{
+                                    ...styles.groupColorIndicator,
+                                    backgroundColor: colorInfo.useOutline ? 'transparent' : colorInfo.color,
+                                    ...(colorInfo.useStripes && {
+                                      background: `repeating-linear-gradient(45deg, ${colorInfo.color}, ${colorInfo.color} 2px, transparent 2px, transparent 4px)`
+                                    }),
+                                    border: colorInfo.useOutline ? `2px solid ${colorInfo.color}` : '1px solid rgba(0,0,0,0.2)',
+                                    ...(count === 0 ? { opacity: 0.4 } : {})
+                                  }}
+                                />
+                                <span>{groupLabel(combination)}</span>
                                 </div>
-                                <div style={{
-                                  ...styles.distributionCombination,
-                                  ...(count === 0 ? { color: '#999' } : {})
-                                }}>
-                                  {selectedCovariates.map((cov) => {
-                                    // Read each covariate from the sample's metadata,
-                                    // so a value containing '|' stays in its own row.
-                                    // Per-group rollup: a folded group shows N/A, a kept-distinct blank shows blank.
-                                    const representative = representativeByKey.get(combination);
-                                    const value = effectiveDisplayValue(representative?.metadata[cov] ?? '', naPolicy);
-                                    return (
-                                      <div key={cov} style={styles.covariateItem}>
-                                        <strong>{cov}:</strong> {value}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                              {balance && numPlates > 1 && (
-                                <div style={styles.balanceInfo}>
-                                  <div style={{
-                                    ...styles.balanceScore,
-                                    color: getQualityColor(balance.balanceScore)
-                                  }}>
+                              </td>
+                              <td style={{ ...styles.numberCell, ...dimmed }}>{globalCount}</td>
+                              <td style={{ ...styles.numberCell, ...dimmed }}>{count}</td>
+                              {showBalance && balance && (
+                                <>
+                                  <td style={{ ...styles.numberCell, ...dimmed }}>{balance.expectedCount.toFixed(1)}</td>
+                                  <td style={{ ...styles.numberCell, ...dimmed }}>
+                                    {penaltyPoints(balance.weightedDeviation).toFixed(1)}
+                                  </td>
+                                  <td
+                                    style={{ ...styles.numberCell, ...dimmed }}
+                                    title={`${(balance.relativeDeviation * 100).toFixed(1)}% from the expected count`}
+                                  >
+                                    {balance.balanceScore}{' '}
                                     <QualitySwatch color={getQualityColor(balance.balanceScore)} />
-                                    {' '}Balance: {balance.balanceScore}
-                                  </div>
-                                  <div style={styles.balanceDetailLine}>
-                                    Expected Proportion: {balance.expectedProportion.toFixed(4)}
-                                  </div>
-                                  <div style={styles.balanceDetailLine}>
-                                    Actual Proportion: {balance.actualProportion.toFixed(4)}
-                                  </div>
-                                  <div style={styles.balanceDetailLine}>
-                                    Deviation: {(balance.relativeDeviation * 100).toFixed(4)}%
-                                  </div>
-                                  <div style={styles.balanceDetailLine}>
-                                    Weighted Deviation: {(balance.weightedDeviation * 100).toFixed(4)}%
-                                  </div>
-                                </div>
+                                  </td>
+                                </>
                               )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      {showBalance && (
+                        <tfoot>
+                          <tr data-testid="plate-group-total">
+                            <td style={styles.totalCell} colSpan={4}>Total penalty</td>
+                            <td style={{ ...styles.numberCell, ...styles.totalCell }}>{totalPenalty.toFixed(1)}</td>
+                            <td style={styles.totalCell} />
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                    {showBalance && (
+                      <div style={styles.totalNote}>
+                        <div style={styles.formula}>Penalty = |On plate - Expected| / Samples &times; 100</div>
+                        <div style={styles.formula}>Group score = 100 - |On plate - Expected| / Expected &times; 100, at least 0</div>
+                        <div style={styles.formula}>Plate balance = 100 - Total penalty, rounded and at least 0</div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -342,13 +353,13 @@ const styles = {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'top',
+    alignItems: 'flex-start',
     zIndex: 1000,
   },
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: '8px',
-    maxWidth: '600px',
+    maxWidth: '820px',
     maxHeight: '80vh',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
     display: 'flex',
@@ -450,101 +461,72 @@ const styles = {
     borderRadius: '2px',
     flexShrink: 0,
   },
-  balanceScore: {
-    fontSize: '11px',
-    fontWeight: '600',
-    padding: '1px 0px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '2px',
+  groupTable: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+    fontSize: '12px',
   },
-  balanceDetails: {
-    padding: '1px 4px',
-    fontSize: '10px',
-    color: '#666',
-  },
-  balanceDetailLine: {
-    fontSize: '10px',
-    color: '#666',
-    lineHeight: '1.3',
+  groupHeaderCell: {
     textAlign: 'left' as const,
+    verticalAlign: 'bottom',
+    padding: '4px 8px',
+    borderBottom: '1px solid #ccc',
+    color: '#333',
+    fontWeight: '600',
   },
-  covariateDistribution: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px',
+  numberHeaderCell: {
+    textAlign: 'right' as const,
+    verticalAlign: 'bottom',
+    padding: '4px 8px',
+    borderBottom: '1px solid #ccc',
+    color: '#333',
+    fontWeight: '600',
+    whiteSpace: 'nowrap' as const,
   },
-  distributionItem: {
-    display: 'flex',
-    alignItems: 'top',
-    gap: '8px',
-    padding: '6px 8px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '3px',
-    border: '1px solid #e9ecef',
+  groupCell: {
+    padding: '4px 8px',
+    borderBottom: '1px solid #e9ecef',
+    color: '#333',
   },
-  distributionItemEmpty: {
-    backgroundColor: '#f5f5f5',
-    border: '1px solid #ddd',
+  numberCell: {
+    padding: '4px 8px',
+    borderBottom: '1px solid #e9ecef',
+    color: '#333',
+    textAlign: 'right' as const,
+    whiteSpace: 'nowrap' as const,
+    fontVariantNumeric: 'tabular-nums',
   },
-  distributionItemSelected: {
+  dimmedCell: {
+    color: '#999',
+  },
+  selectedRow: {
     backgroundColor: '#e3f2fd',
-    border: '2px solid #2196f3',
-    boxShadow: '0 0 4px rgba(33, 150, 243, 0.3)',
   },
-  distributionColorIndicator: {
-    width: '16px',
-    height: '16px',
-    borderRadius: '2px',
-    flexShrink: 0,
-  },
-  distributionText: {
-    flex: 1,
+  groupCellContent: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: '12px',
+    gap: '6px',
   },
-  covariateInfo: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px',
-    flex: 1,
-  },
-  distributionCombination: {
-    fontSize: '12px',
-    color: '#333',
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '2px',
-  },
-  covariateItem: {
-    fontSize: '12px',
-    lineHeight: '1.2',
-  },
-  distributionStats: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
+  groupColorIndicator: {
+    display: 'inline-block',
+    width: '12px',
+    height: '12px',
+    borderRadius: '2px',
+    marginTop: '2px',
     flexShrink: 0,
-    marginBottom: '4px',
   },
-  distributionCount: {
-    fontSize: '12px',
-    color: '#333',
+  totalCell: {
+    padding: '4px 8px',
     fontWeight: '600',
+    color: '#333',
   },
-  distributionPercentage: {
-    fontSize: '11px',
+  totalNote: {
+    marginTop: '6px',
+    fontSize: '12px',
     color: '#666',
   },
-  balanceInfo: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '2px',
-    alignItems: 'flex-start',
-    minWidth: '120px',
-    textAlign: 'left' as const,
+  formula: {
+    fontFamily: 'monospace',
   },
   noDataMessage: {
     textAlign: 'center' as const,

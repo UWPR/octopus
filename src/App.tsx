@@ -26,7 +26,7 @@ import { useRandomization } from './hooks/useRandomization';
 import { useCovariateColors } from './hooks/useCovariateColors';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useQualityMetrics } from './hooks/useQualityMetrics';
-import { computeGroupDistributionWarnings, aggregateObservedGroupBalance, groupsAtBestAchievableBalance, computeQcRowCoverage, hasCoverageError, plannedTreatmentGroups, plannedCoverageSummary, covariateGroupLabel } from './utils/groupDistributionWarnings';
+import { computeGroupDistributionWarnings, groupBalanceDetails, computeQcRowCoverage, hasCoverageError, plannedTreatmentGroups, plannedCoverageSummary, bannerSections, coverageItems } from './utils/groupDistributionWarnings';
 import { isDeveloperMode } from './utils/configs';
 import { buildSubjectGroups, validateSubjectGroups } from './algorithms/repeatedMeasuresDistribution';
 import SequenceExportWizard from './components/SequenceExportWizard';
@@ -153,12 +153,8 @@ const App: React.FC = () => {
   // The Covariate Summary is shown only after generation, so plate count, the
   // observed per-group balance, and the layout row coverage are all available here.
   const plateCount = randomizedPlates.length;
-  const observedGroupBalance = useMemo(
-    () => (metrics ? aggregateObservedGroupBalance(metrics) : undefined),
-    [metrics]
-  );
-  const bestAchievableGroups = useMemo(
-    () => (metrics ? groupsAtBestAchievableBalance(metrics) : undefined),
+  const balanceDetails = useMemo(
+    () => (metrics ? groupBalanceDetails(metrics) : undefined),
     [metrics]
   );
   // QC/reference groups must appear in every used row, not just every plate. This
@@ -178,12 +174,11 @@ const App: React.FC = () => {
   const distributionWarnings = useMemo(
     () =>
       computeGroupDistributionWarnings(summaryData, plateCount, {
-        observedGroupBalance,
+        balanceDetails,
         selectedQcValues,
         qcRowCoverage,
-        bestAchievableGroups,
       }),
-    [summaryData, plateCount, observedGroupBalance, selectedQcValues, qcRowCoverage, bestAchievableGroups]
+    [summaryData, plateCount, balanceDetails, selectedQcValues, qcRowCoverage]
   );
   // Color the collapsed indicator red when any group fails coverage, amber when the
   // only issues are balance (UNEVEN) warnings.
@@ -401,15 +396,10 @@ const App: React.FC = () => {
     [plannedGroups, plannedWarnings]
   );
 
-  // After Generate: the treatment groups that miss a plate, labeled with their covariate values
-  const layoutSparseGroups = useMemo(
-    () => summaryData
-      .filter(item => {
-        const warning = distributionWarnings.byCombination.get(item.combination);
-        return warning?.severity === 'error' && !warning.isQc;
-      })
-      .map(item => ({ label: covariateGroupLabel(item.values, selectedCovariates), count: item.count })),
-    [summaryData, distributionWarnings, selectedCovariates]
+  // After Generate: each warning line with the groups it names, labeled with their covariate values
+  const layoutBannerSections = useMemo(
+    () => bannerSections(distributionWarnings, summaryData, selectedCovariates),
+    [distributionWarnings, summaryData, selectedCovariates]
   );
 
   // Toggle one entry of the "N/A values" checklist. Blank uses the empty-string token. The
@@ -1156,12 +1146,14 @@ const App: React.FC = () => {
           {searches.length > 0 && !isProcessed && (
             <DistributionWarningBanner
               severity="error"
-              lines={plannedWarnings.warningCount > 0
-                ? [plannedCoverageSummary(
-                    plannedWarnings.warningCount, plannedWarnings.totalGroups, selectedCovariates.length
-                  )]
+              sections={plannedWarnings.warningCount > 0
+                ? [{
+                    line: plannedCoverageSummary(
+                      plannedWarnings.warningCount, plannedWarnings.totalGroups, selectedCovariates.length
+                    ),
+                    groups: coverageItems(plannedSparseGroups),
+                  }]
                 : []}
-              sparseGroups={plannedSparseGroups}
               testId="planned-coverage-banner"
             />
           )}
@@ -1189,8 +1181,7 @@ const App: React.FC = () => {
           {searches.length > 0 && (
             <DistributionWarningBanner
               severity={warningsHaveError ? 'error' : 'warning'}
-              lines={isProcessed && !showSummary ? distributionWarnings.summaries : []}
-              sparseGroups={layoutSparseGroups}
+              sections={isProcessed && !showSummary ? layoutBannerSections : []}
               testId="layout-warning-banner"
               onShowGroups={() => setShowSummary(true)}
             />
@@ -1336,6 +1327,8 @@ const App: React.FC = () => {
           randomizedPlates={randomizedPlates}
           numPlates={randomizedPlates.length}
           naPolicy={naPolicy}
+          qcColumn={qcColumn}
+          selectedQcValues={selectedQcValues}
         />
 
         {/* Quality Assessment Modal */}

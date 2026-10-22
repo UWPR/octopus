@@ -148,7 +148,7 @@ const ExcelExportModal: React.FC<ExcelExportModalProps> = ({
                     <span style={styles.covariateName}>
                       {covariate}
                       {isSampleId && <span style={styles.sampleIdBadge}>Sample ID</span>}
-                      {isTreatment && <span style={styles.treatmentBadge}>Treatment</span>}
+                      {isTreatment && <span style={styles.covariateBadge}>Covariate</span>}
                     </span>
                     {valuesText && <span style={styles.covariateValues}>{valuesText}</span>}
                   </span>
@@ -295,7 +295,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#666',
     fontStyle: 'italic',
   },
-  treatmentBadge: {
+  covariateBadge: {
     fontSize: '11px',
     padding: '2px 6px',
     backgroundColor: '#2196f3',

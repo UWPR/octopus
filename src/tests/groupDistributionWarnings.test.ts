@@ -2,9 +2,13 @@ import {
   computeGroupDistributionWarnings,
   aggregateObservedGroupBalance,
   groupsAtBestAchievableBalance,
+  groupBalanceDetails,
+  bannerSections,
+  coverageItems,
   computeQcRowCoverage,
   hasCoverageError,
   POOR_BALANCE_THRESHOLD,
+  GroupBalanceDetail,
 } from '../utils/groupDistributionWarnings';
 import { SummaryItem, QualityMetrics, PlateQualityScore, SearchData } from '../utils/types';
 
@@ -22,6 +26,21 @@ function makeItem(
     useOutline: false,
     useStripes: false,
     qcColumnValue,
+  };
+}
+
+/**
+ * A balance detail with the given mean, for a 30-sample group placed 10 per plate on 3 plates.
+ * Only the mean and atBest decide whether a group is flagged; the rest shapes the reason text.
+ */
+function detail(observedMean: number, overrides: Partial<GroupBalanceDetail> = {}): GroupBalanceDetail {
+  return {
+    observedMean,
+    plateCounts: [10, 10, 10],
+    bestCounts: [10, 10, 10],
+    bestMean: 100,
+    atBest: false,
+    ...overrides,
   };
 }
 
@@ -111,24 +130,28 @@ describe('computeGroupDistributionWarnings', () => {
   });
 
   it('well-covered, well-balanced group: no warning', () => {
-    const observed = new Map([['A', 95]]);
-    const result = computeGroupDistributionWarnings([makeItem('A', 90)], 3, { observedGroupBalance: observed });
+    const result = computeGroupDistributionWarnings([makeItem('A', 90)], 3, {
+      balanceDetails: new Map([['A', detail(95)]]),
+    });
     expect(result.byCombination.size).toBe(0);
   });
 
   it('observed mode: coverable group below threshold becomes a warning', () => {
-    const observed = new Map([['A', 60]]);
-    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, { observedGroupBalance: observed });
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, {
+      balanceDetails: new Map([['A', detail(60, { plateCounts: [14, 9, 7] })]]),
+    });
     const warning = result.byCombination.get('A')!;
     expect(warning.severity).toBe('warning');
     expect(warning.reason).toBe(
-      'Balance score 60 (below 70). This group is spread unevenly across the 3 plates.'
+      'Mean per-plate balance score 60 (below 70). Per plate: 14, 9, 7. Most even: 10, 10, 10 (score 100).'
     );
+    expect(warning.balance).toEqual(detail(60, { plateCounts: [14, 9, 7] }));
   });
 
   it('observed mode: a group exactly at the threshold is clean', () => {
-    const observed = new Map([['A', 70]]);
-    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, { observedGroupBalance: observed });
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, {
+      balanceDetails: new Map([['A', detail(70)]]),
+    });
     expect(result.byCombination.size).toBe(0);
   });
 
@@ -184,11 +207,10 @@ describe('computeGroupDistributionWarnings', () => {
 
   it('QC group with full row coverage still gets the balance warning', () => {
     const rowCoverage = new Map([['BatchQC|na|na', { usedRows: 10, uncoveredRows: 0 }]]);
-    const observed = new Map([['BatchQC|na|na', 55]]);
     const result = computeGroupDistributionWarnings([makeItem('BatchQC|na|na', 30, 'BatchQC')], 3, {
       selectedQcValues: ['BatchQC'],
       qcRowCoverage: rowCoverage,
-      observedGroupBalance: observed,
+      balanceDetails: new Map([['BatchQC|na|na', detail(55)]]),
     });
     const warning = result.byCombination.get('BatchQC|na|na')!;
     expect(warning.severity).toBe('warning');
@@ -215,8 +237,9 @@ describe('computeGroupDistributionWarnings', () => {
   });
 
   it('precedence: a group that is both uncoverable and poorly balanced is reported once as error', () => {
-    const observed = new Map([['A', 10]]);
-    const result = computeGroupDistributionWarnings([makeItem('A', 2)], 3, { observedGroupBalance: observed });
+    const result = computeGroupDistributionWarnings([makeItem('A', 2)], 3, {
+      balanceDetails: new Map([['A', detail(10)]]),
+    });
     expect(result.byCombination.size).toBe(1);
     expect(result.byCombination.get('A')!.severity).toBe('error');
   });
@@ -232,9 +255,8 @@ describe('computeGroupDistributionWarnings', () => {
     const result = computeGroupDistributionWarnings(items, 3);
     expect(result.warningCount).toBe(2);
     expect(result.summaries).toEqual([
-      '2 of the treatment covariate groups are not represented on every plate. ' +
-        'Ideally, each plate should have at least one sample from every treatment ' +
-        'covariate group.',
+      '2 of the covariate groups are not represented on every plate. ' +
+        'Ideally, each plate should have at least one sample from every covariate group.',
     ]);
   });
 
@@ -242,9 +264,8 @@ describe('computeGroupDistributionWarnings', () => {
     const items = [makeItem('big', 90), makeItem('small', 2), makeItem('mid', 30)];
     const result = computeGroupDistributionWarnings(items, 3);
     expect(result.summaries).toEqual([
-      '1 of the treatment covariate groups is not represented on every plate. ' +
-        'Ideally, each plate should have at least one sample from every treatment ' +
-        'covariate group.',
+      '1 of the covariate groups is not represented on every plate. ' +
+        'Ideally, each plate should have at least one sample from every covariate group.',
     ]);
   });
 
@@ -263,9 +284,8 @@ describe('computeGroupDistributionWarnings', () => {
       qcRowCoverage: rowCoverage,
     });
     expect(result.summaries).toEqual([
-      '1 of the treatment covariate groups is not represented on every plate. ' +
-        'Ideally, each plate should have at least one sample from every treatment ' +
-        'covariate group.',
+      '1 of the covariate groups is not represented on every plate. ' +
+        'Ideally, each plate should have at least one sample from every covariate group.',
       '2 of the QC/Reference groups are not represented on every row. Ideally, each ' +
         'row should have at least one sample from every QC/Reference group.',
     ]);
@@ -273,10 +293,22 @@ describe('computeGroupDistributionWarnings', () => {
 
   it('run summary: balance line appears when a covered group is unevenly placed', () => {
     const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, {
-      observedGroupBalance: new Map([['A', 55]]),
+      balanceDetails: new Map([['A', detail(55)]]),
     });
     expect(result.summaries).toEqual([
-      '1 covariate group is placed unevenly across the plates (balance score below 70).',
+      '1 covariate group placed less evenly across the plates than its sample count allows ' +
+      '(mean per-plate balance score below 70).',
+    ]);
+    expect(result.sections).toEqual([{ kind: 'balance', line: result.summaries[0], combinations: ['A'] }]);
+  });
+
+  it('run summary: plural balance line names the count and uses their', () => {
+    const result = computeGroupDistributionWarnings([makeItem('A', 30), makeItem('B', 30)], 3, {
+      balanceDetails: new Map([['A', detail(55)], ['B', detail(40)]]),
+    });
+    expect(result.summaries).toEqual([
+      '2 covariate groups placed less evenly across the plates than their sample counts allow ' +
+      '(mean per-plate balance score below 70).',
     ]);
   });
 
@@ -288,15 +320,16 @@ describe('computeGroupDistributionWarnings', () => {
   });
 
   it('a flagged group never displays a balance score of 70 (floors the mean, not rounds)', () => {
-    // Mean (70 + 69) / 2 = 69.5 is below the 70 threshold, so the group is flagged.
+    // A mean of 69.5 is below the 70 threshold, so the group is flagged.
     // Rounding would show "70", which contradicts 70 being acceptable.
     // Flooring shows 69.
-    const observed = aggregateObservedGroupBalance(makeMetrics([{ A: 70 }, { A: 69 }]));
-    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 2, { observedGroupBalance: observed });
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 2, {
+      balanceDetails: new Map([['A', detail(69.5, { plateCounts: [16, 14], bestCounts: [15, 15] })]]),
+    });
     const warning = result.byCombination.get('A')!;
     expect(warning.severity).toBe('warning');
     expect(warning.reason).toBe(
-      'Balance score 69 (below 70). This group is spread unevenly across the 2 plates.'
+      'Mean per-plate balance score 69 (below 70). Per plate: 16, 14. Most even: 15, 15 (score 100).'
     );
   });
 
@@ -308,7 +341,7 @@ describe('computeGroupDistributionWarnings', () => {
       {
         selectedQcValues: ['BatchRef'],
         qcRowCoverage: rowCoverage,
-        observedGroupBalance: new Map([['A', 10]]),
+        balanceDetails: new Map([['A', detail(10)]]),
       }
     );
     expect(result.byCombination.size).toBe(0);
@@ -348,7 +381,7 @@ describe('hasCoverageError', () => {
   it('is false when the only flagged groups are balance (UNEVEN) warnings', () => {
     // Covered group, poor balance: a warning, not a coverage error.
     const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, {
-      observedGroupBalance: new Map([['A', 55]]),
+      balanceDetails: new Map([['A', detail(55)]]),
     });
     expect(result.byCombination.get('A')!.severity).toBe('warning');
     expect(hasCoverageError(result)).toBe(false);
@@ -374,10 +407,12 @@ describe('aggregateObservedGroupBalance', () => {
   it('feeds computeGroupDistributionWarnings: mean below threshold flips severity', () => {
     // Group A averages (80 + 40 + 30) / 3 = 50, below 70 -> warning.
     const metrics = makeMetrics([{ A: 80 }, { A: 40 }, { A: 30 }]);
-    const observed = aggregateObservedGroupBalance(metrics);
-    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, { observedGroupBalance: observed });
+    expect(aggregateObservedGroupBalance(metrics).get('A')).toBe(50);
+    const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, {
+      balanceDetails: groupBalanceDetails(metrics),
+    });
     expect(result.byCombination.get('A')!.severity).toBe('warning');
-    expect(result.byCombination.get('A')!.reason).toContain('Balance score 50');
+    expect(result.byCombination.get('A')!.reason).toContain('Mean per-plate balance score 50');
   });
 });
 
@@ -503,9 +538,106 @@ describe('computeGroupDistributionWarnings with groups at their best achievable 
   it('gives no balance warning to a group placed as evenly as its count allows', () => {
     const summary = [{ combination: 'V', count: 4 }, { combination: 'D', count: 4 }];
     const warnings = computeGroupDistributionWarnings(summary, 3, {
-      observedGroupBalance: new Map([['V', 66], ['D', 40]]),
-      bestAchievableGroups: new Set(['V']),
+      balanceDetails: new Map([['V', detail(66, { atBest: true })], ['D', detail(40)]]),
     });
     expect(Array.from(warnings.byCombination.keys())).toEqual(['D']);
+  });
+});
+
+describe('groupBalanceDetails', () => {
+  // 12 samples on 7 full plates expect 1.71 per plate. Placed 3, 1, 1, 2, 2, 2, 1 after a manual move.
+  const e = 12 / 7;
+  const counts = [3, 1, 1, 2, 2, 2, 1];
+  const metrics = makeCountMetrics(counts.map(c => ({ G: [c, e] as [number, number] })));
+
+  it('reports the per-plate counts in plate order, the mean, and the most even split', () => {
+    const d = groupBalanceDetails(metrics).get('G')!;
+    expect(d.plateCounts).toEqual(counts);
+    // per-plate group scores 25, 58, 58, 83, 83, 83, 58
+    expect(d.observedMean).toBe(64);
+    expect(d.bestCounts).toEqual([2, 2, 2, 2, 2, 1, 1]);
+    expect(d.bestMean).toBeCloseTo((5 * 83 + 2 * 58) / 7, 10);
+    expect(d.atBest).toBe(false);
+  });
+
+  it('orders the plate counts by plate index, not by the order the scores arrive in', () => {
+    const reversed = makeCountMetrics(counts.map(c => ({ G: [c, e] as [number, number] })));
+    reversed.plateDiversity.plateScores.reverse();
+    expect(groupBalanceDetails(reversed).get('G')!.plateCounts).toEqual(counts);
+  });
+
+  it('writes the reason with the placement and the most even split', () => {
+    const result = computeGroupDistributionWarnings([makeItem('G', 12)], 7, {
+      balanceDetails: groupBalanceDetails(metrics),
+    });
+    expect(result.byCombination.get('G')!.reason).toBe(
+      'Mean per-plate balance score 64 (below 70). Per plate: 3, 1, 1, 2, 2, 2, 1. ' +
+      'Most even: 2, 2, 2, 2, 2, 1, 1 (score 76).'
+    );
+  });
+
+  it('lists the most even split as one count per plate when every plate gets the same count', () => {
+    // 14 samples on 7 plates expect 2 each. Placed 4, 0, 3, 1, 2, 2, 2 scores 0, 0, 50, 50, 100, 100, 100.
+    const m = makeCountMetrics([4, 0, 3, 1, 2, 2, 2].map(c => ({ G: [c, 2] as [number, number] })));
+    const result = computeGroupDistributionWarnings([makeItem('G', 14)], 7, {
+      balanceDetails: groupBalanceDetails(m),
+    });
+    expect(result.byCombination.get('G')!.reason).toBe(
+      'Mean per-plate balance score 57 (below 70). Per plate: 4, 0, 3, 1, 2, 2, 2. ' +
+      'Most even: 2, 2, 2, 2, 2, 2, 2 (score 100).'
+    );
+  });
+});
+
+describe('bannerSections', () => {
+  const item = (combination: string, count: number, values: Record<string, string>, qcColumnValue?: string) =>
+    ({ ...makeItem(combination, count, qcColumnValue), values });
+  const covariates = ['Cond', 'Site'];
+
+  it('lists coverage groups smallest first and balance groups lowest score first, with the line above each', () => {
+    const items = [
+      item('a|x', 12, { Cond: 'a', Site: 'x' }),
+      item('b|y', 1, { Cond: 'b', Site: 'y' }),
+      item('c|z', 2, { Cond: 'c', Site: 'z' }),
+      item('d|w', 12, { Cond: 'd', Site: 'w' }),
+    ];
+    const warnings = computeGroupDistributionWarnings(items, 3, {
+      balanceDetails: new Map([['a|x', detail(64)], ['d|w', detail(40)]]),
+    });
+    expect(bannerSections(warnings, items, covariates)).toEqual([
+      {
+        line: '2 of the covariate groups are not represented on every plate. ' +
+          'Ideally, each plate should have at least one sample from every covariate group.',
+        groups: ['b | y (1 sample)', 'c | z (2 samples)'],
+      },
+      {
+        line: '2 covariate groups placed less evenly across the plates than their sample counts allow ' +
+          '(mean per-plate balance score below 70).',
+        groups: ['d | w (12 samples, score 40)', 'a | x (12 samples, score 64)'],
+      },
+    ]);
+  });
+
+  it('names a QC group with its QC value in front', () => {
+    const items = [item('BatchRef|p|q', 6, { Cond: 'p', Site: 'q' }, 'BatchRef')];
+    const warnings = computeGroupDistributionWarnings(items, 3, {
+      selectedQcValues: ['BatchRef'],
+      balanceDetails: new Map([['BatchRef|p|q', detail(50)]]),
+    });
+    expect(bannerSections(warnings, items, covariates)[0].groups).toEqual(['BatchRef | p | q (6 samples, score 50)']);
+  });
+
+  it('does not repeat the QC value when the QC column is itself a selected covariate', () => {
+    const items = [item('BatchRef|q', 6, { Cond: 'BatchRef', Site: 'q' }, 'BatchRef')];
+    const warnings = computeGroupDistributionWarnings(items, 3, {
+      selectedQcValues: ['BatchRef'],
+      balanceDetails: new Map([['BatchRef|q', detail(50)]]),
+    });
+    expect(bannerSections(warnings, items, covariates)[0].groups).toEqual(['BatchRef | q (6 samples, score 50)']);
+  });
+
+  it('coverageItems sorts smallest first and uses the singular for one sample', () => {
+    expect(coverageItems([{ label: 'b', count: 2 }, { label: 'a', count: 2 }, { label: 'c', count: 1 }]))
+      .toEqual(['c (1 sample)', 'a (2 samples)', 'b (2 samples)']);
   });
 });
