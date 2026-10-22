@@ -93,38 +93,40 @@ as the quota denominator in all cases:
 quota[group][block] = groupSize × blockCapacity / totalCapacity
 ```
 
-When `totalSamples < totalCapacity`, the sum of all quotas across all blocks
-for a group equals `groupSize` (not `totalCapacity`). The floors are
-conservative, and the global largest-remainder pass awards +1s until all
-`totalSamples - totalFloorSum` surplus samples are placed. The remaining
-block deficit (empty wells) is simply never filled — blocks whose deficit
-isn't consumed by the remainder pass end up with fewer samples than their
-physical capacity.
+When `totalSamples < totalCapacity`, the sum of a group's quotas across all
+blocks still equals `groupSize`, so the floors are conservative and the surplus
+to place is `totalSamples - totalFloorSum`. The largest-remainder pass awards a
++1 to a cell with a nonzero fractional remainder while its group still has
+surplus and its block still has room. It can stop short: every block a needy group could use may already be full from other
+groups' +1s. The repair pass then places the rest through swap chains (worked
+example in `hamilton-2d-augmenting-path.svg`). Block deficit left at the end is
+the empty wells, which are never filled.
 
-This works correctly because:
+This works because:
 - The surplus limit per group (`groupSize - Σ floors`) ensures no group is
   over-allocated.
 - The block deficit limit (`blockCapacity - Σ floors on that block`) ensures
   no block is over-filled.
-- The augmenting-path repair guarantees all surplus samples are placed even
-  when the greedy pass gets stuck.
+- The repair pass places every surplus sample the greedy pass could not.
 
-The net effect: under-capacity inputs produce allocations where each group's
-total equals its size (all samples placed), each block's total is ≤ its
-capacity, and every cell is within ±1 of its continuous ideal quota. Empty
-wells are distributed across blocks proportionally to their capacity.
+The net effect: each group's total equals its size, each block's total is at
+most its capacity, and every cell is within one of its continuous quota. In the
+under-capacity case the property test in
+`src/tests/hamiltonApportionment.properties.test.ts` asserts the first and the
+third. Block totals are checked only with exact-capacity inputs, in
+`src/tests/hamiltonApportionment.test.ts`. No test asserts how the empty wells
+fall across blocks. The continuous quotas spread them in proportion to
+capacity, but the integer result does not guarantee it: when many cells tie on
+fractional remainder, the shuffled award order can leave one block well short
+of its share.
 
-## Historical note
+## The caller skips small groups
 
-Prior to the global Hamilton refactor, `calculateExpectedMinimums` processed
-blocks sequentially (smallest-capacity-first) and had a special `break` branch
-for the under-capacity case that could leave samples unplaced. The caller
-(`distributeToBlocks`) compensated via Phase 2B overflow distribution. The
-global Hamilton implementation eliminated both the per-block processing order
-and the under-capacity branch, making the function self-contained: it always
-places all samples regardless of whether `totalSamples` equals or is less than
-`totalCapacity`.
-
-The "pre-shrink refactor" previously proposed in this document (shrinking row
-capacities at site 3 before calling Hamilton) is no longer needed — the global
-algorithm handles both cases uniformly.
+`placeProportionalSamples` in `distributeToBlocks` reads the Hamilton table
+only for a group whose size is at least the block count
+(`baseSamplesPerPlate > 0` in `balancedRandomization.ts`). A smaller group is
+routed to Phase 2A and its row of the table is ignored for placement, even
+though Hamilton placed its samples. `validatePerBlockDistribution` still reads
+that row, so when Phase 2A puts a different count on a block than the table
+holds, it logs a console error for a mismatch that is by design. So the table decides the placement of large groups only,
+and the small-group rule lives in Phase 2A.
