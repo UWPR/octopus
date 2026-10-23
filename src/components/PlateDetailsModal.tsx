@@ -2,7 +2,7 @@ import React from 'react';
 import { SearchData, CovariateColorInfo, PlateQualityScore, NaPolicy, DEFAULT_NA_POLICY } from '../utils/types';
 import { QUALITY_DISPLAY_CONFIG } from '../utils/configs';
 import { getCovariateKey, getQualityColor, formatScore, effectiveDisplayValue } from '../utils/utils';
-import { covariateGroupLabel } from '../utils/groupDistributionWarnings';
+import { covariateGroupLabel, qcGroupLabel } from '../utils/groupDistributionWarnings';
 import QualitySwatch from './QualitySwatch';
 
 interface PlateDetailsModalProps {
@@ -226,7 +226,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                   const label = covariateGroupLabel(values, selectedCovariates);
                   const qcValue = qcColumn ? representative?.metadata[qcColumn] : undefined;
                   const isQc = qcValue !== undefined && selectedQcValues.includes(qcValue);
-                  return isQc && !Object.values(values).includes(qcValue) ? `${qcValue} | ${label}` : label;
+                  return qcGroupLabel(label, isQc ? qcValue : undefined, qcColumn, selectedCovariates);
                 };
 
                 const showBalance = plateQuality !== undefined && numPlates > 1;

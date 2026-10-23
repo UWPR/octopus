@@ -572,8 +572,21 @@ describe('groupBalanceDetails', () => {
     });
     expect(result.byCombination.get('G')!.reason).toBe(
       'Mean per-plate balance score 64 (below 70). Per plate: 3, 1, 1, 2, 2, 2, 1. ' +
-      'Most even: 2, 2, 2, 2, 2, 1, 1 (score 76).'
+      'Most even: 2, 2, 2, 2, 2, 1, 1 (score 75).'
     );
+  });
+
+  it('treats a group as at its best when both means round down to the same score', () => {
+    // 6 samples on plates of 96, 96, 96, 96 and 40 samples out of 424. Placed 1, 1, 1, 1, 2, the
+    // mean is 59.2. The most even split, 2, 1, 1, 1, 1, has a mean of 59.6.
+    const sizes = [96, 96, 96, 96, 40];
+    const m = makeCountMetrics([1, 1, 1, 1, 2].map((c, i) => ({ G: [c, 6 * sizes[i] / 424] as [number, number] })));
+    const d = groupBalanceDetails(m).get('G')!;
+    expect(d.observedMean).toBe(59.2);
+    expect(d.bestMean).toBe(59.6);
+    expect(d.atBest).toBe(true);
+    const result = computeGroupDistributionWarnings([makeItem('G', 6)], 5, { balanceDetails: groupBalanceDetails(m) });
+    expect(result.byCombination.has('G')).toBe(false);
   });
 
   it('lists the most even split as one count per plate when every plate gets the same count', () => {
@@ -604,7 +617,7 @@ describe('bannerSections', () => {
     const warnings = computeGroupDistributionWarnings(items, 3, {
       balanceDetails: new Map([['a|x', detail(64)], ['d|w', detail(40)]]),
     });
-    expect(bannerSections(warnings, items, covariates)).toEqual([
+    expect(bannerSections(warnings, items, covariates, undefined)).toEqual([
       {
         line: '2 of the covariate groups are not represented on every plate. ' +
           'Ideally, each plate should have at least one sample from every covariate group.',
@@ -624,7 +637,21 @@ describe('bannerSections', () => {
       selectedQcValues: ['BatchRef'],
       balanceDetails: new Map([['BatchRef|p|q', detail(50)]]),
     });
-    expect(bannerSections(warnings, items, covariates)[0].groups).toEqual(['BatchRef | p | q (6 samples, score 50)']);
+    expect(bannerSections(warnings, items, covariates, 'Type')[0].groups)
+      .toEqual(['BatchRef | p | q (6 samples, score 50)']);
+  });
+
+  it('names a QC group with its QC value in front when a covariate has the same value', () => {
+    const items = [
+      item('1|p|1', 6, { Cond: 'p', Site: '1' }, '1'),
+      item('p|1', 6, { Cond: 'p', Site: '1' }),
+    ];
+    const warnings = computeGroupDistributionWarnings(items, 3, {
+      selectedQcValues: ['1'],
+      balanceDetails: new Map([['1|p|1', detail(50)], ['p|1', detail(60)]]),
+    });
+    expect(bannerSections(warnings, items, covariates, 'IsQC')[0].groups)
+      .toEqual(['1 | p | 1 (6 samples, score 50)', 'p | 1 (6 samples, score 60)']);
   });
 
   it('does not repeat the QC value when the QC column is itself a selected covariate', () => {
@@ -633,7 +660,8 @@ describe('bannerSections', () => {
       selectedQcValues: ['BatchRef'],
       balanceDetails: new Map([['BatchRef|q', detail(50)]]),
     });
-    expect(bannerSections(warnings, items, covariates)[0].groups).toEqual(['BatchRef | q (6 samples, score 50)']);
+    expect(bannerSections(warnings, items, covariates, 'Cond')[0].groups)
+      .toEqual(['BatchRef | q (6 samples, score 50)']);
   });
 
   it('coverageItems sorts smallest first and uses the singular for one sample', () => {

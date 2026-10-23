@@ -108,7 +108,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({
         {warnings && (
           <DistributionWarningBanner
             severity={hasCoverageError(warnings) ? 'error' : 'warning'}
-            sections={bannerSections(warnings, summaryData, selectedCovariates)}
+            sections={bannerSections(warnings, summaryData, selectedCovariates, qcColumn)}
             testId="distribution-warning-banner"
           />
         )}

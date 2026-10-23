@@ -398,8 +398,8 @@ const App: React.FC = () => {
 
   // After Generate: each warning line with the groups it names, labeled with their covariate values
   const layoutBannerSections = useMemo(
-    () => bannerSections(distributionWarnings, summaryData, selectedCovariates),
-    [distributionWarnings, summaryData, selectedCovariates]
+    () => bannerSections(distributionWarnings, summaryData, selectedCovariates, qcColumn),
+    [distributionWarnings, summaryData, selectedCovariates, qcColumn]
   );
 
   // Toggle one entry of the "N/A values" checklist. Blank uses the empty-string token. The

@@ -73,7 +73,7 @@ export interface GroupBalanceDetail {
   bestCounts: number[];
   // Mean per-plate balance score of that split
   bestMean: number;
-  // The layout's per-plate scores already sum to the best split's
+  // Rounded down, the layout's mean equals the best split's, the two scores the warning displays
   atBest: boolean;
 }
 
@@ -88,7 +88,7 @@ export interface GroupRowCoverage {
 export interface WarningOptions {
   // Per-group balance detail from groupBalanceDetails, present after a layout is generated.
   // A group at its best achievable balance gets no balance warning, since no even placement
-  // could raise its score.
+  // could raise its score as a whole number.
   balanceDetails?: Map<string, GroupBalanceDetail>;
   // QC/reference values the user selected, used to tag QC groups.
   selectedQcValues?: string[];
@@ -130,12 +130,14 @@ export function groupBalanceDetails(metrics: QualityMetrics): Map<string, GroupB
     const observedSum = plates.reduce((sum, plate) => sum + plate.score, 0);
     const bestCounts = bestRoundedCounts(plates);
     const bestSum = bestCounts.reduce((sum, count, i) => sum + plateGroupScore(count, plates[i].expected), 0);
+    const observedMean = observedSum / plates.length;
+    const bestMean = bestSum / plates.length;
     details.set(combination, {
-      observedMean: observedSum / plates.length,
+      observedMean,
       plateCounts: plates.map((plate) => plate.actual),
       bestCounts: [...bestCounts].sort((a, b) => b - a),
-      bestMean: bestSum / plates.length,
-      atBest: observedSum >= bestSum,
+      bestMean,
+      atBest: Math.floor(observedMean) >= Math.floor(bestMean),
     });
   });
   return details;
@@ -260,11 +262,11 @@ function samplesWord(n: number): string {
 
 function balanceReason(detail: GroupBalanceDetail): string {
   return (
-    // Floor, not round, so a flagged group (mean below 70) never displays a score of 70 or
-    // above, which is acceptable
+    // Both means are rounded down, as atBest compares them. A flagged group (mean below 70) never
+    // displays a score of 70 or above, which is acceptable.
     `Mean per-plate balance score ${Math.floor(detail.observedMean)} (below ${POOR_BALANCE_THRESHOLD}). ` +
     `Per plate: ${detail.plateCounts.join(', ')}. ` +
-    `Most even: ${detail.bestCounts.join(', ')} (score ${Math.round(detail.bestMean)}).`
+    `Most even: ${detail.bestCounts.join(', ')} (score ${Math.floor(detail.bestMean)}).`
   );
 }
 
@@ -409,6 +411,20 @@ export function covariateGroupLabel(values: { [covariate: string]: string }, sel
   return selectedCovariates.map((covariate) => values[covariate] || '(blank)').join(' | ');
 }
 
+/**
+ * The name of a group with its QC value in front, as "BatchQC | Drug | T0". The QC value goes in
+ * front only when the QC column is not a selected covariate, the same rule as buildCovariateKey.
+ * `qcValue` is undefined for a group that is not a QC group.
+ */
+export function qcGroupLabel(
+  label: string,
+  qcValue: string | undefined,
+  qcColumn: string | undefined,
+  selectedCovariates: string[]
+): string {
+  return qcValue && qcColumn && !selectedCovariates.includes(qcColumn) ? `${qcValue} | ${label}` : label;
+}
+
 // A section of the warning banner, its line and the groups listed under it
 export interface BannerSection {
   line: string;
@@ -430,14 +446,13 @@ export function coverageItems(groups: { label: string; count: number }[]): strin
 /**
  * The banner sections for a generated layout, one per warning section, each naming its groups.
  * Coverage sections list groups smallest first. The balance section lists groups lowest mean
- * score first, as "label (12 samples, score 64)". A QC group is named with its QC value in
- * front, unless the QC column is itself a selected covariate and the value is already in the
- * label.
+ * score first, as "label (12 samples, score 64)". A QC group is named by qcGroupLabel.
  */
 export function bannerSections(
   warnings: GroupDistributionWarnings,
   summaryData: Pick<SummaryItem, 'combination' | 'count' | 'qcColumnValue' | 'values'>[],
-  selectedCovariates: string[]
+  selectedCovariates: string[],
+  qcColumn: string | undefined
 ): BannerSection[] {
   const itemByCombination = new Map(summaryData.map((item) => [item.combination, item]));
   return warnings.sections.map((section) => {
@@ -445,9 +460,10 @@ export function bannerSections(
       const item = itemByCombination.get(combination);
       const warning = warnings.byCombination.get(combination);
       if (!item || !warning) return [];
-      const values = covariateGroupLabel(item.values, selectedCovariates);
       const qcValue = warning.isQc ? item.qcColumnValue : undefined;
-      const label = qcValue && !Object.values(item.values).includes(qcValue) ? `${qcValue} | ${values}` : values;
+      const label = qcGroupLabel(
+        covariateGroupLabel(item.values, selectedCovariates), qcValue, qcColumn, selectedCovariates
+      );
       return [{ label, count: item.count, score: warning.balance?.observedMean ?? 0 }];
     });
     if (section.kind !== 'balance') return { line: section.line, groups: coverageItems(entries) };

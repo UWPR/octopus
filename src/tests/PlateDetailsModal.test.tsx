@@ -83,6 +83,56 @@ describe('PlateDetailsModal group label', () => {
     expect(bodyRows()).toEqual([['BatchQC | Ctrl | 5 | S2', '1', '1']]);
   });
 
+  it('names a QC group with its QC value in front when a covariate has the same value', () => {
+    const sample: SearchData = {
+      name: 'qc-sample',
+      metadata: { Treatment: 'Ctrl', Dose: '1', Site: 'S2', IsQC: '1' },
+    };
+    sample.covariateKey = buildCovariateKey(sample, {
+      selectedCovariates: COVS,
+      qcColumn: 'IsQC',
+      selectedQcValues: ['1'],
+    });
+
+    render(
+      <PlateDetailsModal
+        {...baseProps}
+        plateAssignments={new Map([[0, [sample]]])}
+        searches={[sample]}
+        selectedCovariates={COVS}
+        qcColumn="IsQC"
+        selectedQcValues={['1']}
+      />
+    );
+
+    expect(bodyRows()).toEqual([['1 | Ctrl | 1 | S2', '1', '1']]);
+  });
+
+  it('does not put the QC value in front when the QC column is a selected covariate', () => {
+    const naPolicy = { foldBlank: false, foldSpellings: ['na'] };
+    const sample: SearchData = { name: 'qc-sample', metadata: { Treatment: 'Ctrl', Dose: 'na', Site: 'S2' } };
+    sample.covariateKey = buildCovariateKey(sample, {
+      selectedCovariates: COVS,
+      qcColumn: 'Dose',
+      selectedQcValues: ['na'],
+      naPolicy,
+    });
+
+    render(
+      <PlateDetailsModal
+        {...baseProps}
+        plateAssignments={new Map([[0, [sample]]])}
+        searches={[sample]}
+        selectedCovariates={COVS}
+        qcColumn="Dose"
+        selectedQcValues={['na']}
+        naPolicy={naPolicy}
+      />
+    );
+
+    expect(bodyRows()).toEqual([['Ctrl | N/A | S2', '1', '1']]);
+  });
+
   it('renders a folded spelling as N/A when the policy folds it', () => {
     const naPolicy = { foldBlank: false, foldSpellings: ['na'] };
     const sample: SearchData = { name: 'na-sample', metadata: { Treatment: 'Ctrl', Dose: 'na', Site: 'S1' } };
