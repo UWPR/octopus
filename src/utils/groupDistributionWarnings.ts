@@ -112,21 +112,20 @@ export const POOR_BALANCE_THRESHOLD = QUALITY_LEVEL_CONFIG.fair.lowScore; // 70
  * small group can score below 70 even then, for example 4 samples on 3 equal plates split 2/1/1.
  * With plates of different sizes, which plates are rounded up changes the score, so a split that
  * only rounds every plate is not enough.
+ *
+ * An empty plate has no balance data. It counts as 0 in both splits and is left out of both means.
  */
 export function groupBalanceDetails(metrics: QualityMetrics): Map<string, GroupBalanceDetail> {
-  const platesByGroup = new Map<string, { actual: number; expected: number; score: number }[]>();
-  [...metrics.plateDiversity.plateScores]
-    .sort((a, b) => a.plateIndex - b.plateIndex)
-    .forEach((plate) => {
-      Object.entries(plate.covariateGroupBalance).forEach(([combination, detail]) => {
-        const plates = platesByGroup.get(combination) ?? [];
-        plates.push({ actual: detail.actualCount, expected: detail.expectedCount, score: detail.balanceScore });
-        platesByGroup.set(combination, plates);
-      });
-    });
+  const plateScores = [...metrics.plateDiversity.plateScores].sort((a, b) => a.plateIndex - b.plateIndex);
+  const combinations = new Set(plateScores.flatMap((plate) => Object.keys(plate.covariateGroupBalance)));
 
   const details = new Map<string, GroupBalanceDetail>();
-  platesByGroup.forEach((plates, combination) => {
+  combinations.forEach((combination) => {
+    const entries = plateScores.map((plate) => plate.covariateGroupBalance[combination]);
+    const plates = entries
+      .filter((entry) => entry !== undefined)
+      .map((entry) => ({ actual: entry.actualCount, expected: entry.expectedCount, score: entry.balanceScore }));
+    const emptyPlates = new Array<number>(entries.length - plates.length).fill(0);
     const observedSum = plates.reduce((sum, plate) => sum + plate.score, 0);
     const bestCounts = bestRoundedCounts(plates);
     const bestSum = bestCounts.reduce((sum, count, i) => sum + plateGroupScore(count, plates[i].expected), 0);
@@ -134,8 +133,8 @@ export function groupBalanceDetails(metrics: QualityMetrics): Map<string, GroupB
     const bestMean = bestSum / plates.length;
     details.set(combination, {
       observedMean,
-      plateCounts: plates.map((plate) => plate.actual),
-      bestCounts: [...bestCounts].sort((a, b) => b - a),
+      plateCounts: entries.map((entry) => entry?.actualCount ?? 0),
+      bestCounts: [...bestCounts, ...emptyPlates].sort((a, b) => b - a),
       bestMean,
       atBest: Math.floor(observedMean) >= Math.floor(bestMean),
     });

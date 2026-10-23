@@ -576,6 +576,17 @@ describe('groupBalanceDetails', () => {
     );
   });
 
+  it('counts an empty plate as 0 in both splits and leaves it out of both means', () => {
+    // 6 samples on plates 1, 3 and 4 expect 2 each, and plate 2 is empty. Placed 3, 2, 1, the
+    // group scores 50, 100 and 50.
+    const m = makeCountMetrics([{ G: [3, 2] }, {}, { G: [2, 2] }, { G: [1, 2] }]);
+    const result = computeGroupDistributionWarnings([makeItem('G', 6)], 4, { balanceDetails: groupBalanceDetails(m) });
+    expect(result.byCombination.get('G')!.reason).toBe(
+      'Mean per-plate balance score 66 (below 70). Per plate: 3, 0, 2, 1. ' +
+      'Most even: 2, 2, 2, 0 (score 100).'
+    );
+  });
+
   it('treats a group as at its best when both means round down to the same score', () => {
     // 6 samples on plates of 96, 96, 96, 96 and 40 samples out of 424. Placed 1, 1, 1, 1, 2, the
     // mean is 59.2. The most even split, 2, 1, 1, 1, 1, has a mean of 59.6.
