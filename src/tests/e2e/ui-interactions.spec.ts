@@ -65,7 +65,7 @@ test.describe('UI Interactions', () => {
     await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
 
     // Upload a DIFFERENT file to trigger reset. A design is shown, so accept the overwrite confirm.
-    const differentFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-full.csv');
+    const differentFilePath = path.join(__dirname, '../../../test-data/e2e-sample-full.csv');
     page.once('dialog', dialog => dialog.accept());
     await page.locator('#file-upload').setInputFiles(differentFilePath);
     await page.waitForTimeout(500);
@@ -79,11 +79,11 @@ test.describe('UI Interactions', () => {
     await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeDisabled();
 
     // New file info should show
-    await expect(page.getByText(/trx-phase1b-full\.csv/)).toBeVisible();
+    await expect(page.getByText(/e2e-sample-full\.csv/)).toBeVisible();
     await expect(page.getByText(/672 samples/)).toBeVisible();
 
     // Re-configure with the original small file and generate to prove app is functional after reset
-    const smallFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-small.csv');
+    const smallFilePath = path.join(__dirname, '../../../test-data/e2e-sample-small.csv');
     await page.locator('#file-upload').setInputFiles(smallFilePath);
     await page.waitForTimeout(500);
     await uploadAndConfigure(page);
@@ -137,7 +137,7 @@ test.describe('UI Interactions', () => {
     // Verify the card has a sample name (h3 element)
     const sampleName = await firstCard.locator('h3').textContent();
     expect(sampleName).toBeTruthy();
-    expect(sampleName!.startsWith('TRX-')).toBe(true);
+    expect(sampleName!.startsWith('E2E-')).toBe(true);
 
     // Switch back to compact view and verify the same sample name appears in the tooltip
     await page.getByRole('button', { name: 'Compact View' }).click();

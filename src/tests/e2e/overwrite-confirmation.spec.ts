@@ -13,7 +13,7 @@ import { uploadConfigureAndRandomize } from './helpers';
 
 // A plain sample CSV. Used both as a "new file" for Choose File and as an invalid layout for Load
 // Layout (it is not JSON with the Octopus marker, so loading it as a layout fails validation).
-const OTHER_CSV = path.join(__dirname, '../../../test-data/trx-phase1b-full.csv');
+const OTHER_CSV = path.join(__dirname, '../../../test-data/e2e-sample-full.csv');
 
 test.describe('Overwrite confirmation on new file / layout', () => {
   test.beforeEach(async ({ page }) => {
@@ -33,7 +33,7 @@ test.describe('Overwrite confirmation on new file / layout', () => {
     // The original design and file are untouched.
     await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
     await expect(page.getByText('Plate 1')).toBeVisible();
-    await expect(page.getByText(/trx-phase1b-small\.csv/)).toBeVisible();
+    await expect(page.getByText(/e2e-sample-small\.csv/)).toBeVisible();
     await expect(page.getByText(/672 samples/)).not.toBeVisible();
   });
 
@@ -47,7 +47,7 @@ test.describe('Overwrite confirmation on new file / layout', () => {
     // The old design is gone; the new file is loaded but not yet randomized.
     await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
     await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeVisible();
-    await expect(page.getByText(/trx-phase1b-full\.csv/)).toBeVisible();
+    await expect(page.getByText(/e2e-sample-full\.csv/)).toBeVisible();
     await expect(page.getByText(/672 samples/)).toBeVisible();
   });
 

@@ -45,7 +45,7 @@ test.describe('Choose File validation', () => {
   test('choosing a non-CSV after a file is loaded (not generated) clears the previous file with no prompt', async ({ page }) => {
     // Load and configure a valid CSV, but do NOT generate a plate (no layout displayed).
     await uploadAndConfigure(page);
-    await expect(page.getByText(/trx-phase1b-small\.csv/)).toBeVisible();
+    await expect(page.getByText(/e2e-sample-small\.csv/)).toBeVisible();
 
     // No prompt when no layout is shown; the previous file and its columns are cleared regardless.
     let sawDialog = false;
@@ -54,7 +54,7 @@ test.describe('Choose File validation', () => {
 
     expect(sawDialog).toBe(false);
     await expect(page.getByText(/is not a CSV or JSON file/)).toBeVisible();
-    await expect(page.getByText(/trx-phase1b-small\.csv/)).not.toBeVisible();
+    await expect(page.getByText(/e2e-sample-small\.csv/)).not.toBeVisible();
     await expect(page.locator('#idColumn option')).toHaveCount(0);
   });
 
@@ -75,7 +75,7 @@ test.describe('Choose File validation', () => {
     // row has one named column and several blank ones. It must not be read as a sample list.
     const csv = 'Bracket Type=4,,,,\nFile Name,Path,Instrument Method,Position,Inj Vol\nrowA,D:\\Data,D:\\Meth,Y:A1,3\n';
     await page.locator('#file-upload').setInputFiles({
-      name: 'trx-phase1b-full_injection-sequence.csv',
+      name: 'e2e-sample-full_injection-sequence.csv',
       mimeType: 'text/csv',
       buffer: Buffer.from(csv),
     });
@@ -93,7 +93,7 @@ test.describe('Choose File validation', () => {
       'idColumn,Sample ID\n' +
       'p0r0c0,BatchQC,s001,Training,108,FA1,extra,more,cols,here,now,last\n';
     await page.locator('#file-upload').setInputFiles({
-      name: 'trx-phase1b-full_octopus_layout.csv',
+      name: 'e2e-sample-full_octopus_layout.csv',
       mimeType: 'text/csv',
       buffer: Buffer.from(csv),
     });

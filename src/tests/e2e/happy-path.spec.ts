@@ -24,11 +24,11 @@ test.describe('Happy Path Workflow', () => {
     await expect(page.getByText(/^Octopus v\d+\.\d+\.\d+$/)).toBeVisible();
 
     // Step 1: Upload file
-    const testFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-small.csv');
+    const testFilePath = path.join(__dirname, '../../../test-data/e2e-sample-small.csv');
     await page.locator('#file-upload').setInputFiles(testFilePath);
 
     // Verify file is loaded
-    await expect(page.getByText(/trx-phase1b-small\.csv/)).toBeVisible();
+    await expect(page.getByText(/e2e-sample-small\.csv/)).toBeVisible();
     await expect(page.getByText(/288 samples/)).toBeVisible();
     // A plain sample CSV is not a layout file, so no layout badge appears.
     await expect(page.getByText('Layout file')).toHaveCount(0);
@@ -75,7 +75,7 @@ test.describe('Happy Path Workflow', () => {
     const csvDownloadPromise = page.waitForEvent('download');
     await page.getByRole('menuitem', { name: 'CSV', exact: true }).click();
     const csvDownload = await csvDownloadPromise;
-    expect(csvDownload.suggestedFilename()).toMatch(/trx-phase1b-small_octopus_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
+    expect(csvDownload.suggestedFilename()).toMatch(/e2e-sample-small_octopus_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv$/);
     // After a menu action, focus returns to the Export button rather than falling back to <body>.
     await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeFocused();
 
@@ -89,7 +89,7 @@ test.describe('Happy Path Workflow', () => {
     const excelDownloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: /Export.*selected/ }).click();
     const excelDownload = await excelDownloadPromise;
-    expect(excelDownload.suggestedFilename()).toMatch(/trx-phase1b-small_octopus_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.xlsx$/);
+    expect(excelDownload.suggestedFilename()).toMatch(/e2e-sample-small_octopus_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.xlsx$/);
     await expect(page.getByText('Select Covariates for Excel Export')).not.toBeVisible();
   });
 
