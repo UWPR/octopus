@@ -94,7 +94,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
             <>
               <div style={styles.modalSummary}>
                 <span><strong>Capacity:</strong> {plateRows * plateColumns}</span>
-                <span><strong>Samples:</strong> {plateAssignments.get(plateIndex)!.length}</span>
+                <span><strong>Plate samples:</strong> {plateAssignments.get(plateIndex)!.length}</span>
                 {plateQuality && (
                   <>
                     {numPlates > 1 && (
@@ -324,7 +324,7 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                     </table>
                     {showBalance && (
                       <div style={styles.totalNote}>
-                        <div style={styles.formula}>Penalty = |On plate - Expected| / Samples &times; 100</div>
+                        <div style={styles.formula}>Penalty = |On plate - Expected| / Plate samples &times; 100</div>
                         <div style={styles.formula}>Group score = 100 - |On plate - Expected| / Expected &times; 100, at least 0</div>
                         <div style={styles.formula}>Plate balance = 100 - Total penalty, rounded and at least 0</div>
                       </div>

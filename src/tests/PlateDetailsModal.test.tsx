@@ -220,7 +220,8 @@ describe('PlateDetailsModal penalty', () => {
     expect(total).toBe('20.0');
     expect(metrics.plateScores[0].balanceScore).toBe(80);
     expect(screen.getByText('Plate balance = 100 - Total penalty, rounded and at least 0')).toBeInTheDocument();
-    expect(screen.getByText('Penalty = |On plate - Expected| / Samples \u00d7 100')).toBeInTheDocument();
+    expect(screen.getByText('Plate samples:')).toBeInTheDocument();
+    expect(screen.getByText('Penalty = |On plate - Expected| / Plate samples \u00d7 100')).toBeInTheDocument();
     expect(screen.getByText('Group score = 100 - |On plate - Expected| / Expected \u00d7 100, at least 0')).toBeInTheDocument();
   });
 

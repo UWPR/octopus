@@ -276,11 +276,8 @@ Click the **"i"** icon in any plate header to view:
     move. A group absent from the plate is penalized its share of the study.
   - Group score: the group's own balance score on this plate, with its color swatch
 
-Under the table, the formulas behind the two columns. Samples is the plate's sample count from the
-header line.
-
 ```
-Penalty       = |On plate - Expected| / Samples × 100
+Penalty       = |On plate - Expected| / Plate samples × 100
 Group score   = 100 - |On plate - Expected| / Expected × 100, at least 0
 Plate balance = 100 - Total penalty, rounded and at least 0
 ```
@@ -443,10 +440,10 @@ Measures how closely each covariate group's share of a plate matches its share o
 **Note:** With a single plate, the balance score is not displayed because the plate's covariate distribution is identical to the overall distribution, making the score trivially perfect and uninformative. Only the clustering score is shown in this case.
 
 **Calculation:**
-For each covariate group on each plate, where Samples is the number of samples on the plate:
+For each covariate group on each plate, where Plate samples is the number of samples on the plate:
 ```
-Expected      = Group size / Total samples × Samples
-Penalty       = |On plate - Expected| / Samples × 100
+Expected      = Group size / Total samples × Plate samples
+Penalty       = |On plate - Expected| / Plate samples × 100
 Group score   = 100 - |On plate - Expected| / Expected × 100, at least 0
 Plate balance = 100 - sum of the penalties, rounded and at least 0
 ```
