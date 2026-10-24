@@ -55,8 +55,9 @@ The four treatment errors and the `Ref` row-coverage error are always present. T
 8x12 plates do (about 24 used rows). So expect six flagged groups.
 
 The remaining six large study groups (counts 18 to 40) cover all three plates and
-are not flagged, unless a particular randomization spreads one so unevenly that its
-measured balance drops to Poor or Bad, which shows as an amber `UNEVEN` warning.
+are not flagged. A group gets an amber `UNEVEN` warning only when its mean per-plate
+balance score is below 70 and some plate holds more or fewer samples than its expected
+count rounded up or down, for example after samples are moved by hand.
 
 Expect:
 
@@ -81,9 +82,8 @@ To see how adding covariates fragments the treatment groups, generate twice:
 - Covariates = `Treatment` only: all treatments have enough samples to place at
   least one sample on every plate, so the layout gets no `SPARSE` coverage errors for treatment groups.
   The QC and Ref groups are flagged for row coverage as before. 
-  The `Vehicle` group (4 samples) does get an amber `UNEVEN` balance warning,
-  though, since 4 samples cannot spread evenly across 3 plates (the best split is
-  2/1/1).
+  The `Vehicle` group (4 samples) gets no `UNEVEN` warning, since a 2/1/1 split is as
+  even as 4 samples on 3 plates allow.
 
 - Covariates = `Treatment` + `Timepoint` + `Site`: `Vehicle` and the two singletons
   split out, so four treatment groups now fail per-plate coverage on top of the two

@@ -67,13 +67,9 @@ export interface GroupBalanceDetail {
   observedMean: number;
   // The group's sample count on each plate, in plate order
   plateCounts: number[];
-  // The most even split of the group's samples, one count per plate, largest first. For 12
-  // samples on 7 equal plates, 2, 2, 2, 2, 2, 1, 1. Sorted, not in plate order, since on equal
-  // plates which plates get the extra sample is arbitrary.
-  bestCounts: number[];
-  // Mean per-plate balance score of that split
-  bestMean: number;
-  // Rounded down, the layout's mean equals the best split's, the two scores the warning displays
+  // The even split nearest the layout, one count per plate in plate order, from nearestEvenCounts
+  evenCounts: number[];
+  // Every plate holds the group's expected count rounded down or up
   atBest: boolean;
 }
 
@@ -87,8 +83,8 @@ export interface GroupRowCoverage {
 
 export interface WarningOptions {
   // Per-group balance detail from groupBalanceDetails, present after a layout is generated.
-  // A group at its best achievable balance gets no balance warning, since no even placement
-  // could raise its score as a whole number.
+  // A group at its best achievable balance, every plate holding its expected count rounded down
+  // or up, gets no balance warning.
   balanceDetails?: Map<string, GroupBalanceDetail>;
   // QC/reference values the user selected, used to tag QC groups.
   selectedQcValues?: string[];
@@ -107,13 +103,11 @@ export const POOR_BALANCE_THRESHOLD = QUALITY_LEVEL_CONFIG.fair.lowScore; // 70
  * The balance detail of every group in a generated layout.
  *
  * The observed mean averages the group's per-plate balance scores, so the warning reflects the
- * layout on screen. The best split is the most even placement the group's count allows, each
- * plate holding its expected count (its share of that plate's samples) rounded down or up. A
- * small group can score below 70 even then, for example 4 samples on 3 equal plates split 2/1/1.
- * With plates of different sizes, which plates are rounded up changes the score, so a split that
- * only rounds every plate is not enough.
+ * layout on screen. A group is at its best when every plate holds its expected count (its share
+ * of that plate's samples) rounded down or up. A small group can score below 70 even then, for
+ * example 4 samples on 3 equal plates split 2/1/1.
  *
- * An empty plate has no balance data. It counts as 0 in both splits and is left out of both means.
+ * An empty plate has no balance data. It counts as 0 in both lists and is left out of the mean.
  */
 export function groupBalanceDetails(metrics: QualityMetrics): Map<string, GroupBalanceDetail> {
   const plateScores = [...metrics.plateDiversity.plateScores].sort((a, b) => a.plateIndex - b.plateIndex);
@@ -125,18 +119,14 @@ export function groupBalanceDetails(metrics: QualityMetrics): Map<string, GroupB
     const plates = entries
       .filter((entry) => entry !== undefined)
       .map((entry) => ({ actual: entry.actualCount, expected: entry.expectedCount, score: entry.balanceScore }));
-    const emptyPlates = new Array<number>(entries.length - plates.length).fill(0);
     const observedSum = plates.reduce((sum, plate) => sum + plate.score, 0);
-    const bestCounts = bestRoundedCounts(plates);
-    const bestSum = bestCounts.reduce((sum, count, i) => sum + plateGroupScore(count, plates[i].expected), 0);
-    const observedMean = observedSum / plates.length;
-    const bestMean = bestSum / plates.length;
+    const evenCounts = nearestEvenCounts(plates);
+    let plateIndex = 0;
     details.set(combination, {
-      observedMean,
+      observedMean: observedSum / plates.length,
       plateCounts: entries.map((entry) => entry?.actualCount ?? 0),
-      bestCounts: [...bestCounts, ...emptyPlates].sort((a, b) => b - a),
-      bestMean,
-      atBest: Math.floor(observedMean) >= Math.floor(bestMean),
+      evenCounts: entries.map((entry) => (entry === undefined ? 0 : evenCounts[plateIndex++])),
+      atBest: plates.every((plate) => isRoundedExpected(plate.actual, plate.expected)),
     });
   });
   return details;
@@ -158,6 +148,14 @@ export function groupsAtBestAchievableBalance(metrics: QualityMetrics): Set<stri
   return best;
 }
 
+// Tolerance for expected counts that are whole numbers up to floating-point error
+const COUNT_EPSILON = 1e-9;
+
+// True when the count is the expected count rounded down or up
+function isRoundedExpected(actual: number, expected: number): boolean {
+  return actual >= Math.floor(expected + COUNT_EPSILON) && actual <= Math.ceil(expected - COUNT_EPSILON);
+}
+
 // A plate's balance score for one group, computed as calculatePlateBalance does: the relative
 // deviation from the expected count, capped at 1, as a rounded score out of 100.
 function plateGroupScore(actual: number, expected: number): number {
@@ -166,27 +164,33 @@ function plateGroupScore(actual: number, expected: number): number {
   return Math.round(Math.max(0, 100 - deviation * 100));
 }
 
-// The per-plate counts that give a group the highest sum of plate scores when each plate holds
-// its expected count rounded down or up. The group's total fixes how many plates round up. Each
-// plate's score depends only on its own count, so rounding up the plates with the largest gain
-// gives the highest sum.
-function bestRoundedCounts(plates: { actual: number; expected: number }[]): number[] {
-  // Tolerance for expected counts that are whole numbers up to floating-point error
-  const EPSILON = 1e-9;
-  const counts = plates.map(({ expected }) => Math.floor(expected + EPSILON));
-  const roundUps =
-    plates.reduce((sum, plate) => sum + plate.actual, 0) - counts.reduce((sum, count) => sum + count, 0);
-  const gains = plates
-    .map(({ expected }, i) => ({
-      i,
-      fractional: expected - counts[i] > EPSILON,
-      gain: plateGroupScore(counts[i] + 1, expected) - plateGroupScore(counts[i], expected),
-    }))
-    .filter((g) => g.fractional)
-    .sort((a, b) => b.gain - a.gain);
-  gains.slice(0, Math.max(0, roundUps)).forEach(({ i }) => {
-    counts[i] += 1;
-  });
+/**
+ * The even split nearest the layout, one count per plate. Each plate holds the group's expected
+ * count rounded down or up, and a plate whose count already is one keeps it.
+ *
+ * Moving the other plates into range changes the group's total, so some plates in range change
+ * too, between their rounded-down and rounded-up counts.
+ * - Plates whose score gains most change first, then the first in plate order.
+ * - With 6 samples expected 1.36 on four large plates and 0.57 on a small one, placed 1, 1, 1, 1, 2,
+ *   the small plate drops to 1 and plate 1 rises to 2. Any large plate would do equally well.
+ */
+function nearestEvenCounts(plates: { actual: number; expected: number }[]): number[] {
+  const low = plates.map(({ expected }) => Math.floor(expected + COUNT_EPSILON));
+  const high = plates.map(({ expected }) => Math.ceil(expected - COUNT_EPSILON));
+  const counts = plates.map(({ actual }, i) => Math.min(Math.max(actual, low[i]), high[i]));
+  const total = plates.reduce((sum, plate) => sum + plate.actual, 0);
+  const excess = counts.reduce((sum, count) => sum + count, 0) - total;
+  const step = excess > 0 ? -1 : 1;
+  const gain = (i: number) => plateGroupScore(counts[i] + step, plates[i].expected) -
+    plateGroupScore(counts[i], plates[i].expected);
+  plates
+    .map((_, i) => i)
+    .filter((i) => low[i] < high[i] && counts[i] === (step < 0 ? high[i] : low[i]))
+    .sort((a, b) => gain(b) - gain(a) || a - b)
+    .slice(0, Math.abs(excess))
+    .forEach((i) => {
+      counts[i] += step;
+    });
   return counts;
 }
 
@@ -249,7 +253,7 @@ function qcRowReason(uncoveredRows: number, usedRows: number, count: number): st
   if (count < usedRows) {
     // Too few samples to reach every used row, so moving cannot fix it.
     const sampleWord = count === 1 ? 'sample' : 'samples';
-    return missing + `It has only ${count} ${sampleWord} for ${usedRows} used rows, so add more QC/reference samples.`;
+    return missing + `It has only ${count} ${sampleWord} for ${usedRows} used rows.`;
   }
   // Enough samples exist, so this is a placement gap.
   return missing + `Move samples so every used row has one.`;
@@ -261,11 +265,11 @@ function samplesWord(n: number): string {
 
 function balanceReason(detail: GroupBalanceDetail): string {
   return (
-    // Both means are rounded down, as atBest compares them. A flagged group (mean below 70) never
-    // displays a score of 70 or above, which is acceptable.
+    // Floor, not round, so a flagged group (mean below 70) never displays a score of 70 or
+    // above, which is acceptable
     `Mean per-plate balance score ${Math.floor(detail.observedMean)} (below ${POOR_BALANCE_THRESHOLD}). ` +
     `Per plate: ${detail.plateCounts.join(', ')}. ` +
-    `Most even: ${detail.bestCounts.join(', ')} (score ${Math.floor(detail.bestMean)}).`
+    `Most even: ${detail.evenCounts.join(', ')}.`
   );
 }
 

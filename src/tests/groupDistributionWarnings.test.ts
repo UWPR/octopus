@@ -37,8 +37,7 @@ function detail(observedMean: number, overrides: Partial<GroupBalanceDetail> = {
   return {
     observedMean,
     plateCounts: [10, 10, 10],
-    bestCounts: [10, 10, 10],
-    bestMean: 100,
+    evenCounts: [10, 10, 10],
     atBest: false,
     ...overrides,
   };
@@ -143,7 +142,7 @@ describe('computeGroupDistributionWarnings', () => {
     const warning = result.byCombination.get('A')!;
     expect(warning.severity).toBe('warning');
     expect(warning.reason).toBe(
-      'Mean per-plate balance score 60 (below 70). Per plate: 14, 9, 7. Most even: 10, 10, 10 (score 100).'
+      'Mean per-plate balance score 60 (below 70). Per plate: 14, 9, 7. Most even: 10, 10, 10.'
     );
     expect(warning.balance).toEqual(detail(60, { plateCounts: [14, 9, 7] }));
   });
@@ -166,7 +165,7 @@ describe('computeGroupDistributionWarnings', () => {
     expect(result.byCombination.size).toBe(0);
   });
 
-  it('QC group with too few samples: error, isQc true, "add more" reason', () => {
+  it('QC group with too few samples: error, isQc true, sample count reason', () => {
     // count 2 < usedRows 10, so it can never cover every row.
     const rowCoverage = new Map([['BatchRef|na|na', { usedRows: 10, uncoveredRows: 4 }]]);
     const result = computeGroupDistributionWarnings([makeItem('BatchRef|na|na', 2, 'BatchRef')], 3, {
@@ -177,7 +176,7 @@ describe('computeGroupDistributionWarnings', () => {
     expect(warning.severity).toBe('error');
     expect(warning.isQc).toBe(true);
     expect(warning.reason).toBe(
-      'This QC/reference group is missing from 4 of 10 used rows. It has only 2 samples for 10 used rows, so add more QC/reference samples.'
+      'This QC/reference group is missing from 4 of 10 used rows. It has only 2 samples for 10 used rows.'
     );
   });
 
@@ -201,7 +200,7 @@ describe('computeGroupDistributionWarnings', () => {
     });
     expect(result.byCombination.get('BatchRef|na|na')!.severity).toBe('error');
     expect(result.byCombination.get('BatchRef|na|na')!.reason).toBe(
-      'This QC/reference group is missing from 1 of 8 used rows. It has only 6 samples for 8 used rows, so add more QC/reference samples.'
+      'This QC/reference group is missing from 1 of 8 used rows. It has only 6 samples for 8 used rows.'
     );
   });
 
@@ -324,12 +323,12 @@ describe('computeGroupDistributionWarnings', () => {
     // Rounding would show "70", which contradicts 70 being acceptable.
     // Flooring shows 69.
     const result = computeGroupDistributionWarnings([makeItem('A', 30)], 2, {
-      balanceDetails: new Map([['A', detail(69.5, { plateCounts: [16, 14], bestCounts: [15, 15] })]]),
+      balanceDetails: new Map([['A', detail(69.5, { plateCounts: [16, 14], evenCounts: [15, 15] })]]),
     });
     const warning = result.byCombination.get('A')!;
     expect(warning.severity).toBe('warning');
     expect(warning.reason).toBe(
-      'Mean per-plate balance score 69 (below 70). Per plate: 16, 14. Most even: 15, 15 (score 100).'
+      'Mean per-plate balance score 69 (below 70). Per plate: 16, 14. Most even: 15, 15.'
     );
   });
 
@@ -405,14 +404,15 @@ describe('aggregateObservedGroupBalance', () => {
   });
 
   it('feeds computeGroupDistributionWarnings: mean below threshold flips severity', () => {
-    // Group A averages (80 + 40 + 30) / 3 = 50, below 70 -> warning.
-    const metrics = makeMetrics([{ A: 80 }, { A: 40 }, { A: 30 }]);
-    expect(aggregateObservedGroupBalance(metrics).get('A')).toBe(50);
+    // Group A, 30 samples placed 14, 14, 2 where 10 per plate is expected, scores 60, 60 and 20.
+    // The mean, 46.7, is below 70 -> warning.
+    const metrics = makeCountMetrics([{ A: [14, 10] }, { A: [14, 10] }, { A: [2, 10] }]);
+    expect(aggregateObservedGroupBalance(metrics).get('A')).toBe(140 / 3);
     const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, {
       balanceDetails: groupBalanceDetails(metrics),
     });
     expect(result.byCombination.get('A')!.severity).toBe('warning');
-    expect(result.byCombination.get('A')!.reason).toContain('Mean per-plate balance score 50');
+    expect(result.byCombination.get('A')!.reason).toContain('Mean per-plate balance score 46');
   });
 });
 
@@ -511,26 +511,26 @@ describe('groupsAtBestAchievableBalance', () => {
     expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['P']);
   });
 
-  it('rounds up the plates where it raises the score most, so a worse rounding is not included', () => {
-    // 3 samples on two plates expected to hold 1.9 and 1.1. Both 2/1 and 1/2 round each plate down
-    // or up, but 2/1 scores 95 + 91 and 1/2 scores 53 + 18, so only 2/1 is the best achievable.
+  it('includes any rounding, even one that scores lower than another rounding', () => {
+    // 3 samples on two plates expected to hold 1.9 and 1.1. 2/1 scores 95 + 91 and 1/2 scores
+    // 53 + 18, but both round each plate down or up.
     const metrics = makeCountMetrics([
       { X: [2, 1.9], Y: [1, 1.9] },
       { X: [1, 1.1], Y: [2, 1.1] },
     ]);
-    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['X']);
+    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['X', 'Y']);
   });
 
-  it('finds the best rounding on three plates with a partly filled last plate', () => {
+  it('includes a rounding on three plates with a partly filled last plate', () => {
     // 5 samples on plates of 96, 96 and 40 samples out of 232: expected 2.07, 2.07 and 0.86.
-    // Floors are 2, 2 and 0, so one plate rounds up. Rounding up the small plate (2/2/1) is best.
+    // Both 2/2/1 and 3/2/0 round each plate down or up.
     const e = [5 * 96 / 232, 5 * 96 / 232, 5 * 40 / 232];
     const metrics = makeCountMetrics([
       { A: [2, e[0]], B: [3, e[0]] },
       { A: [2, e[1]], B: [2, e[1]] },
       { A: [1, e[2]], B: [0, e[2]] },
     ]);
-    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['A']);
+    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['A', 'B']);
   });
 });
 
@@ -555,8 +555,8 @@ describe('groupBalanceDetails', () => {
     expect(d.plateCounts).toEqual(counts);
     // per-plate group scores 25, 58, 58, 83, 83, 83, 58
     expect(d.observedMean).toBe(64);
-    expect(d.bestCounts).toEqual([2, 2, 2, 2, 2, 1, 1]);
-    expect(d.bestMean).toBeCloseTo((5 * 83 + 2 * 58) / 7, 10);
+    // Plate 1 drops from 3 to 2, and plate 2, the first plate with 1, rises to 2
+    expect(d.evenCounts).toEqual([2, 2, 1, 2, 2, 2, 1]);
     expect(d.atBest).toBe(false);
   });
 
@@ -572,32 +572,48 @@ describe('groupBalanceDetails', () => {
     });
     expect(result.byCombination.get('G')!.reason).toBe(
       'Mean per-plate balance score 64 (below 70). Per plate: 3, 1, 1, 2, 2, 2, 1. ' +
-      'Most even: 2, 2, 2, 2, 2, 1, 1 (score 75).'
+      'Most even: 2, 2, 1, 2, 2, 2, 1.'
     );
   });
 
-  it('counts an empty plate as 0 in both splits and leaves it out of both means', () => {
+  it('counts an empty plate as 0 in both lists and leaves it out of the mean', () => {
     // 6 samples on plates 1, 3 and 4 expect 2 each, and plate 2 is empty. Placed 3, 2, 1, the
     // group scores 50, 100 and 50.
     const m = makeCountMetrics([{ G: [3, 2] }, {}, { G: [2, 2] }, { G: [1, 2] }]);
     const result = computeGroupDistributionWarnings([makeItem('G', 6)], 4, { balanceDetails: groupBalanceDetails(m) });
     expect(result.byCombination.get('G')!.reason).toBe(
       'Mean per-plate balance score 66 (below 70). Per plate: 3, 0, 2, 1. ' +
-      'Most even: 2, 2, 2, 0 (score 100).'
+      'Most even: 2, 0, 2, 2.'
     );
   });
 
-  it('treats a group as at its best when both means round down to the same score', () => {
-    // 6 samples on plates of 96, 96, 96, 96 and 40 samples out of 424. Placed 1, 1, 1, 1, 2, the
-    // mean is 59.2. The most even split, 2, 1, 1, 1, 1, has a mean of 59.6.
+  it('does not flag a group whose extra sample could go on a plate that scores higher', () => {
+    // 4 samples on plates of 67, 67 and 66 samples expect 1.34, 1.34 and 1.32. Placed 1, 1, 2, the
+    // mean is 66. Placed 2, 1, 1, the mean would be 67.3.
+    const sizes = [67, 67, 66];
+    const m = makeCountMetrics([1, 1, 2].map((c, i) => ({ G: [c, 4 * sizes[i] / 200] as [number, number] })));
+    const d = groupBalanceDetails(m).get('G')!;
+    expect(d.observedMean).toBe(66);
+    expect(d.atBest).toBe(true);
+    const result = computeGroupDistributionWarnings([makeItem('G', 4)], 3, { balanceDetails: groupBalanceDetails(m) });
+    expect(result.byCombination.has('G')).toBe(false);
+  });
+
+  it('flags a group with a plate holding more than its expected count rounded up', () => {
+    // 6 samples on plates of 96, 96, 96, 96 and 40 samples out of 424 expect 1.36 on each large
+    // plate and 0.57 on the small one. Placed 1, 1, 1, 1, 2, the small plate holds 2.
     const sizes = [96, 96, 96, 96, 40];
     const m = makeCountMetrics([1, 1, 1, 1, 2].map((c, i) => ({ G: [c, 6 * sizes[i] / 424] as [number, number] })));
-    const d = groupBalanceDetails(m).get('G')!;
-    expect(d.observedMean).toBe(59.2);
-    expect(d.bestMean).toBe(59.6);
-    expect(d.atBest).toBe(true);
-    const result = computeGroupDistributionWarnings([makeItem('G', 6)], 5, { balanceDetails: groupBalanceDetails(m) });
-    expect(result.byCombination.has('G')).toBe(false);
+    expect(groupBalanceDetails(m).get('G')!.atBest).toBe(false);
+    // The small plate drops to 1, and plate 1, the first large plate, rises to 2
+    expect(groupBalanceDetails(m).get('G')!.evenCounts).toEqual([2, 1, 1, 1, 1]);
+  });
+
+  it('lowers the first plate at its rounded-up count when raising a plate overshoots the total', () => {
+    // 4 samples on 3 equal plates expect 1.33 each. Placed 0, 2, 2, plate 1 rises to 1, so plate 2
+    // drops to 1 to keep the total at 4.
+    const m = makeCountMetrics([0, 2, 2].map(c => ({ G: [c, 4 / 3] as [number, number] })));
+    expect(groupBalanceDetails(m).get('G')!.evenCounts).toEqual([1, 1, 2]);
   });
 
   it('lists the most even split as one count per plate when every plate gets the same count', () => {
@@ -608,7 +624,7 @@ describe('groupBalanceDetails', () => {
     });
     expect(result.byCombination.get('G')!.reason).toBe(
       'Mean per-plate balance score 57 (below 70). Per plate: 4, 0, 3, 1, 2, 2, 2. ' +
-      'Most even: 2, 2, 2, 2, 2, 2, 2 (score 100).'
+      'Most even: 2, 2, 2, 2, 2, 2, 2.'
     );
   });
 });
