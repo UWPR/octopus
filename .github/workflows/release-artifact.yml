@@ -2,7 +2,7 @@ name: Release artifact
 
 # When a release is published in the GitHub UI, this
 # - checks that the released commit is on main
-# - runs the type check and the unit tests
+# - runs the type check, the lint and the unit tests
 # - builds a self-contained single-file offline copy (octopus-<version>.html)
 #   and the hosted site from the released commit
 # - deploys the hosted site to GitHub Pages, except for a pre-release
@@ -52,6 +52,9 @@ jobs:
       # The same checks as ci.yml.
       - name: Type check
         run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
 
       - name: Unit tests
         run: npm run test:ci

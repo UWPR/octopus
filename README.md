@@ -75,8 +75,8 @@ The hosted site and the offline copy are updated only by publishing a release.
    shown in the documentation.
 3. Publish a release on GitHub with a tag on a commit on `main`.
 
-The release workflow then checks that the commit is on `main`, runs the type check and
-the unit tests, builds the hosted site and the offline copy, deploys the hosted site to
+The release workflow then checks that the commit is on `main`, runs the type check, the
+lint and the unit tests, builds the hosted site and the offline copy, deploys the hosted site to
 GitHub Pages, and attaches `octopus-<version>.html` to the release. A pre-release gets
 the offline copy but does not update the hosted site.
 

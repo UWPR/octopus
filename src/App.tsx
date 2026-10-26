@@ -363,6 +363,7 @@ const App: React.FC = () => {
   const resetCovariateState = () => {
     resetRandomization();
     setRandomizationError(null);
+    setExportError(null);
     resetColors();
     resetMetrics();
     setShowSummary(false);
@@ -575,6 +576,7 @@ const App: React.FC = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
       // Clear any previous error
       setRandomizationError(null);
+      setExportError(null);
 
       // Process metadata and set the covariateKey
       processMetadata(searches);
@@ -907,7 +909,8 @@ const App: React.FC = () => {
         naPolicy
       });
     } catch (e) {
-      setExportError(`Could not create the Excel file. ${(e as Error).message}`);
+      console.error('Excel export failed:', e);
+      setExportError(`Could not create the Excel file. ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -915,6 +918,7 @@ const App: React.FC = () => {
   const handleReRandomize = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
       setRandomizationError(null);
+      setExportError(null);
 
       // Process metadata and set the covariateKey
       processMetadata(searches);
@@ -949,6 +953,7 @@ const App: React.FC = () => {
   const handleReRandomizePlate = (plateIndex: number) => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
       setRandomizationError(null);
+      setExportError(null);
 
       // Process metadata and set the covariateKey
       processMetadata(searches);
@@ -1057,7 +1062,8 @@ const App: React.FC = () => {
     && (!subjectColumn || groupingConstraint !== 'none');
 
   // A colored notice banner - red for errors, amber for warnings. Shared by the load error/warning
-  // (top), the ID-column checks, and the randomization error so they all stay visually consistent.
+  // (top), the ID-column checks, the randomization error and the Excel export error so they all stay
+  // visually consistent.
   const renderBanner = (message: string, tone: 'error' | 'warning' = 'error') => {
     const palette = tone === 'warning'
       ? { bg: '#fffbeb', border: '#fde68a', text: '#92400e' }
@@ -1275,7 +1281,8 @@ const App: React.FC = () => {
                 />
               </div>
 
-              {exportError && renderBanner(exportError)}
+              {/* The export modal has closed by the time this appears, so it is announced */}
+              <div role="alert">{exportError && renderBanner(exportError)}</div>
 
               <SummaryPanel
                 summaryData={summaryData}

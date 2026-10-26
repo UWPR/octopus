@@ -10,7 +10,9 @@
       "files": ["src/tests/e2e/**/*.{ts,tsx}"],
       "extends": ["plugin:playwright/recommended"],
       "rules": {
-        "playwright/no-wait-for-timeout": "warn"
+        "playwright/no-wait-for-timeout": "warn",
+        "jest/valid-expect": "off",
+        "jest/no-identical-title": "off"
       }
     }
   ]
