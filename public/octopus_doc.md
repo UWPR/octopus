@@ -44,7 +44,7 @@ When a Subject ID Column is configured with a grouping constraint, the randomiza
 
 2. **QC Distribution**: QC/Reference samples, if included, are distributed proportionally across plates and rows first, reducing the effective capacity available for experimental samples.
 
-3. **Group-to-Plate Assignment**: Subject groups are assigned to plates largest-first, placing each group on the plate with the most available space while using covariate balance as a tiebreaker.
+3. **Group-to-Plate Assignment**: Subject groups are assigned to plates largest-first, placing each group on the plate with the most available space while using covariate balance as a tiebreaker. When a group fits no plate, the assignment goes back and moves an earlier group to another plate.
 
 4. **Group-to-Row Assignment** (Same Row constraint): Within each plate, the algorithm first figures out how many groups of each size fit in each row, then assigns specific patients to rows to optimize covariate balance.
 
@@ -561,7 +561,7 @@ This algorithm keeps all samples from the same subject together while optimizing
 1. **QC Distribution**: QC samples are distributed proportionally by covariate subgroup across plates and rows. This reduces the effective row capacity available for experimental samples.
 2. **Subject Grouping**: Experimental samples are grouped by subject ID. Each group must fit within a single row.
 3. **Validation**: Feasibility checks verify that no group exceeds row capacity, total samples fit in available wells, and there are enough row slots for all groups of each size.
-4. **Plate Assignment**: Subject groups are assigned to plates largest-first. Groups are sorted by size descending (shuffled within equal sizes). For each group, the plate with the most remaining capacity is preferred; ties are broken by covariate imbalance score. Per-plate row-slot limits prevent overloading a plate with more groups than its rows can physically hold.
+4. **Plate Assignment**: Subject groups are assigned to plates largest-first. Groups are sorted by size descending (shuffled within equal sizes). For each group, the plate with the most remaining capacity is preferred; ties are broken by covariate imbalance score. A plate accepts a group only if all of its groups still fit into its rows. When a group fits no plate, the assignment goes back and moves an earlier group to another plate.
 5. **Row Assignment**: Within each plate, a two-phase process assigns groups to rows:
 
    ![Row Layout Plan](images/octopus_row-layout-plan.svg)
@@ -570,7 +570,7 @@ This algorithm keeps all samples from the same subject together while optimizing
 
    ![Branch Pruning — a tighter example (3×6, no singletons) showing how invalid branches are eliminated early](images/octopus_branch-pruning.svg)
    - *Phase 2 — Group Assignment*: Specific subject groups are assigned to the layout plan's slots. For each slot, the unassigned group that minimizes covariate imbalance (sum of squared deviations from global proportions) is chosen.
-   - *Fallback*: If no valid layout plan is found, a greedy fallback assigns groups directly to rows largest-first by capacity and covariate balance.
+   - *Fallback*: If no valid layout plan is found, a greedy fallback assigns groups directly to rows largest-first by capacity and covariate balance. If that also fails, the groups are packed largest first, each into the fullest row that still holds it.
 6. **Singleton Distribution**: Samples without a subject ID (singletons) are distributed to fill remaining row capacity, preferring rows where they best balance covariates.
 7. **Row Reordering**: Physical row order is optimized to minimize vertical adjacency of same-covariate groups. A greedy algorithm starts with a random row and always picks the most different remaining row next.
 8. **Column Placement**: Within each row, `greedyPlaceInRow` places samples into columns to minimize spatial clustering, same as standard randomization.

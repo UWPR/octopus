@@ -90,19 +90,19 @@ Assigns patient groups to plates largest-first with covariate balance as a tiebr
 
 ### Row-Slot Limits (Same-Row Constraint)
 
-When using the "Same Row" constraint, each plate has a limit on how many multi-sample groups it can accept: the sum over its rows of `floor(rowCapacity / smallestGroupSize)`. This is an upper bound on the group count, not a row-fit check, so a plate can still receive a set of groups that no row split can hold. See Packing Failures.
+When using the "Same Row" constraint, each plate has a limit on how many multi-sample groups it can accept: the sum over its rows of `floor(rowCapacity / smallestGroupSize)`. This is an upper bound on the group count. The row-fit check is in Row-Aware Assignment below.
 
 ### Row-Aware Assignment (Same-Row Constraint)
 
 Under "Same Row", a plate accepts a multi-sample group only if all of its groups, the new one included, still fit into the plate's rows after QC. The check tries a best-fit packing of the groups into the rows first and then the Stage 4 recipe search with a small step limit.
 
-When a group fits no plate, the assignment goes back to the previous group and tries that group's next plate, in the same order of preference as above. The search stops after it has gone back 2,000 times. Plates in the same state (same remaining capacity, row capacities and group sizes) are tried only once for each group.
+When a group fits no plate, the assignment goes back to the previous group and tries that group's next plate, in the same order of preference as above. Plates in the same state (same remaining capacity, the same row capacities in any order, and the same group sizes) are tried only once for each group, and a set of plate states that already failed for a group is not searched again. The search gives up once 2,000 placements have been undone, or when the fit checks would need more than 100 recipe searches.
 
 ### Backtracking (Same-Plate Constraint)
 
 Under "Same Plate", the assignment uses the same search with remaining capacity as the only limit. Plates with the same remaining capacity are tried only once for each group.
 
-If no split is found, the capacity-only assignment above runs as it did before the row check, so a request that has no layout gets the same error messages as before.
+If the search gives up under either constraint, the capacity-only assignment above runs, so a request that has no layout gets its error message.
 
 ### Example
 
@@ -307,7 +307,7 @@ When the pipeline cannot fit the subject groups into the plates or rows, it thro
 
 Under "Same Row", plate assignment (Stage 3) only gives a plate groups that fit into its rows, so a multi-plate request that has a layout fails only if the search reaches one of its step limits. For example, two 2×5 plates with subjects of 5, 3, 2, 1, 4, 4 and 1 samples have a layout, but none with the groups of 4, 4 and 2 on one plate. With treatments alternating Placebo, Drug, Placebo and so on, the split by plate capacity alone puts those three groups on one plate every run.
 
-Under "Same Plate", plate assignment also backtracks, so a request that has a layout fails only if the search reaches its step limit. For example, three 2×7 plates with 7 QC and subjects of 7, 7, 6, 6, 3, 3, 1 and 1 samples fit only as 6+6, 7+3+1+1 and 7+3.
+Under "Same Plate", plate assignment also backtracks, so a request that has a layout fails only if the search reaches its step limit. For example, three 2×7 plates with 7 QC and subjects of 7, 7, 6, 6, 3, 3, 1 and 1 samples have a layout, and the subjects of 2 or more samples fit only as 6+6, 7+3 and 7+3. A capacity-only split puts the two 7s and a 6 on separate plates every run, which leaves no plate for the other 6.
 
 ---
 

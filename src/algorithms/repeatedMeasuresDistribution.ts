@@ -244,9 +244,14 @@ export function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup
   return result;
 }
 
-// Each groupsFitRows call gives the recipe search at most ROW_FIT_ITERATION_LIMIT steps, and
-// assignGroupsToPlatesWithBacktracking undoes at most PLATE_ASSIGNMENT_BACKTRACK_LIMIT placements.
+// Each fit check gives the recipe search at most ROW_FIT_ITERATION_LIMIT steps, and one plate
+// assignment runs at most ROW_FIT_SEARCH_LIMIT such searches, so it uses no more steps than
+// findValidRecipes does with its default limit. ROW_FIT_ITERATION_LIMIT must stay below that default,
+// or Stage 3 could accept a plate whose groups Stage 4 cannot pack.
+// assignGroupsToPlatesWithBacktracking gives up once PLATE_ASSIGNMENT_BACKTRACK_LIMIT placements
+// have been undone.
 const ROW_FIT_ITERATION_LIMIT = 5_000;
+const ROW_FIT_SEARCH_LIMIT = 100;
 const PLATE_ASSIGNMENT_BACKTRACK_LIMIT = 2_000;
 
 /**
@@ -271,26 +276,20 @@ function bestFitDecreasingRows(groups: SubjectGroup[], rowCapacities: number[]):
 }
 
 /**
- * Returns true when the multi-sample groups fit into rows of the given capacities. Tries
- * bestFitDecreasingRows first, then findValidRecipes within ROW_FIT_ITERATION_LIMIT steps, so false
- * can also mean the search ran out of steps.
- */
-function groupsFitRows(groups: SubjectGroup[], rowCapacities: number[]): boolean {
-  return bestFitDecreasingRows(groups, rowCapacities) !== undefined ||
-    findValidRecipes(groups, rowCapacities, 1, ROW_FIT_ITERATION_LIMIT, true).length > 0;
-}
-
-/**
  * Assigns the multi-sample groups to plates, backtracking when a group fits no plate.
  *
  * Takes the groups in the given order and tries the plates by most remaining capacity, then by
  * covariate balance, then at random, the same preference as the FFD loop in
- * distributeGroupsToPlates. With plateRowCapacities, a plate is also skipped when groupsFitRows
- * rejects its groups plus the new one. Without them, remaining capacity is the only limit. When a
- * group fits no plate, the search returns to the previous group and tries its next plate. The
- * search gives up after PLATE_ASSIGNMENT_BACKTRACK_LIMIT such returns. Of the plates in the same
- * state only the first is tried for each group. The state is the remaining capacity, plus the row
- * capacities and group sizes when plateRowCapacities is set.
+ * distributeGroupsToPlates. With plateRowCapacities, a plate is also skipped unless its groups plus
+ * the new one fit into its rows, checked with bestFitDecreasingRows and then findValidRecipes within
+ * ROW_FIT_ITERATION_LIMIT steps. Without them, remaining capacity is the only limit.
+ *
+ * When a group fits no plate, the search returns to the previous group and tries its next plate.
+ * Of the plates in the same state only the first is tried for each group. The state is the
+ * remaining capacity, plus the sorted row capacities and the group sizes when plateRowCapacities is
+ * set. A set of plate states that failed for a group is not searched again. The search gives up
+ * once PLATE_ASSIGNMENT_BACKTRACK_LIMIT placements have been undone, or when a fit check needs more
+ * than ROW_FIT_SEARCH_LIMIT recipe searches.
  *
  * On success fills plateAssignments, remainingCapacities and remainingRowSlots and returns true.
  * On failure leaves them unchanged and returns false.
@@ -303,64 +302,126 @@ function assignGroupsToPlatesWithBacktracking(
   remainingCapacities: number[],
   remainingRowSlots: number[] | undefined
 ): boolean {
-  const plateState = (plateIdx: number, extra: SubjectGroup[] = []): string =>
-    plateRowCapacities === undefined ? '' :
-    plateRowCapacities[plateIdx].join(',') + '|' +
-    [...plateAssignments.get(plateIdx)!, ...extra].map(g => g.size).sort((a, b) => b - a).join(',');
+  const plateCount = remainingCapacities.length;
+  const sizesOf = (plateIdx: number, extra?: SubjectGroup): string =>
+    [...plateAssignments.get(plateIdx)!, ...(extra ? [extra] : [])].map(g => g.size).sort((a, b) => b - a).join(',');
+  // Row capacities sorted, since plates that differ only in row order are interchangeable
+  const sortedRowCapacities = plateRowCapacities?.map(caps => [...caps].sort((a, b) => a - b).join(','));
+  const plateState = (plateIdx: number): string =>
+    sortedRowCapacities === undefined
+      ? String(remainingCapacities[plateIdx])
+      : `${remainingCapacities[plateIdx]}|${sortedRowCapacities[plateIdx]}|${sizesOf(plateIdx)}`;
+  // Whether the remaining groups can be placed depends only on the next group and the plate states
+  const searchState = (gi: number): string =>
+    gi + '#' + Array.from({ length: plateCount }, (_, p) => plateState(p)).sort().join('#');
 
+  let recipeSearches = 0;
+  let outOfSearches = false;
+  // The fit cache keeps the physical row order, which the recipe search result can depend on
   const fitCache = new Map<string, boolean>();
   const fitsRows = (plateIdx: number, group: SubjectGroup): boolean => {
     if (plateRowCapacities === undefined) return true;
-    const key = plateState(plateIdx, [group]);
+    const key = plateRowCapacities[plateIdx].join(',') + '|' + sizesOf(plateIdx, group);
     let fits = fitCache.get(key);
     if (fits === undefined) {
-      fits = groupsFitRows([...plateAssignments.get(plateIdx)!, group], plateRowCapacities[plateIdx]);
+      const groups = [...plateAssignments.get(plateIdx)!, group];
+      fits = bestFitDecreasingRows(groups, plateRowCapacities[plateIdx]) !== undefined;
+      if (!fits) {
+        if (recipeSearches >= ROW_FIT_SEARCH_LIMIT) {
+          outOfSearches = true;
+          return false;
+        }
+        recipeSearches++;
+        fits = findValidRecipes(groups, plateRowCapacities[plateIdx], 1, ROW_FIT_ITERATION_LIMIT, true).length > 0;
+      }
       fitCache.set(key, fits);
     }
     return fits;
   };
 
-  let backtracks = 0;
-  const place = (gi: number): boolean => {
-    if (gi === sortedGroups.length) return true;
+  const assign = (gi: number, plateIdx: number) => {
+    plateAssignments.get(plateIdx)!.push(sortedGroups[gi]);
+    remainingCapacities[plateIdx] -= sortedGroups[gi].size;
+    if (remainingRowSlots) remainingRowSlots[plateIdx] -= 1;
+  };
+  const unassign = (gi: number, plateIdx: number) => {
+    plateAssignments.get(plateIdx)!.pop();
+    remainingCapacities[plateIdx] += sortedGroups[gi].size;
+    if (remainingRowSlots) remainingRowSlots[plateIdx] += 1;
+  };
+
+  // The plates that can take group gi in order of preference, one plate of each state
+  const candidatePlates = (gi: number): number[] => {
     const group = sortedGroups[gi];
-
     // Shuffle first so the stable sort breaks full ties at random
-    const candidates = shuffleArray(Array.from({ length: remainingCapacities.length }, (_, i) => i))
-      .filter(i => remainingCapacities[i] >= group.size && !(remainingRowSlots && remainingRowSlots[i] <= 0))
-      .map(i => ({
-        plateIdx: i,
-        remaining: remainingCapacities[i],
-        score: covariateImbalanceScore(
-          plateAssignments.get(i)!.flatMap(g => g.samples), group.samples, globalProportions
-        ),
-      }))
-      .sort((a, b) => b.remaining - a.remaining || a.score - b.score);
+    const plates = shuffleArray(Array.from({ length: plateCount }, (_, i) => i))
+      .filter(i => remainingCapacities[i] >= group.size && !(remainingRowSlots && remainingRowSlots[i] <= 0));
+    // Covariate balance only orders plates that have the same remaining capacity
+    const platesByRemaining = new Map<number, number>();
+    plates.forEach(i => platesByRemaining.set(remainingCapacities[i], (platesByRemaining.get(remainingCapacities[i]) ?? 0) + 1));
+    const scores = new Map<number, number>();
+    if (globalProportions.size > 0) {
+      plates.filter(i => platesByRemaining.get(remainingCapacities[i])! > 1).forEach(i => scores.set(i,
+        covariateImbalanceScore(plateAssignments.get(i)!.flatMap(g => g.samples), group.samples, globalProportions)));
+    }
+    plates.sort((a, b) =>
+      remainingCapacities[b] - remainingCapacities[a] || (scores.get(a) ?? 0) - (scores.get(b) ?? 0));
+    const seen = new Set<string>();
+    return plates.filter(i => {
+      const state = plateState(i);
+      if (seen.has(state)) return false;
+      seen.add(state);
+      return true;
+    });
+  };
 
-    const triedStates = new Set<string>();
-    for (const { plateIdx } of candidates) {
-      if (backtracks > PLATE_ASSIGNMENT_BACKTRACK_LIMIT) return false;
-      const state = `${remainingCapacities[plateIdx]}|${plateState(plateIdx)}`;
-      if (triedStates.has(state)) continue;
-      triedStates.add(state);
-      if (!fitsRows(plateIdx, group)) continue;
-
-      plateAssignments.get(plateIdx)!.push(group);
-      remainingCapacities[plateIdx] -= group.size;
-      if (remainingRowSlots) remainingRowSlots[plateIdx] -= 1;
-      if (place(gi + 1)) return true;
-      plateAssignments.get(plateIdx)!.pop();
-      remainingCapacities[plateIdx] += group.size;
-      if (remainingRowSlots) remainingRowSlots[plateIdx] += 1;
-      backtracks++;
+  // One stack frame per group, in a loop rather than recursion, so a large request cannot overflow
+  // the call stack. placedOn is the plate the frame's group is on, or -1.
+  interface Frame { candidates: number[]; next: number; placedOn: number }
+  const stack: Frame[] = [];
+  const failedStates = new Set<string>();
+  const giveUp = (): boolean => {
+    for (let gi = stack.length - 1; gi >= 0; gi--) {
+      if (stack[gi].placedOn >= 0) unassign(gi, stack[gi].placedOn);
     }
     return false;
   };
-  return place(0);
+
+  if (sortedGroups.length === 0) return true;
+  stack.push({ candidates: candidatePlates(0), next: 0, placedOn: -1 });
+  let backtracks = 0;
+  while (stack.length > 0) {
+    const gi = stack.length - 1;
+    const frame = stack[gi];
+    if (frame.placedOn >= 0) {
+      unassign(gi, frame.placedOn);
+      frame.placedOn = -1;
+      if (++backtracks >= PLATE_ASSIGNMENT_BACKTRACK_LIMIT) return giveUp();
+    }
+    while (frame.placedOn < 0 && frame.next < frame.candidates.length) {
+      const plateIdx = frame.candidates[frame.next++];
+      if (fitsRows(plateIdx, sortedGroups[gi])) {
+        assign(gi, plateIdx);
+        frame.placedOn = plateIdx;
+      } else if (outOfSearches) {
+        return giveUp();
+      }
+    }
+    if (frame.placedOn < 0) {
+      failedStates.add(searchState(gi));
+      stack.pop();
+      continue;
+    }
+    if (gi + 1 === sortedGroups.length) return true;
+    // A next state that already failed counts as a failed placement of this group
+    if (failedStates.size > 0 && failedStates.has(searchState(gi + 1))) continue;
+    stack.push({ candidates: candidatePlates(gi + 1), next: 0, placedOn: -1 });
+  }
+  return false;
 }
 
 /**
- * Distributes subject groups to plates using first-fit-decreasing bin packing.
+ * Distributes subject groups to plates, largest first.
  *
  * - Sorts groups by size descending, shuffling equal-sized groups
  * - For each group, finds the plate with most remaining capacity that fits the group
@@ -1197,7 +1258,8 @@ function distributeSingletons(
  *  2. findValidRecipes — backtracking enumeration of size-based recipes
  *  3. scoreAndSelectRecipe — pick the recipe with best covariate balance
  *  4. assignGroupsToRecipeSlots — assign specific groups via round-robin interleaving
- *  5. greedyFFDPlacement — fallback if no recipes found within iteration budget
+ *  5. greedyFFDPlacement — fallback if no recipes found within iteration budget, then
+ *     bestFitDecreasingRows if greedyFFDPlacement throws a PackingError
  *  6. distributeSingletons — fill remaining capacity with size-1 groups
  *
  * @param groups - Subject groups to distribute (including singletons)
@@ -1422,9 +1484,8 @@ export function groupAwareRandomization(
   // These limit how many multi-sample groups each plate can accept,
   // independent of total well capacity.
   // Use the minimum group size (not max) to compute an upper bound on
-  // how many groups each plate can hold. The actual per-size feasibility
-  // is validated later by distributeGroupsToRows which has its own
-  // per-size checks and backtracking.
+  // how many groups each plate can hold. distributeGroupsToPlates checks
+  // that each plate's groups fit into its rows.
   let plateRowSlotLimits: number[] | undefined;
   if (groupingConstraint === 'same-row') {
     const multiGroups = subjectGroups.filter(g => g.size > 1);

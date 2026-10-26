@@ -2994,8 +2994,9 @@ describe('Subject-grouping feasibility', () => {
   });
 
   it('Same Plate splits subjects of 7, 7, 6, 6, 3, 3, 1 and 1 across three 2x7 plates with 7 QC', () => {
-    // The QC leave plates of 12, 12 and 11 wells. The only layouts are 6+6, 7+3+1+1 and 7+3, and
-    // placing the two 7s and the first 6 on separate plates leaves 5 wells on each for the other 6.
+    // The QC leave plates of 12, 12 and 11 wells. The subjects of 2 or more samples fit only as 6+6,
+    // 7+3 and 7+3, and placing the two 7s and the first 6 on separate plates leaves 5 wells on each
+    // for the other 6.
     const sizes = [7, 7, 6, 6, 3, 3, 1, 1];
     const samples = [
       ...sizes.flatMap((size, i) => makeSubject(`S${i}`, size, i % 2 === 0 ? 'Placebo' : 'Drug')),
@@ -3006,6 +3007,73 @@ describe('Subject-grouping feasibility', () => {
       groupAwareRandomization(samples, ['Treatment'], samePlate, false, 2, 7)
     );
     expect(failures).toEqual([]);
+  });
+
+  it('Same Row splits subjects of 7, 5, 5, 5, 4, 4, 3, 3, 3, 3, 3 and 2 across three 2x8 plates with 1 QC', () => {
+    // Every layout uses rows of 7, 5+3, 5+3, 5+3, 4+4 and 3+3+2.
+    const sizes = [4, 4, 7, 2, 3, 3, 3, 5, 5, 3, 3, 5];
+    const samples = [
+      ...sizes.flatMap((size, i) => makeSubject(`S${i}`, size, i % 2 === 0 ? 'Placebo' : 'Drug')),
+      ...makeQc('QC', 1),
+    ];
+
+    const failures = collectFailures(30, () =>
+      groupAwareRandomization(samples, ['Treatment'], sameRow, false, 2, 8)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it('Same Plate splits 18 subjects of 2 to 9 samples across four 3x8 plates with 18 QC', () => {
+    // A layout is 9+8+2, 7+7+5, 6+4+4+4+2 and 4+4+4+2+2+2+2.
+    const sizes = [9, 8, 7, 7, 6, 5, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2];
+    const samples = [
+      ...sizes.flatMap((size, i) => makeSubject(`S${i}`, size, i % 2 === 0 ? 'Placebo' : 'Drug')),
+      ...makeQc('QC', 18),
+    ];
+
+    const failures = collectFailures(30, () =>
+      groupAwareRandomization(samples, ['Treatment'], samePlate, false, 3, 8)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it('Same Row fills four 2x12 plates whose QC leave rows of 12 and 11 in either order', () => {
+    // Every split of the 3 QC has a layout. The plates with rows of 12 and 11 and of 11 and 12 differ
+    // only in row order.
+    const sizes = [9, 8, 7, 7, 6, 6, 6, 6, 5, 5, 4, 4, 4, 4, 4, 3, 3];
+    const samples = [
+      ...sizes.flatMap((size, i) => makeSubject(`S${i}`, size, i % 2 === 0 ? 'Placebo' : 'Drug')),
+      { name: 'B0', metadata: { SubjectID: '', Treatment: 'Drug' } },
+      { name: 'B1', metadata: { SubjectID: '', Treatment: 'Placebo' } },
+      ...makeQc('QC', 3),
+    ];
+
+    const failures = collectFailures(50, () =>
+      groupAwareRandomization(samples, ['Treatment'], sameRow, false, 2, 12)
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it.each([['same-row'], ['same-plate']] as const)(
+    '%s generates 5,000 subjects of 2 samples on 8x12 plates',
+    (constraint) => {
+      const samples = Array.from({ length: 5000 }, (_, i) =>
+        makeSubject(`S${i}`, 2, i % 2 === 0 ? 'Placebo' : 'Drug')).flat();
+      const config: RepeatedMeasuresConfig = { subjectColumn: 'SubjectID', groupingConstraint: constraint };
+
+      expect(() => groupAwareRandomization(samples, ['Treatment'], config, false, 8, 12)).not.toThrow();
+    }
+  );
+
+  it('Same Plate puts one Drug and one Placebo subject on each plate when that balances the plates', () => {
+    const groups = [makeGroup('D1', 3, 'Drug'), makeGroup('P1', 3, 'Placebo'),
+      makeGroup('D2', 3, 'Drug'), makeGroup('P2', 3, 'Placebo')];
+
+    for (let run = 0; run < 50; run++) {
+      const plates = distributeGroupsToPlates(groups, [9, 9], DRUG_PLACEBO_PROPORTIONS, undefined, 'same-plate');
+      const treatments = [0, 1].map(p => plates.get(p)!.map(g => g.samples[0].metadata.Treatment).sort());
+      expect(treatments).toEqual([['Drug', 'Placebo'], ['Drug', 'Placebo']]);
+    }
   });
 
   // Two 4x6 plates with every row cut into subjects of 1 to 6 samples, so a Same Row layout exists.
