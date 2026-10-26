@@ -98,6 +98,10 @@ Under "Same Row", a plate accepts a multi-sample group only if all of its groups
 
 When a group fits no plate, the assignment goes back to the previous group and tries that group's next plate, in the same order of preference as above. The search stops after it has gone back 2,000 times. Plates in the same state (same remaining capacity, row capacities and group sizes) are tried only once for each group.
 
+### Backtracking (Same-Plate Constraint)
+
+Under "Same Plate", the assignment uses the same search with remaining capacity as the only limit. Plates with the same remaining capacity are tried only once for each group.
+
 If no split is found, the capacity-only assignment above runs as it did before the row check, so a request that has no layout gets the same error messages as before.
 
 ### Example
@@ -290,7 +294,7 @@ Within each row, `greedyPlaceInRow` (from `greedySpatialPlacement.ts`) places sa
 
 When the grouping constraint is "Same Plate" instead of "Same Row", the pipeline changes at Stage 4:
 
-- **Stages 1-3** are identical (QC distribution, subject grouping, plate assignment).
+- **Stages 1-3** are identical (QC distribution, subject grouping, plate assignment), except that plate assignment checks only remaining capacity. See "Backtracking (Same-Plate Constraint)".
 - **Stage 4 (Row Assignment)**: Instead of the composition backtracking + group assignment pipeline, the algorithm flattens all experimental samples on the plate and uses the standard balanced block randomization logic (`distributeToBlocks`, with per-row expected minimums from `calculateExpectedMinimums`, see `expected-minimums-architecture.md`) to assign samples to rows. Since groups only need to be on the same plate (not the same row), individual samples can be placed independently, giving more flexibility for covariate balance.
 - **Stage 5 (Row Reordering)**: Not performed. The balanced block logic assigns samples to rows in their natural order.
 - **Stage 6**: Same as Same Row — `greedyPlaceInRow` handles column placement.
@@ -302,6 +306,8 @@ When the grouping constraint is "Same Plate" instead of "Same Row", the pipeline
 When the pipeline cannot fit the subject groups into the plates or rows, it throws a `PackingError`, and Generate, Re-randomize and single-plate re-randomize display its message.
 
 Under "Same Row", plate assignment (Stage 3) only gives a plate groups that fit into its rows, so a multi-plate request that has a layout fails only if the search reaches one of its step limits. For example, two 2×5 plates with subjects of 5, 3, 2, 1, 4, 4 and 1 samples have a layout, but none with the groups of 4, 4 and 2 on one plate. With treatments alternating Placebo, Drug, Placebo and so on, the split by plate capacity alone puts those three groups on one plate every run.
+
+Under "Same Plate", plate assignment also backtracks, so a request that has a layout fails only if the search reaches its step limit. For example, three 2×7 plates with 7 QC and subjects of 7, 7, 6, 6, 3, 3, 1 and 1 samples fit only as 6+6, 7+3+1+1 and 7+3.
 
 ---
 
