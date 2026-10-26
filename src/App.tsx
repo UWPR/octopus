@@ -202,6 +202,8 @@ const App: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Non-blocking notice about the loaded file (e.g. some rows had formatting problems).
   const [loadWarning, setLoadWarning] = useState<string | null>(null);
+  // Error from the last Excel export, shown under the Export menu.
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Set true for one render while a saved layout is being loaded, so the new-file reset
   // effect does not wipe the settings we are restoring.
@@ -277,6 +279,7 @@ const App: React.FC = () => {
     resetRandomization();
     setRandomizationError(null);
     setLoadError(null);
+    setExportError(null);
     resetColors();
     resetMetrics();
     resetModalPosition();
@@ -736,6 +739,7 @@ const App: React.FC = () => {
     setRandomizationError(null);
     setLoadError(null);
     setLoadWarning(null);
+    setExportError(null);
   };
 
   // Confirm before replacing a displayed plate layout. Returns false when the user cancels (so
@@ -885,20 +889,26 @@ const App: React.FC = () => {
     }
   };
 
-  // Actual export after covariate selection
+  // Actual export after covariate selection. The modal closes without waiting, so a failure is
+  // displayed on the main page.
   const handleExcelExport = async (exportCovariates: string[]) => {
-    await exportToExcel({
-      searches,
-      randomizedPlates,
-      covariateColors,
-      treatmentCovariates: selectedCovariates, // Original treatment covariates for color lookup
-      exportCovariates: exportCovariates, // User-selected covariates to display
-      numRows: plateRows,
-      numColumns: plateColumns,
-      inputFileName: selectedFileName,
-      qcColumn: qcColumn || undefined,
-      naPolicy
-    });
+    setExportError(null);
+    try {
+      await exportToExcel({
+        searches,
+        randomizedPlates,
+        covariateColors,
+        treatmentCovariates: selectedCovariates, // Original treatment covariates for color lookup
+        exportCovariates: exportCovariates, // User-selected covariates to display
+        numRows: plateRows,
+        numColumns: plateColumns,
+        inputFileName: selectedFileName,
+        qcColumn: qcColumn || undefined,
+        naPolicy
+      });
+    } catch (e) {
+      setExportError(`Could not create the Excel file. ${(e as Error).message}`);
+    }
   };
 
   // Re-randomization handler
@@ -1265,6 +1275,8 @@ const App: React.FC = () => {
                 />
               </div>
 
+              {exportError && renderBanner(exportError)}
+
               <SummaryPanel
                 summaryData={summaryData}
                 showSummary={showSummary}
@@ -1343,7 +1355,7 @@ const App: React.FC = () => {
         <ExcelExportModal
           isOpen={showExcelExportModal}
           onClose={() => setShowExcelExportModal(false)}
-          onExport={handleExcelExport}
+          onExport={(covariates) => void handleExcelExport(covariates)}
           availableCovariates={availableColumns}
           treatmentCovariates={selectedCovariates}
           searches={searches}
