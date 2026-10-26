@@ -10,7 +10,7 @@ import {
 } from './helpers';
 
 /** The saved-layout filename shape: <base>_octopus_layout_<YYYY-MM-DD_HH-mm-ss>.json */
-const SAVED_LAYOUT_NAME = /^trx-phase1b-small_octopus_layout_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/;
+const SAVED_LAYOUT_NAME = /^e2e-sample-small_octopus_layout_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/;
 
 /**
  * Layout Round-Trip Tests
@@ -82,7 +82,7 @@ test.describe('Layout Round-Trip', () => {
   test('re-saving a loaded layout does not stack the _octopus_layout suffix', async ({ page }, testInfo) => {
     await uploadConfigureAndRandomize(page);
 
-    // Save the layout once, from the uploaded sample file (trx-phase1b-small.csv).
+    // Save the layout once, from the uploaded sample file (e2e-sample-small.csv).
     await openExportMenu(page);
     const firstDownloadPromise = page.waitForEvent('download');
     await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();

@@ -5,7 +5,7 @@ import path from 'path';
  * Shared test helpers and constants for E2E tests
  */
 
-// --- Test data constants for trx-phase1b-small.csv ---
+// --- Test data constants for e2e-sample-small.csv ---
 
 export const NUM_PLATES = 3;
 export const NUM_ROWS = 8;
@@ -71,11 +71,11 @@ export async function getAllPlateFingerprints(page: Page, numPlates: number): Pr
 
 /**
  * Upload a test file and configure the standard settings.
- * Uses trx-phase1b-small.csv with Condition as QC column,
+ * Uses e2e-sample-small.csv with Condition as QC column,
  * BatchQC/BatchRef as QC values, and Condition/Radiaion Dose_cGy/Focus Area as covariates.
  */
 export async function uploadAndConfigure(page: Page): Promise<void> {
-  const testFilePath = path.join(__dirname, '../../../test-data/trx-phase1b-small.csv');
+  const testFilePath = path.join(__dirname, '../../../test-data/e2e-sample-small.csv');
   // Target the sample-upload input specifically (the Load Layout input is also a file input).
   await page.locator('#file-upload').setInputFiles(testFilePath);
 

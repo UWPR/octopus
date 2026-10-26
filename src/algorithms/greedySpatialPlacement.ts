@@ -68,6 +68,10 @@ export function calculateClusterScore(
 /**
  * Place samples in a row using greedy spatial placement to minimize clustering.
  *
+ * Greedy with no look-ahead: each sample takes the lowest-scoring free column at the time it
+ * is placed, ties broken at random. When the last free columns are all penalized, the sample
+ * still goes in one of them, so some same-group adjacency can remain.
+ *
  * @param rowSamples - Array of samples to place in this row
  * @param plate - The 2D grid of the current plate (will be modified)
  * @param rowIdx - Row index within the plate
