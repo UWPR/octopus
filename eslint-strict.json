@@ -4,5 +4,14 @@
     "@typescript-eslint/no-floating-promises": "error",
     "@typescript-eslint/no-misused-promises": "error",
     "@typescript-eslint/await-thenable": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/tests/e2e/**/*.{ts,tsx}"],
+      "extends": ["plugin:playwright/recommended"],
+      "rules": {
+        "playwright/no-wait-for-timeout": "warn"
+      }
+    }
+  ]
 }

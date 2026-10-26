@@ -136,9 +136,9 @@ test.describe('UI Interactions', () => {
     expect(cardText).toContain('Focus Area:');
 
     // Verify the card has a sample name (h3 element)
-    const sampleName = await firstCard.locator('h3').textContent();
-    expect(sampleName).toBeTruthy();
-    expect(sampleName!.startsWith('E2E-')).toBe(true);
+    const sampleNameHeading = firstCard.locator('h3');
+    await expect(sampleNameHeading).toHaveText(/^E2E-/);
+    const sampleName = (await sampleNameHeading.textContent())!;
 
     // Switch back to compact view and verify the same sample name appears in the tooltip
     await page.getByRole('button', { name: 'Compact View' }).click();
@@ -148,9 +148,9 @@ test.describe('UI Interactions', () => {
     await expect(page.locator('[draggable="true"] h3')).toHaveCount(0);
 
     // The first plate cell's tooltip should contain the same sample name from full-size view
-    const firstCellTooltip = await page.locator('[data-testid="plate-grid-0"] [title]').first().getAttribute('title');
-    expect(firstCellTooltip).toBeTruthy();
-    expect(firstCellTooltip!).toContain(sampleName!);
+    const escapedName = sampleName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await expect(page.locator('[data-testid="plate-grid-0"] [title]').first())
+      .toHaveAttribute('title', new RegExp(escapedName));
   });
 
   test('plate details modal lists every group with its penalty to the plate score', async ({ page }) => {

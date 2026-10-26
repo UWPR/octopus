@@ -75,6 +75,7 @@
     "@playwright/test": "^1.58.2",
     "@types/papaparse": "^5.3.14",
     "cross-env": "^10.1.0",
+    "eslint-plugin-playwright": "2.12.1",
     "fast-check": "^3.23.2",
     "gh-pages": "^6.1.1"
   }
