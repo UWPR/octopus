@@ -56,7 +56,7 @@ const DistributionWarningBanner: React.FC<DistributionWarningBannerProps> = ({
                   <div>{section.line}</div>
                   {named.length > 0 && (
                     <ul style={styles.groups}>
-                      {named.map((group) => <li key={group}>{group}</li>)}
+                      {named.map((group, j) => <li key={j}>{group}</li>)}
                       {unnamed > 0 && <li>and {unnamed} more</li>}
                     </ul>
                   )}

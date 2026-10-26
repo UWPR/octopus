@@ -1,7 +1,5 @@
 import {
   computeGroupDistributionWarnings,
-  aggregateObservedGroupBalance,
-  groupsAtBestAchievableBalance,
   groupBalanceDetails,
   bannerSections,
   coverageItems,
@@ -392,22 +390,22 @@ describe('hasCoverageError', () => {
   });
 });
 
-describe('aggregateObservedGroupBalance', () => {
+describe('groupBalanceDetails observed mean', () => {
   it('averages each group balance across plates', () => {
     const metrics = makeMetrics([
       { A: 80, B: 100 },
       { A: 60, B: 90 },
     ]);
-    const means = aggregateObservedGroupBalance(metrics);
-    expect(means.get('A')).toBe(70);
-    expect(means.get('B')).toBe(95);
+    const details = groupBalanceDetails(metrics);
+    expect(details.get('A')!.observedMean).toBe(70);
+    expect(details.get('B')!.observedMean).toBe(95);
   });
 
   it('feeds computeGroupDistributionWarnings: mean below threshold flips severity', () => {
     // Group A, 30 samples placed 14, 14, 2 where 10 per plate is expected, scores 60, 60 and 20.
     // The mean, 46.7, is below 70 -> warning.
     const metrics = makeCountMetrics([{ A: [14, 10] }, { A: [14, 10] }, { A: [2, 10] }]);
-    expect(aggregateObservedGroupBalance(metrics).get('A')).toBe(140 / 3);
+    expect(groupBalanceDetails(metrics).get('A')!.observedMean).toBe(140 / 3);
     const result = computeGroupDistributionWarnings([makeItem('A', 30)], 3, {
       balanceDetails: groupBalanceDetails(metrics),
     });
@@ -489,7 +487,14 @@ function makeCountMetrics(countsByPlate: Array<Record<string, [number, number]>>
   return metrics;
 }
 
-describe('groupsAtBestAchievableBalance', () => {
+// The groups that groupBalanceDetails finds at their best achievable balance
+function groupsAtBest(metrics: QualityMetrics): string[] {
+  return Array.from(groupBalanceDetails(metrics))
+    .filter(([, detail]) => detail.atBest)
+    .map(([combination]) => combination);
+}
+
+describe('groupBalanceDetails at best', () => {
   it('includes a group whose count on every plate is its expected count rounded down or up', () => {
     // 4 samples on 3 equal plates: expected 1.33 each, so 2/1/1 is the most even split
     const metrics = makeCountMetrics([
@@ -497,7 +502,7 @@ describe('groupsAtBestAchievableBalance', () => {
       { V: [1, 4 / 3], D: [1, 4 / 3] },
       { V: [1, 4 / 3], D: [0, 4 / 3] },
     ]);
-    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['V']);
+    expect(groupsAtBest(metrics)).toEqual(['V']);
   });
 
   it('judges each plate by its own expected count, so an even split onto a small plate is not included', () => {
@@ -508,7 +513,7 @@ describe('groupsAtBestAchievableBalance', () => {
       { E: [10, expected[1]], P: [13, expected[1]] },
       { E: [10, expected[2]], P: [3, expected[2]] },
     ]);
-    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['P']);
+    expect(groupsAtBest(metrics)).toEqual(['P']);
   });
 
   it('includes any rounding, even one that scores lower than another rounding', () => {
@@ -518,7 +523,7 @@ describe('groupsAtBestAchievableBalance', () => {
       { X: [2, 1.9], Y: [1, 1.9] },
       { X: [1, 1.1], Y: [2, 1.1] },
     ]);
-    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['X', 'Y']);
+    expect(groupsAtBest(metrics)).toEqual(['X', 'Y']);
   });
 
   it('includes a rounding on three plates with a partly filled last plate', () => {
@@ -530,7 +535,7 @@ describe('groupsAtBestAchievableBalance', () => {
       { A: [2, e[1]], B: [2, e[1]] },
       { A: [1, e[2]], B: [0, e[2]] },
     ]);
-    expect(Array.from(groupsAtBestAchievableBalance(metrics))).toEqual(['A', 'B']);
+    expect(groupsAtBest(metrics)).toEqual(['A', 'B']);
   });
 });
 

@@ -177,16 +177,12 @@ test.describe('UI Interactions', () => {
     await expect(rowsOfCondition('Training')).toHaveCount(6);
     await expect(rowsOfCondition('Control')).toHaveCount(4);
 
-    // The penalty column sums to 100 minus the plate balance score, which the note states.
-    // Each cell is rounded to one decimal, so the sum of the cells can differ from the total
-    // cell by up to 0.05 per row.
-    const penalties = await rows.locator('td:nth-child(5)').allTextContents();
-    const total = penalties.reduce((sum, penalty) => sum + Number(penalty), 0);
-    const totalCell = await modal.getByTestId('plate-group-total').locator('td:nth-child(2)').textContent();
-    expect(Math.abs(total - Number(totalCell)) <= 0.05 * NUM_COVARIATE_GROUPS).toBe(true);
-    // The header line shows the plate score the total penalty leads to
-    const balance = Math.round(100 - Number(totalCell));
-    await expect(modal.getByText(`${balance}.0`, { exact: true })).toBeVisible();
+    // Every group in this data splits evenly across the plates, so each penalty is 0 and the plate
+    // balance is 100
+    await expect(rows.locator('td:nth-child(5)')).toHaveText(new Array(NUM_COVARIATE_GROUPS).fill('0.0'));
+    await expect(modal.getByTestId('plate-group-total').locator('td:nth-child(2)')).toHaveText('0.0');
+    const balance = modal.locator('span', { has: page.locator('strong', { hasText: 'Balance:' }) });
+    await expect(balance).toHaveText('Balance: 100.0');
     await expect(modal.getByText('Plate balance = 100 - Total penalty, rounded and at least 0')).toBeVisible();
 
     // Close modal

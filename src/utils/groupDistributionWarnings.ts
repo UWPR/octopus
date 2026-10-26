@@ -132,22 +132,6 @@ export function groupBalanceDetails(metrics: QualityMetrics): Map<string, GroupB
   return details;
 }
 
-/** The observed mean of each group, from groupBalanceDetails. */
-export function aggregateObservedGroupBalance(metrics: QualityMetrics): Map<string, number> {
-  const means = new Map<string, number>();
-  groupBalanceDetails(metrics).forEach((detail, combination) => means.set(combination, detail.observedMean));
-  return means;
-}
-
-/** The groups at their best achievable balance, from groupBalanceDetails. */
-export function groupsAtBestAchievableBalance(metrics: QualityMetrics): Set<string> {
-  const best = new Set<string>();
-  groupBalanceDetails(metrics).forEach((detail, combination) => {
-    if (detail.atBest) best.add(combination);
-  });
-  return best;
-}
-
 // Tolerance for expected counts that are whole numbers up to floating-point error
 const COUNT_EPSILON = 1e-9;
 
