@@ -43,6 +43,9 @@ This opens the app at http://localhost:3000 with hot reload.
 ## Testing
 
 - `npm run typecheck` runs the TypeScript type check.
+- `npm run lint` runs ESLint with the rules in `package.json` plus the stricter rules in
+  `eslint-strict.json`, which check for unhandled promises and for mistakes in the
+  end-to-end tests. The dev server and editors use only the rules in `package.json`.
 - `npm run test:ci` runs the unit tests once, without the end-to-end tests.
 - `npx playwright test` runs the end-to-end tests in Google Chrome, which must be
   installed. It starts the dev server on port 3000, or uses one that is already running.
@@ -50,8 +53,9 @@ This opens the app at http://localhost:3000 with hot reload.
 Use `npm run test:ci` rather than `npm test`. `npm test` also picks up the end-to-end
 tests in `src/tests/e2e/`, which fail under the unit test runner.
 
-Every pull request runs `npm run typecheck` and `npm run test:ci` on GitHub, and the
-result is shown as a check on the pull request. The end-to-end tests do not run there.
+Every pull request runs `npm run typecheck`, `npm run lint` and `npm run test:ci` on
+GitHub, and the result is shown as a check on the pull request. A lint error fails the
+check, and a lint warning does not. The end-to-end tests do not run there.
 
 ## Hosted app and offline copy
 
@@ -86,7 +90,7 @@ clean checkout of `main`.
 - `npm start` runs the dev server at http://localhost:3000.
 - `npm run build` creates the production build in `build/`, to check a build locally.
 - `npm run build:singlefile` creates a single self-contained `build/octopus-<version>.html` that runs offline from a local file, with all JavaScript, CSS, icons, and the logo inlined.
-- `npm run typecheck` and `npm run test:ci` are described under Testing.
+- `npm run typecheck`, `npm run lint` and `npm run test:ci` are described under Testing.
 
 Octopus is a Create React App, so `npm run eject` (one-way config ejection) is also
 available. It is not recommended.
