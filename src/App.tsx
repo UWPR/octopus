@@ -251,7 +251,7 @@ const App: React.FC = () => {
   // Calculate quality metrics when randomization completes or plates change
   useEffect(() => {
     if (isProcessed && randomizedPlates.length > 0 && plateAssignments && selectedCovariates.length > 0) {
-      calculateMetrics(
+      void calculateMetrics(
         searches,
         randomizedPlates,
         plateAssignments,
