@@ -245,7 +245,7 @@ export function sortGroupsByDescendingSize(groups: SubjectGroup[]): SubjectGroup
 }
 
 // Each groupsFitRows call gives the recipe search at most ROW_FIT_ITERATION_LIMIT steps, and
-// assignGroupsToPlatesByRows undoes at most PLATE_ASSIGNMENT_BACKTRACK_LIMIT placements.
+// assignGroupsToPlatesWithBacktracking undoes at most PLATE_ASSIGNMENT_BACKTRACK_LIMIT placements.
 const ROW_FIT_ITERATION_LIMIT = 5_000;
 const PLATE_ASSIGNMENT_BACKTRACK_LIMIT = 2_000;
 
@@ -281,33 +281,36 @@ function groupsFitRows(groups: SubjectGroup[], rowCapacities: number[]): boolean
 }
 
 /**
- * Assigns the multi-sample groups to plates so that every plate can hold its groups in whole rows.
+ * Assigns the multi-sample groups to plates, backtracking when a group fits no plate.
  *
  * Takes the groups in the given order and tries the plates by most remaining capacity, then by
  * covariate balance, then at random, the same preference as the FFD loop in
- * distributeGroupsToPlates. A plate is skipped when groupsFitRows rejects its groups plus the new
- * one. When a group fits no plate, the search returns to the previous group and tries its next
- * plate. The search gives up after PLATE_ASSIGNMENT_BACKTRACK_LIMIT such returns. Of the plates in
- * the same state (remaining capacity, row capacities and group sizes) only the first is tried for
- * each group.
+ * distributeGroupsToPlates. With plateRowCapacities, a plate is also skipped when groupsFitRows
+ * rejects its groups plus the new one. Without them, remaining capacity is the only limit. When a
+ * group fits no plate, the search returns to the previous group and tries its next plate. The
+ * search gives up after PLATE_ASSIGNMENT_BACKTRACK_LIMIT such returns. Of the plates in the same
+ * state only the first is tried for each group. The state is the remaining capacity, plus the row
+ * capacities and group sizes when plateRowCapacities is set.
  *
  * On success fills plateAssignments, remainingCapacities and remainingRowSlots and returns true.
  * On failure leaves them unchanged and returns false.
  */
-function assignGroupsToPlatesByRows(
+function assignGroupsToPlatesWithBacktracking(
   sortedGroups: SubjectGroup[],
-  plateRowCapacities: number[][],
+  plateRowCapacities: number[][] | undefined,
   globalProportions: Map<string, number>,
   plateAssignments: Map<number, SubjectGroup[]>,
   remainingCapacities: number[],
   remainingRowSlots: number[] | undefined
 ): boolean {
   const plateState = (plateIdx: number, extra: SubjectGroup[] = []): string =>
+    plateRowCapacities === undefined ? '' :
     plateRowCapacities[plateIdx].join(',') + '|' +
     [...plateAssignments.get(plateIdx)!, ...extra].map(g => g.size).sort((a, b) => b - a).join(',');
 
   const fitCache = new Map<string, boolean>();
   const fitsRows = (plateIdx: number, group: SubjectGroup): boolean => {
+    if (plateRowCapacities === undefined) return true;
     const key = plateState(plateIdx, [group]);
     let fits = fitCache.get(key);
     if (fits === undefined) {
@@ -372,8 +375,9 @@ function assignGroupsToPlatesByRows(
  * @param groupingConstraint - The active constraint. Under Same Plate the error messages do not
  *   suggest switching to Same Plate.
  * @param plateRowCapacities - Optional row capacities of each plate after QC. When set, a plate
- *   accepts a multi-sample group only if all of its groups still fit into its rows, and the
- *   assignment backtracks when a group fits no plate (see assignGroupsToPlatesByRows).
+ *   accepts a multi-sample group only if all of its groups still fit into its rows. With row
+ *   capacities, or under Same Plate, the assignment backtracks when a group fits no plate (see
+ *   assignGroupsToPlatesWithBacktracking).
  * @returns Map from plate index to array of SubjectGroups assigned to that plate
  * @throws Error if a group cannot fit in any plate
  */
@@ -412,13 +416,17 @@ export function distributeGroupsToPlates(
     return plateAssignments.get(plateIdx)!.flatMap(g => g.samples);
   };
 
-  const placedByRows = plateRowCapacities !== undefined && assignGroupsToPlatesByRows(
-    sortedMultiGroups, plateRowCapacities, globalProportions, plateAssignments, remainingCapacities, remainingRowSlots
-  );
+  const placedWithBacktracking =
+    (plateRowCapacities !== undefined || groupingConstraint === 'same-plate') &&
+    assignGroupsToPlatesWithBacktracking(
+      sortedMultiGroups, plateRowCapacities, globalProportions, plateAssignments, remainingCapacities,
+      remainingRowSlots
+    );
 
-  // Place multi-sample groups using FFD. With row capacities this runs only when the row-aware
-  // assignment fails, so a request that has no layout gets the same error messages as before.
-  for (let gi = 0; !placedByRows && gi < sortedMultiGroups.length; gi++) {
+  // Place multi-sample groups using FFD. With row capacities or under Same Plate this runs only
+  // when the backtracking assignment fails, so a request that has no layout gets the same error
+  // messages as before.
+  for (let gi = 0; !placedWithBacktracking && gi < sortedMultiGroups.length; gi++) {
     const group = sortedMultiGroups[gi];
     // Find plates that can fit this group, sorted by remaining capacity descending
     const candidatePlates: { plateIdx: number; remaining: number }[] = [];

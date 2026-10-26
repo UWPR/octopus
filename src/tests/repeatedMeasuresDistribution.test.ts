@@ -2993,6 +2993,21 @@ describe('Subject-grouping feasibility', () => {
     expect(failures).toEqual([]);
   });
 
+  it('Same Plate splits subjects of 7, 7, 6, 6, 3, 3, 1 and 1 across three 2x7 plates with 7 QC', () => {
+    // The QC leave plates of 12, 12 and 11 wells. The only layouts are 6+6, 7+3+1+1 and 7+3, and
+    // placing the two 7s and the first 6 on separate plates leaves 5 wells on each for the other 6.
+    const sizes = [7, 7, 6, 6, 3, 3, 1, 1];
+    const samples = [
+      ...sizes.flatMap((size, i) => makeSubject(`S${i}`, size, i % 2 === 0 ? 'Placebo' : 'Drug')),
+      ...makeQc('QC', 7),
+    ];
+
+    const failures = collectFailures(50, () =>
+      groupAwareRandomization(samples, ['Treatment'], samePlate, false, 2, 7)
+    );
+    expect(failures).toEqual([]);
+  });
+
   // Two 4x6 plates with every row cut into subjects of 1 to 6 samples, so a Same Row layout exists.
   const filledTwoPlatesArb = fc.gen().map(gen => {
     const samples: SearchData[] = [];
