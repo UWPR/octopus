@@ -1,15 +1,13 @@
 import React from 'react';
 
-// Number of sparse groups named before the rest are counted
+// Number of groups named in a section before the rest are counted
 const MAX_NAMED_GROUPS = 5;
 
 interface DistributionWarningBannerProps {
   // 'error' when some group cannot reach every plate or row, 'warning' for balance only
   severity: 'error' | 'warning';
-  // One line per kind of problem, from the group distribution warnings. Empty shows nothing.
-  lines: string[];
-  // Groups too small to reach every plate, named smallest first
-  sparseGroups: { label: string; count: number }[];
+  // One section per kind of problem, its line and the groups it names. Empty shows nothing.
+  sections: { line: string; groups: string[] }[];
   testId: string;
   // When set, a button that opens the Covariate Summary
   onShowGroups?: () => void;
@@ -18,12 +16,12 @@ interface DistributionWarningBannerProps {
 /**
  * A banner for covariate groups that are spread poorly across the plates, shown where the user
  * works: before Generate below the configuration, and after Generate above the plates. Red for a
- * group that cannot reach every plate or row, amber for uneven balance only.
+ * group that cannot reach every plate or row, amber for uneven balance only. Each section is its
+ * line followed by a bulleted list of the groups it concerns.
  */
 const DistributionWarningBanner: React.FC<DistributionWarningBannerProps> = ({
   severity,
-  lines,
-  sparseGroups,
+  sections,
   testId,
   onShowGroups,
 }) => {
@@ -31,17 +29,12 @@ const DistributionWarningBanner: React.FC<DistributionWarningBannerProps> = ({
     ? { bg: '#fef2f2', border: '#fca5a5', accent: '#dc3545', text: '#991b1b' }
     : { bg: '#fffbeb', border: '#fde68a', accent: '#ff9800', text: '#92400e' };
 
-  const smallestFirst = [...sparseGroups].sort((a, b) => a.count - b.count || a.label.localeCompare(b.label));
-  const named = smallestFirst.slice(0, MAX_NAMED_GROUPS)
-    .map(group => `${group.label} (${group.count} ${group.count === 1 ? 'sample' : 'samples'})`);
-  const unnamed = smallestFirst.length - named.length;
-
   return (
     // Polite live region, not role="alert": the warnings change as the user edits the design. The
     // region is always rendered and only its content changes, since screen readers announce changes
     // to a live region that already exists, not one inserted with its text.
     <div role="status" aria-live="polite">
-      {lines.length > 0 && (
+      {sections.length > 0 && (
         <div
           data-testid={testId}
           data-severity={severity}
@@ -55,12 +48,21 @@ const DistributionWarningBanner: React.FC<DistributionWarningBannerProps> = ({
         >
           <span style={{ ...styles.icon, backgroundColor: palette.accent }} aria-hidden="true">!</span>
           <div style={styles.text}>
-            {lines.map((line, i) => <div key={i}>{line}</div>)}
-            {named.length > 0 && (
-              <div style={styles.groups}>
-                Smallest groups: {named.join(', ')}{unnamed > 0 ? `, and ${unnamed} more` : ''}
-              </div>
-            )}
+            {sections.map((section, i) => {
+              const named = section.groups.slice(0, MAX_NAMED_GROUPS);
+              const unnamed = section.groups.length - named.length;
+              return (
+                <div key={i}>
+                  <div>{section.line}</div>
+                  {named.length > 0 && (
+                    <ul style={styles.groups}>
+                      {named.map((group, j) => <li key={j}>{group}</li>)}
+                      {unnamed > 0 && <li>and {unnamed} more</li>}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
             {onShowGroups && (
               <button type="button" onClick={onShowGroups} style={{ ...styles.button, color: palette.text }}>
                 Show affected groups
@@ -102,6 +104,8 @@ const styles = {
     gap: '4px',
   },
   groups: {
+    margin: '2px 0 0',
+    paddingLeft: '20px',
     fontWeight: '600',
   },
   button: {

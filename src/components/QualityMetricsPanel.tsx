@@ -57,7 +57,6 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
               <div style={styles.compactSummarySection}>
                 <div style={styles.compactOverallScore}>
                   <div style={styles.compactScoreValue}>
-
                     <span style={{
                       ...styles.compactScore,
                       color: getQualityLevelColor(metrics.overallQuality.level)
@@ -66,7 +65,7 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                     </span>
                     <QualitySwatch color={getQualityLevelColor(metrics.overallQuality.level)} size={12} />
                   </div>
-
+                  <div style={styles.compactScoreLabel}>Overall</div>
                 </div>
                 <div style={styles.compactAverageScores}>
                   {numPlates > 1 && (
@@ -98,7 +97,11 @@ const QualityMetricsPanel: React.FC<QualityMetricsPanelProps> = ({
                 </div>
               </div>
 
-
+              <div style={styles.formula}>
+                {numPlates > 1
+                  ? 'Overall = (Balance + Clustering) / 2'
+                  : 'Overall = Clustering, since a single plate is always in balance'}
+              </div>
 
               {/* Individual Plate Scores */}
               <div style={styles.plateScoresSection}>
@@ -261,8 +264,8 @@ const styles = {
   },
   compactOverallScore: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
+    flexDirection: 'column' as const,
+    alignItems: 'flex-start',
   },
   compactScoreValue: {
     display: 'flex',
@@ -278,6 +281,12 @@ const styles = {
     fontSize: '11px',
     color: '#666',
     marginTop: '2px',
+  },
+  formula: {
+    fontFamily: 'monospace',
+    fontSize: '12px',
+    color: '#666',
+    marginBottom: '16px',
   },
 
   // Label, swatch and number columns, so the average rows line up whatever the label length

@@ -33,9 +33,9 @@ describe('App sparse group warnings', () => {
 
     // The leading ! is the banner icon, hidden from screen readers
     expect(screen.getByTestId('planned-coverage-banner').textContent).toBe(
-      '!With these covariates, 1 of the 3 treatment groups has fewer samples than the number of plates, ' +
+      '!With these covariates, 1 of the 3 covariate groups has fewer samples than the number of plates, ' +
       'so it cannot appear on every plate. Try selecting fewer covariates.' +
-      'Smallest groups: b | y (1 sample)'
+      'b | y (1 sample)'
     );
     expect(screen.getByRole('button', { name: 'Generate Randomized Plates' })).toBeEnabled();
   });
@@ -59,10 +59,10 @@ describe('App sparse group warnings', () => {
     expect(banner).toHaveAttribute('data-severity', 'error');
     // Checked line by line, since a balance line can follow, depending on the random placement
     expect(within(banner).getByText(
-      '1 of the treatment covariate groups is not represented on every plate. ' +
-      'Ideally, each plate should have at least one sample from every treatment covariate group.'
+      '1 of the covariate groups is not represented on every plate. ' +
+      'Ideally, each plate should have at least one sample from every covariate group.'
     )).toBeInTheDocument();
-    expect(within(banner).getByText('Smallest groups: b | y (1 sample)')).toBeInTheDocument();
+    expect(within(banner).getByRole('listitem')).toHaveTextContent('b | y (1 sample)');
 
     // The summary shows the same warnings, so the banner above the plates hides while it is open
     fireEvent.click(screen.getByRole('button', { name: 'Show affected groups' }));
