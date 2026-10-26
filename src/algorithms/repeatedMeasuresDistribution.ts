@@ -307,10 +307,18 @@ function assignGroupsToPlatesWithBacktracking(
     [...plateAssignments.get(plateIdx)!, ...(extra ? [extra] : [])].map(g => g.size).sort((a, b) => b - a).join(',');
   // Row capacities sorted, since plates that differ only in row order are interchangeable
   const sortedRowCapacities = plateRowCapacities?.map(caps => [...caps].sort((a, b) => a - b).join(','));
-  const plateState = (plateIdx: number): string =>
-    sortedRowCapacities === undefined
-      ? String(remainingCapacities[plateIdx])
-      : `${remainingCapacities[plateIdx]}|${sortedRowCapacities[plateIdx]}|${sizesOf(plateIdx)}`;
+  // Each plate's state string is kept until a group is added to or removed from the plate
+  const plateStates: (string | undefined)[] = new Array(plateCount);
+  const plateState = (plateIdx: number): string => {
+    let state = plateStates[plateIdx];
+    if (state === undefined) {
+      state = sortedRowCapacities === undefined
+        ? String(remainingCapacities[plateIdx])
+        : `${remainingCapacities[plateIdx]}|${sortedRowCapacities[plateIdx]}|${sizesOf(plateIdx)}`;
+      plateStates[plateIdx] = state;
+    }
+    return state;
+  };
   // Whether the remaining groups can be placed depends only on the next group and the plate states
   const searchState = (gi: number): string =>
     gi + '#' + Array.from({ length: plateCount }, (_, p) => plateState(p)).sort().join('#');
@@ -343,11 +351,13 @@ function assignGroupsToPlatesWithBacktracking(
     plateAssignments.get(plateIdx)!.push(sortedGroups[gi]);
     remainingCapacities[plateIdx] -= sortedGroups[gi].size;
     if (remainingRowSlots) remainingRowSlots[plateIdx] -= 1;
+    plateStates[plateIdx] = undefined;
   };
   const unassign = (gi: number, plateIdx: number) => {
     plateAssignments.get(plateIdx)!.pop();
     remainingCapacities[plateIdx] += sortedGroups[gi].size;
     if (remainingRowSlots) remainingRowSlots[plateIdx] += 1;
+    plateStates[plateIdx] = undefined;
   };
 
   // The plates that can take group gi in order of preference, one plate of each state
