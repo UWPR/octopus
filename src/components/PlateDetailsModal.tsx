@@ -229,7 +229,8 @@ const PlateDetailsModal: React.FC<PlateDetailsModalProps> = ({
                   return qcGroupLabel(label, isQc ? qcValue : undefined, qcColumn, selectedCovariates);
                 };
 
-                const showBalance = plateQuality !== undefined && numPlates > 1;
+                // A plate emptied by dragging its samples away has no group balance details
+                const showBalance = plateQuality !== undefined && numPlates > 1 && plateSamples.length > 0;
                 // Points each group takes off the plate's balance score. The plate score is 100
                 // minus the sum over every group, rounded, and 0 at the lowest.
                 const penaltyPoints = (weightedDeviation: number): number => weightedDeviation * 100;
@@ -497,7 +498,7 @@ const styles = {
     fontVariantNumeric: 'tabular-nums',
   },
   dimmedCell: {
-    color: '#999',
+    color: '#666',
   },
   selectedRow: {
     backgroundColor: '#e3f2fd',

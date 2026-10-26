@@ -244,4 +244,43 @@ describe('PlateDetailsModal penalty', () => {
     expect(bodyRows()).toEqual([['A', '6', '6'], ['B', '3', '3'], ['C', '1', '1']]);
     expect(screen.queryByTestId('plate-group-total')).not.toBeInTheDocument();
   });
+
+  it('shows only the count columns for a plate whose samples were all dragged to another plate', () => {
+    const emptied = new Map([[0, searches], [1, [] as SearchData[]]]);
+    const emptiedMetrics = calculatePlateDiversityMetrics(searches, emptied, [[searches], [[]]], COV);
+
+    render(
+      <PlateDetailsModal
+        {...baseProps}
+        plateIndex={1}
+        plateAssignments={emptied}
+        searches={searches}
+        selectedCovariates={COV}
+        plateQuality={emptiedMetrics.plateScores.find((score) => score.plateIndex === 1)}
+        numPlates={2}
+      />
+    );
+
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Group (Treatment)', 'Total samples', 'On plate']);
+    expect(bodyRows()).toEqual([['A', '6', '0'], ['B', '3', '0'], ['C', '1', '0']]);
+    expect(screen.queryByTestId('plate-group-total')).not.toBeInTheDocument();
+    expect(screen.queryByText('Plate balance = 100 - Total penalty, rounded and at least 0')).not.toBeInTheDocument();
+  });
+
+  it('shows a group absent from the plate in a gray with at least 4.5:1 contrast on white', () => {
+    render(
+      <PlateDetailsModal
+        {...baseProps}
+        plateAssignments={plateAssignments}
+        searches={searches}
+        selectedCovariates={COV}
+        plateQuality={metrics.plateScores[0]}
+        numPlates={2}
+      />
+    );
+
+    // C has no samples on plate 1. #666 is 5.7:1 on white.
+    const rowC = screen.getAllByTestId('plate-group-row')[2];
+    within(rowC).getAllByRole('cell').forEach((cell) => expect(cell).toHaveStyle({ color: '#666' }));
+  });
 });
