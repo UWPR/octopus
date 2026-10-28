@@ -16,8 +16,6 @@ interface ExcelExportOptions {
 }
 
 // Style constants
-const THIN_BORDER: Partial<ExcelJS.Border> = { style: 'thin' };
-
 const THIN_BLACK_BORDERS: Partial<ExcelJS.Borders> = {
   top: { style: 'thin' },
   left: { style: 'thin' },

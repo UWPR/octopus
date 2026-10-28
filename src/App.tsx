@@ -112,7 +112,6 @@ const App: React.FC = () => {
 
   // Drag and drop hook
   const {
-    draggedSearch,
     handleDragStart,
     handleDragOver,
     handleDrop,
@@ -121,12 +120,10 @@ const App: React.FC = () => {
   // Quality metrics hook
   const {
     metrics,
-    isCalculating,
     showMetrics,
     calculateMetrics,
     resetMetrics,
     toggleMetrics,
-    qualitySummary
   } = useQualityMetrics();
 
 
@@ -617,8 +614,8 @@ const App: React.FC = () => {
             naPolicy
           );
         }
-      } catch (err: any) {
-        setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
+      } catch (err) {
+        setRandomizationError((err instanceof Error && err.message) || 'An unexpected error occurred during randomization.');
       }
     }
   };
@@ -943,8 +940,8 @@ const App: React.FC = () => {
         // Clear highlighting since plate layout changed
         setSelectedCombination(null);
         setSelectedSubject(null);
-      } catch (err: any) {
-        setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
+      } catch (err) {
+        setRandomizationError((err instanceof Error && err.message) || 'An unexpected error occurred during randomization.');
       }
     }
   };
@@ -978,8 +975,8 @@ const App: React.FC = () => {
         // Clear highlighting since plate layout changed
         setSelectedCombination(null);
         setSelectedSubject(null);
-      } catch (err: any) {
-        setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
+      } catch (err) {
+        setRandomizationError((err instanceof Error && err.message) || 'An unexpected error occurred during randomization.');
       }
       // Quality metrics will be recalculated automatically via useEffect
     }

@@ -406,8 +406,9 @@ describe('Hamilton Apportionment - Regression: Unchanged Behavior', () => {
       for (const [key, size] of Object.entries(groupSizes)) {
         const p1 = result[0][key];
         const p2 = result[1][key];
-        // Both plates should get the same or +/-1 for each group
+        // Both plates should get the same or +/-1 for each group, and together hold all of it
         expect(Math.abs(p1 - p2)).toBeLessThanOrEqual(1);
+        expect(p1 + p2).toBe(size);
       }
     });
 

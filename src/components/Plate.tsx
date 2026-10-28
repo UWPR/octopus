@@ -175,7 +175,7 @@ const Plate: React.FC<PlateProps> = ({
       console.error(error);
       return null;
     }
-  }, [covariateColors, selectedCovariates, currentStyles.compactSearchIndicator, createSearchCellStyle, onDragStart]);
+  }, [covariateColors, currentStyles.compactSearchIndicator, createSearchCellStyle, onDragStart]);
 
   const renderFullCell = useCallback((search: SearchData, isHighlighted: boolean) => {
     if (!search.covariateKey) {
