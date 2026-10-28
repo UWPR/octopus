@@ -1,7 +1,5 @@
-import { test, expect } from '@playwright/test';
-import path from 'path';
+import { test, expect, Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
-import fs from 'fs';
 import {
   uploadConfigureAndRandomize,
   exportVia,
@@ -19,6 +17,7 @@ import {
  * 1. Sample positions (plate, row, column) match between browser and Excel
  * 2. Cell colors match between browser and Excel
  * 3. Legend sheet has correct covariate groups with exact sample counts
+ * 4. Sheet names, plate sheet titles and labels, and Sample Details rows are correct
  */
 
 // --- Color helpers ---
@@ -44,7 +43,7 @@ function normalizeColor(color: string): string {
 
 // --- Excel export helper ---
 
-async function exportAndSaveExcel(page: import('@playwright/test').Page, filename: string): Promise<string> {
+async function exportAndSaveExcel(page: Page, downloadPath: string): Promise<void> {
   await exportVia(page, 'Excel');
   await expect(page.getByText('Select Covariates for Excel Export')).toBeVisible();
 
@@ -52,13 +51,196 @@ async function exportAndSaveExcel(page: import('@playwright/test').Page, filenam
   await page.getByRole('button', { name: /Export.*selected/ }).click();
   const download = await downloadPromise;
 
-  const downloadPath = path.join(__dirname, filename);
   await download.saveAs(downloadPath);
-  return downloadPath;
 }
 
-function cleanupFile(filePath: string): void {
-  try { fs.unlinkSync(filePath); } catch { /* ignore */ }
+// --- Workbook readers ---
+
+interface SampleCell {
+  sampleId: string;
+  plateIndex: number;
+  rowIndex: number;
+  colIndex: number;
+}
+
+interface BrowserSample extends SampleCell {
+  backgroundColor: string;
+}
+
+interface ExcelSample extends SampleCell {
+  fillColor: string;
+}
+
+function getSheet(workbook: ExcelJS.Workbook, name: string): ExcelJS.Worksheet {
+  const sheet = workbook.getWorksheet(name);
+  if (!sheet) {
+    throw new Error(`The exported workbook has no "${name}" sheet.`);
+  }
+  return sheet;
+}
+
+/** Reads the sample name, well position and color of every occupied well on the plate sheets. */
+function readPlateSheets(workbook: ExcelJS.Workbook): ExcelSample[] {
+  const excelData: ExcelSample[] = [];
+
+  for (let plateIndex = 0; plateIndex < NUM_PLATES; plateIndex++) {
+    const sheet = getSheet(workbook, `Plate ${plateIndex + 1}`);
+
+    for (let rowIndex = 0; rowIndex < NUM_ROWS; rowIndex++) {
+      for (let colIndex = 0; colIndex < NUM_COLUMNS; colIndex++) {
+        // Sample name is in 2nd sub-row: Excel row = 3 + (rowIndex * 3) + 1
+        const sampleNameRow = 3 + (rowIndex * 3) + 1;
+        const sampleNameCell = sheet.getCell(sampleNameRow, colIndex + 2);
+        const sampleId = sampleNameCell.value?.toString()?.trim();
+        if (!sampleId) continue;
+
+        // Color is in 1st sub-row: Excel row = 3 + (rowIndex * 3)
+        const colorRow = 3 + (rowIndex * 3);
+        const colorCell = sheet.getCell(colorRow, colIndex + 2);
+        let fillColor = '';
+        const fill = colorCell.fill;
+        if (fill && fill.type === 'pattern') {
+          const patternFill = fill as ExcelJS.FillPattern;
+          if (patternFill.fgColor?.argb) {
+            fillColor = argbToRgb(patternFill.fgColor.argb);
+          }
+        }
+        // Outline case: color is in the border, not the fill
+        if (!fillColor && colorCell.border) {
+          const borderColor = colorCell.border.top?.color?.argb;
+          if (borderColor) {
+            fillColor = argbToRgb(borderColor);
+          }
+        }
+
+        excelData.push({ sampleId, plateIndex, rowIndex, colIndex, fillColor });
+      }
+    }
+  }
+
+  return excelData;
+}
+
+/** Lists the samples whose position or color differs between the browser and the Excel file. */
+function compareSamples(browserData: BrowserSample[], excelData: ExcelSample[]) {
+  const browserBySampleId = new Map(browserData.map(s => [s.sampleId, s]));
+  const excelBySampleId = new Map(excelData.map(s => [s.sampleId, s]));
+
+  const missingSamples: string[] = [];
+  const positionMismatches: string[] = [];
+  const colorMismatches: string[] = [];
+  const missingBrowserColor: string[] = [];
+  const missingExcelColor: string[] = [];
+
+  for (const sampleId of Array.from(browserBySampleId.keys())) {
+    const browser = browserBySampleId.get(sampleId)!;
+    const excel = excelBySampleId.get(sampleId);
+
+    if (!excel) {
+      missingSamples.push(sampleId);
+      continue;
+    }
+
+    if (browser.plateIndex !== excel.plateIndex ||
+        browser.rowIndex !== excel.rowIndex ||
+        browser.colIndex !== excel.colIndex) {
+      positionMismatches.push(
+        `${sampleId}: browser(P${browser.plateIndex + 1},R${browser.rowIndex},C${browser.colIndex}) vs excel(P${excel.plateIndex + 1},R${excel.rowIndex},C${excel.colIndex})`
+      );
+    }
+
+    const browserColor = normalizeColor(browser.backgroundColor);
+    const excelColor = normalizeColor(excel.fillColor);
+
+    // Every sample must have a color in both browser and Excel
+    if (!browserColor) missingBrowserColor.push(sampleId);
+    if (!excelColor) missingExcelColor.push(sampleId);
+
+    if (browserColor && excelColor && browserColor !== excelColor) {
+      colorMismatches.push(`${sampleId}: browser(${browserColor}) vs excel(${excelColor})`);
+    }
+  }
+
+  return { missingSamples, positionMismatches, missingBrowserColor, missingExcelColor, colorMismatches };
+}
+
+/** Finds the header row of the Legend sheet and maps each header name to its column. */
+function readLegendHeader(legendSheet: ExcelJS.Worksheet) {
+  // Find the header row dynamically (contains "Condition" in some cell)
+  // Use columnCount instead of cellCount - cellCount can be unreliable after merges
+  const maxCol = legendSheet.columnCount || 20;
+  let headerRowNum = -1;
+  for (let r = 1; r <= legendSheet.rowCount; r++) {
+    for (let c = 1; c <= maxCol; c++) {
+      if (legendSheet.getCell(r, c).value === 'Condition') {
+        headerRowNum = r;
+        break;
+      }
+    }
+    if (headerRowNum > 0) break;
+  }
+
+  // Determine column indices from the header row
+  const colIndex: Record<string, number> = {};
+  for (let c = 1; c <= maxCol && headerRowNum > 0; c++) {
+    const val = legendSheet.getCell(headerRowNum, c).value?.toString();
+    if (val) colIndex[val] = c;
+  }
+
+  return { headerRowNum, colIndex };
+}
+
+/** Reads the total and per-plate counts of each covariate group from the Legend rows below the header. */
+function readLegendCounts(legendSheet: ExcelJS.Worksheet, headerRowNum: number, colIndex: Record<string, number>) {
+  const actualGroups: Record<string, number> = {};
+  const perPlateGroups: Record<string, number[]> = {};
+
+  for (let rowNum = headerRowNum + 1; rowNum <= legendSheet.rowCount; rowNum++) {
+    const row = legendSheet.getRow(rowNum);
+    const total = row.getCell(colIndex['Total']).value;
+    if (!total || typeof total !== 'number') continue;
+
+    const condition = row.getCell(colIndex['Condition']).value?.toString() || '';
+    const dose = row.getCell(colIndex['Radiaion Dose_cGy']).value?.toString() || '';
+    const focusArea = row.getCell(colIndex['Focus Area']).value?.toString() || '';
+    const key = `${condition}|${dose}|${focusArea}`;
+
+    actualGroups[key] = total;
+
+    // Collect per-plate counts
+    const plateCounts: number[] = [];
+    for (let p = 0; p < NUM_PLATES; p++) {
+      const plateCount = row.getCell(colIndex[`Plate ${p + 1}`]).value;
+      plateCounts.push(typeof plateCount === 'number' ? plateCount : 0);
+    }
+    perPlateGroups[key] = plateCounts;
+  }
+
+  return { actualGroups, perPlateGroups };
+}
+
+/** Counts the sample rows of the Sample Details sheet and lists the rows with an invalid plate or well. */
+function readSampleDetails(detailsSheet: ExcelJS.Worksheet) {
+  let sampleCount = 0;
+  const invalidPlates: string[] = [];
+  const invalidWells: string[] = [];
+  for (let rowNum = 2; rowNum <= detailsSheet.rowCount; rowNum++) {
+    const row = detailsSheet.getRow(rowNum);
+    const sampleName = row.getCell(1).value?.toString();
+    if (!sampleName) continue;
+    sampleCount++;
+
+    const plate = row.getCell(2).value;
+    if (typeof plate !== 'number' || plate < 1 || plate > NUM_PLATES) {
+      invalidPlates.push(`${sampleName}: plate=${plate}`);
+    }
+
+    const well = row.getCell(3).value?.toString() || '';
+    if (!/^[A-H](0[1-9]|1[0-2])$/.test(well)) {
+      invalidWells.push(`${sampleName}: well=${well}`);
+    }
+  }
+  return { sampleCount, invalidPlates, invalidWells };
 }
 
 // --- Tests ---
@@ -69,16 +251,17 @@ test.describe('Export Fidelity', () => {
     await expect(page.getByRole('heading', { name: 'Octopus' })).toBeVisible();
   });
 
-  test('Excel export matches browser plate layout', async ({ page }) => {
+  test('Excel export matches browser plate layout', async ({ page }, testInfo) => {
     await uploadConfigureAndRandomize(page);
 
     // Switch to full-size view to read sample names from DOM
     await page.getByRole('button', { name: 'Full Size View' }).click();
-    await page.waitForTimeout(1000);
+    // Wait for the full-size cards, which show the sample name in an h3
+    await expect(page.locator('[draggable="true"] h3').first()).toBeVisible();
 
     // Scrape sample data from browser
     const browserData = await page.evaluate(() => {
-      const samples: { sampleId: string; plateIndex: number; rowIndex: number; colIndex: number; backgroundColor: string }[] = [];
+      const samples: BrowserSample[] = [];
 
       const allDraggables = Array.from(document.querySelectorAll('[draggable="true"]'));
 
@@ -153,95 +336,23 @@ test.describe('Export Fidelity', () => {
       return samples;
     });
 
-    expect(browserData.length).toBe(TOTAL_SAMPLES);
+    expect(browserData).toHaveLength(TOTAL_SAMPLES);
 
     // Export to Excel
-    const downloadPath = await exportAndSaveExcel(page, 'temp-export.xlsx');
+    const downloadPath = testInfo.outputPath('export.xlsx');
+    await exportAndSaveExcel(page, downloadPath);
 
     // Parse Excel
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(downloadPath);
 
-    const excelData: { sampleId: string; plateIndex: number; rowIndex: number; colIndex: number; fillColor: string }[] = [];
+    const excelData = readPlateSheets(workbook);
 
-    for (let plateIndex = 0; plateIndex < NUM_PLATES; plateIndex++) {
-      const sheet = workbook.getWorksheet(`Plate ${plateIndex + 1}`);
-      expect(sheet).toBeTruthy();
-      if (!sheet) continue;
+    expect(excelData).toHaveLength(TOTAL_SAMPLES);
 
-      for (let rowIndex = 0; rowIndex < NUM_ROWS; rowIndex++) {
-        for (let colIndex = 0; colIndex < NUM_COLUMNS; colIndex++) {
-          // Sample name is in 2nd sub-row: Excel row = 3 + (rowIndex * 3) + 1
-          const sampleNameRow = 3 + (rowIndex * 3) + 1;
-          const sampleNameCell = sheet.getCell(sampleNameRow, colIndex + 2);
-          const sampleId = sampleNameCell.value?.toString()?.trim();
-          if (!sampleId) continue;
-
-          // Color is in 1st sub-row: Excel row = 3 + (rowIndex * 3)
-          const colorRow = 3 + (rowIndex * 3);
-          const colorCell = sheet.getCell(colorRow, colIndex + 2);
-          let fillColor = '';
-          const fill = colorCell.fill;
-          if (fill && fill.type === 'pattern') {
-            const patternFill = fill as ExcelJS.FillPattern;
-            if (patternFill.fgColor?.argb) {
-              fillColor = argbToRgb(patternFill.fgColor.argb);
-            }
-          }
-          // Outline case: color is in the border, not the fill
-          if (!fillColor && colorCell.border) {
-            const borderColor = (colorCell.border.top as any)?.color?.argb;
-            if (borderColor) {
-              fillColor = argbToRgb(borderColor);
-            }
-          }
-
-          excelData.push({ sampleId, plateIndex, rowIndex, colIndex, fillColor });
-        }
-      }
-    }
-
-    expect(excelData.length).toBe(TOTAL_SAMPLES);
-
-    // Compare: every sample must match position exactly
-    const browserBySampleId = new Map(browserData.map(s => [s.sampleId, s]));
-    const excelBySampleId = new Map(excelData.map(s => [s.sampleId, s]));
-
-    // All browser samples must exist in Excel with matching positions and colors
-    const missingSamples: string[] = [];
-    const positionMismatches: string[] = [];
-    const colorMismatches: string[] = [];
-    const missingBrowserColor: string[] = [];
-    const missingExcelColor: string[] = [];
-
-    for (const sampleId of Array.from(browserBySampleId.keys())) {
-      const browser = browserBySampleId.get(sampleId)!;
-      const excel = excelBySampleId.get(sampleId);
-
-      if (!excel) {
-        missingSamples.push(sampleId);
-        continue;
-      }
-
-      if (browser.plateIndex !== excel.plateIndex ||
-          browser.rowIndex !== excel.rowIndex ||
-          browser.colIndex !== excel.colIndex) {
-        positionMismatches.push(
-          `${sampleId}: browser(P${browser.plateIndex + 1},R${browser.rowIndex},C${browser.colIndex}) vs excel(P${excel.plateIndex + 1},R${excel.rowIndex},C${excel.colIndex})`
-        );
-      }
-
-      const browserColor = normalizeColor(browser.backgroundColor);
-      const excelColor = normalizeColor(excel.fillColor);
-
-      // Every sample must have a color in both browser and Excel
-      if (!browserColor) missingBrowserColor.push(sampleId);
-      if (!excelColor) missingExcelColor.push(sampleId);
-
-      if (browserColor && excelColor && browserColor !== excelColor) {
-        colorMismatches.push(`${sampleId}: browser(${browserColor}) vs excel(${excelColor})`);
-      }
-    }
+    // Compare: every sample must match position and color exactly
+    const { missingSamples, positionMismatches, missingBrowserColor, missingExcelColor, colorMismatches } =
+      compareSamples(browserData, excelData);
 
     // Zero tolerance on all checks
     expect(missingSamples).toEqual([]);
@@ -249,43 +360,20 @@ test.describe('Export Fidelity', () => {
     expect(missingBrowserColor).toEqual([]);
     expect(missingExcelColor).toEqual([]);
     expect(colorMismatches).toEqual([]);
-
-    cleanupFile(downloadPath);
   });
 
-  test('Excel legend sheet has correct covariate groups and counts', async ({ page }) => {
+  test('Excel legend sheet has correct covariate groups and counts', async ({ page }, testInfo) => {
     await uploadConfigureAndRandomize(page);
 
-    const downloadPath = await exportAndSaveExcel(page, 'temp-legend-export.xlsx');
+    const downloadPath = testInfo.outputPath('export.xlsx');
+    await exportAndSaveExcel(page, downloadPath);
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(downloadPath);
 
-    const legendSheet = workbook.getWorksheet('Legend');
-    expect(legendSheet).toBeTruthy();
-    if (!legendSheet) return;
-
-    // Find the header row dynamically (contains "Condition" in some cell)
-    // Use columnCount instead of cellCount — cellCount can be unreliable after merges
-    const maxCol = legendSheet.columnCount || 20;
-    let headerRowNum = -1;
-    for (let r = 1; r <= legendSheet.rowCount; r++) {
-      for (let c = 1; c <= maxCol; c++) {
-        if (legendSheet.getCell(r, c).value === 'Condition') {
-          headerRowNum = r;
-          break;
-        }
-      }
-      if (headerRowNum > 0) break;
-    }
+    const legendSheet = getSheet(workbook, 'Legend');
+    const { headerRowNum, colIndex } = readLegendHeader(legendSheet);
     expect(headerRowNum).toBeGreaterThan(0);
-
-    // Determine column indices from the header row
-    const colIndex: Record<string, number> = {};
-    for (let c = 1; c <= maxCol; c++) {
-      const val = legendSheet.getCell(headerRowNum, c).value?.toString();
-      if (val) colIndex[val] = c;
-    }
 
     // Verify exact header columns exist
     expect(colIndex['Condition']).toBeDefined();
@@ -296,32 +384,8 @@ test.describe('Export Fidelity', () => {
     expect(colIndex['Plate 2']).toBeDefined();
     expect(colIndex['Plate 3']).toBeDefined();
 
-    // Parse data rows and verify exact covariate key → count mapping
-    const actualGroups: Record<string, number> = {};
-    const perPlateGroups: Record<string, number[]> = {};
-
-    for (let rowNum = headerRowNum + 1; rowNum <= legendSheet.rowCount; rowNum++) {
-      const row = legendSheet.getRow(rowNum);
-      const total = row.getCell(colIndex['Total']).value;
-      if (!total || typeof total !== 'number') continue;
-
-      const condition = row.getCell(colIndex['Condition']).value?.toString() || '';
-      const dose = row.getCell(colIndex['Radiaion Dose_cGy']).value?.toString() || '';
-      const focusArea = row.getCell(colIndex['Focus Area']).value?.toString() || '';
-      const key = `${condition}|${dose}|${focusArea}`;
-
-      actualGroups[key] = total;
-
-      // Collect per-plate counts
-      const plateCounts: number[] = [];
-      for (let p = 0; p < NUM_PLATES; p++) {
-        const plateCount = row.getCell(colIndex[`Plate ${p + 1}`]).value;
-        plateCounts.push(typeof plateCount === 'number' ? plateCount : 0);
-      }
-      perPlateGroups[key] = plateCounts;
-    }
-
     // Verify exact group counts match expected
+    const { actualGroups, perPlateGroups } = readLegendCounts(legendSheet, headerRowNum, colIndex);
     expect(actualGroups).toEqual(EXPECTED_GROUPS);
 
     // Verify per-plate counts sum to total for each group
@@ -334,14 +398,13 @@ test.describe('Export Fidelity', () => {
     // Verify overall total
     const grandTotal = Object.values(actualGroups).reduce((sum, c) => sum + c, 0);
     expect(grandTotal).toBe(TOTAL_SAMPLES);
-
-    cleanupFile(downloadPath);
   });
 
-  test('Excel has correct sheet structure', async ({ page }) => {
+  test('Excel has correct sheet structure', async ({ page }, testInfo) => {
     await uploadConfigureAndRandomize(page);
 
-    const downloadPath = await exportAndSaveExcel(page, 'temp-structure-export.xlsx');
+    const downloadPath = testInfo.outputPath('export.xlsx');
+    await exportAndSaveExcel(page, downloadPath);
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(downloadPath);
@@ -352,9 +415,7 @@ test.describe('Export Fidelity', () => {
 
     // Verify each plate sheet has correct structure
     for (let i = 0; i < NUM_PLATES; i++) {
-      const sheet = workbook.getWorksheet(`Plate ${i + 1}`);
-      expect(sheet).toBeTruthy();
-      if (!sheet) continue;
+      const sheet = getSheet(workbook, `Plate ${i + 1}`);
 
       // Row 1: Title
       expect(sheet.getCell(1, 1).value).toBe(`Plate ${i + 1}`);
@@ -372,53 +433,21 @@ test.describe('Export Fidelity', () => {
     }
 
     // Verify Sample Details sheet has correct headers and all 288 samples
-    const detailsSheet = workbook.getWorksheet('Sample Details');
-    expect(detailsSheet).toBeTruthy();
-    if (detailsSheet) {
-      // Verify header row has the expected columns
-      // Headers: Sample Name, Plate, Well, Color, then treatment covariates, then other covariates
-      expect(detailsSheet.getCell(1, 1).value).toBe('Sample Name');
-      expect(detailsSheet.getCell(1, 2).value).toBe('Plate');
-      expect(detailsSheet.getCell(1, 3).value).toBe('Well');
-      expect(detailsSheet.getCell(1, 4).value).toBe('Color');
+    const detailsSheet = getSheet(workbook, 'Sample Details');
+    // Verify header row has the expected columns
+    // Headers: Sample Name, Plate, Well, Color, then treatment covariates, then other covariates
+    expect(detailsSheet.getCell(1, 1).value).toBe('Sample Name');
+    expect(detailsSheet.getCell(1, 2).value).toBe('Plate');
+    expect(detailsSheet.getCell(1, 3).value).toBe('Well');
+    expect(detailsSheet.getCell(1, 4).value).toBe('Color');
 
-      // Count data rows (skip header row)
-      let sampleCount = 0;
-      for (let rowNum = 2; rowNum <= detailsSheet.rowCount; rowNum++) {
-        const row = detailsSheet.getRow(rowNum);
-        if (row.getCell(1).value) sampleCount++;
-      }
-      expect(sampleCount).toBe(TOTAL_SAMPLES);
-
-      // Verify every sample has a Plate number (1-3) and a Well position (e.g. A01)
-      const invalidPlates: string[] = [];
-      const invalidWells: string[] = [];
-      for (let rowNum = 2; rowNum <= detailsSheet.rowCount; rowNum++) {
-        const row = detailsSheet.getRow(rowNum);
-        const sampleName = row.getCell(1).value?.toString();
-        if (!sampleName) continue;
-
-        const plate = row.getCell(2).value;
-        if (typeof plate !== 'number' || plate < 1 || plate > NUM_PLATES) {
-          invalidPlates.push(`${sampleName}: plate=${plate}`);
-        }
-
-        const well = row.getCell(3).value?.toString() || '';
-        if (!/^[A-H](0[1-9]|1[0-2])$/.test(well)) {
-          invalidWells.push(`${sampleName}: well=${well}`);
-        }
-      }
-      expect(invalidPlates).toEqual([]);
-      expect(invalidWells).toEqual([]);
-    }
+    // Every sample has a Plate number (1-3) and a Well position (e.g. A01)
+    const { sampleCount, invalidPlates, invalidWells } = readSampleDetails(detailsSheet);
+    expect(sampleCount).toBe(TOTAL_SAMPLES);
+    expect(invalidPlates).toEqual([]);
+    expect(invalidWells).toEqual([]);
 
     // Verify Legend sheet has "Color Legend" title
-    const legendSheet = workbook.getWorksheet('Legend');
-    expect(legendSheet).toBeTruthy();
-    if (legendSheet) {
-      expect(legendSheet.getCell(1, 1).value).toBe('Color Legend');
-    }
-
-    cleanupFile(downloadPath);
+    expect(getSheet(workbook, 'Legend').getCell(1, 1).value).toBe('Color Legend');
   });
 });

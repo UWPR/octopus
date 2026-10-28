@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
-import { getAllPlateFingerprints, uploadConfigureAndRandomize, openExportMenu, exportVia, EXPECTED_GROUPS, NUM_COVARIATE_GROUPS } from './helpers';
+import { getAllPlateFingerprints, getPlateFingerprint, uploadConfigureAndRandomize, openExportMenu, exportVia, EXPECTED_GROUPS, NUM_COVARIATE_GROUPS } from './helpers';
 
 /**
  * E2E Happy Path Tests
@@ -48,7 +48,6 @@ test.describe('Happy Path Workflow', () => {
     const generateButton = page.getByRole('button', { name: 'Generate Randomized Plates' });
     await expect(generateButton).toBeEnabled();
     await generateButton.click();
-    await page.waitForTimeout(2000);
 
     // Step 4: Verify results - plates, quality, buttons
     await expect(page.getByText('Plate 1')).toBeVisible();
@@ -68,7 +67,7 @@ test.describe('Happy Path Workflow', () => {
     await page.locator('button[title="Show plate details"]').first().click();
     await expect(page.getByText('Plate 1 Details')).toBeVisible();
     await page.getByRole('button', { name: '×' }).first().click();
-    await expect(page.getByText('Plate 1 Details')).not.toBeVisible();
+    await expect(page.getByText('Plate 1 Details')).toBeHidden();
 
     // Step 6: CSV export produces correct filename
     await openExportMenu(page);
@@ -90,7 +89,7 @@ test.describe('Happy Path Workflow', () => {
     await page.getByRole('button', { name: /Export.*selected/ }).click();
     const excelDownload = await excelDownloadPromise;
     expect(excelDownload.suggestedFilename()).toMatch(/e2e-sample-small_octopus_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.xlsx$/);
-    await expect(page.getByText('Select Covariates for Excel Export')).not.toBeVisible();
+    await expect(page.getByText('Select Covariates for Excel Export')).toBeHidden();
   });
 
   test('re-randomization generates different layout', async ({ page }) => {
@@ -100,7 +99,7 @@ test.describe('Happy Path Workflow', () => {
     expect(fingerprintsBefore[0].length).toBeGreaterThan(0);
 
     await page.getByRole('button', { name: 'Re-randomize' }).click();
-    await page.waitForTimeout(2000);
+    await expect.poll(() => getAllPlateFingerprints(page, 3)).not.toEqual(fingerprintsBefore);
 
     const fingerprintsAfter = await getAllPlateFingerprints(page, 3);
     expect(fingerprintsAfter[0].length).toBeGreaterThan(0);
@@ -118,7 +117,7 @@ test.describe('Happy Path Workflow', () => {
 
     // Re-randomize only Plate 1
     await page.locator('button[title="Re-randomize this plate"]').first().click();
-    await page.waitForTimeout(1000);
+    await expect.poll(() => getPlateFingerprint(page, 0)).not.toBe(fingerprintsBefore[0]);
 
     const fingerprintsAfter = await getAllPlateFingerprints(page, 3);
 
@@ -175,7 +174,7 @@ test.describe('Happy Path Workflow', () => {
     });
 
     // Exact expected covariate groups and sample counts
-    expect(summaryCards.length).toBe(NUM_COVARIATE_GROUPS);
+    expect(summaryCards).toHaveLength(NUM_COVARIATE_GROUPS);
 
     const actualGroups: Record<string, number> = {};
     summaryCards.forEach(card => { actualGroups[card.key] = card.count; });
@@ -187,7 +186,7 @@ test.describe('Happy Path Workflow', () => {
     // Close summary and verify content is removed from DOM
     await page.getByRole('button', { name: /Hide.*Covariate Summary/ }).click();
     await expect(page.getByRole('button', { name: /Show.*Covariate Summary/ })).toBeVisible();
-    await expect(page.getByText('Covariates:', { exact: true })).not.toBeVisible();
+    await expect(page.getByText('Covariates:', { exact: true })).toBeHidden();
   });
 
   test('quality metrics modal displays per-plate scores', async ({ page }) => {
@@ -212,6 +211,6 @@ test.describe('Happy Path Workflow', () => {
 
     // Close modal and verify it's gone
     await page.getByRole('button', { name: '×' }).first().click();
-    await expect(page.getByText('Quality Assessment')).not.toBeVisible();
+    await expect(page.getByText('Quality Assessment')).toBeHidden();
   });
 });

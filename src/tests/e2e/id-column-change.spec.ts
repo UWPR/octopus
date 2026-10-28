@@ -30,10 +30,10 @@ test.describe('ID column change', () => {
     await expect(page.getByText('Grouping Constraint:')).toBeVisible();
 
     await page.locator('#idColumn').selectOption('Cond');
-    await expect(page.getByText('Selected:')).not.toBeVisible();
+    await expect(page.getByText('Selected:')).toBeHidden();
 
     await page.locator('#idColumn').selectOption('Subj');
-    await expect(page.getByText('Grouping Constraint:')).not.toBeVisible();
+    await expect(page.getByText('Grouping Constraint:')).toBeHidden();
 
     // Choosing the original ID column again makes Cond and Subj selectable, so a stale selection
     // would show here.
@@ -42,7 +42,7 @@ test.describe('ID column change', () => {
     await expect(page.locator('#qcColumn')).toHaveValue('');
     await expect(page.getByRole('checkbox', { name: 'p', exact: true })).toHaveCount(0);
     await expect(page.locator('#subjectColumn')).toHaveValue('');
-    await expect(page.getByText('Grouping Constraint:')).not.toBeVisible();
+    await expect(page.getByText('Grouping Constraint:')).toBeHidden();
 
     // The design still generates with a remaining column as the covariate.
     await page.locator('#covariates').selectOption(['Other']);

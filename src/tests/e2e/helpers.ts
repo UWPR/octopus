@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 import path from 'path';
 
 /**
@@ -78,6 +78,9 @@ export async function uploadAndConfigure(page: Page): Promise<void> {
   const testFilePath = path.join(__dirname, '../../../test-data/e2e-sample-small.csv');
   // Target the sample-upload input specifically (the Load Layout input is also a file input).
   await page.locator('#file-upload').setInputFiles(testFilePath);
+  // Wait for the file to load. Loading clears the configuration, and a previously loaded file with
+  // the same columns would let the selections below land before that reset.
+  await expect(page.getByText(/e2e-sample-small\.csv/)).toBeVisible();
 
   await page.locator('#qcColumn').selectOption('Condition');
   await page.getByRole('checkbox', { name: 'BatchQC' }).check();
@@ -91,7 +94,7 @@ export async function uploadAndConfigure(page: Page): Promise<void> {
 export async function uploadConfigureAndRandomize(page: Page): Promise<void> {
   await uploadAndConfigure(page);
   await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
-  await page.waitForTimeout(2000);
+  await expect(page.getByTestId('plate-grid-0')).toBeVisible();
 }
 
 /** Export/save actions live behind the single "Export" menu button. */
