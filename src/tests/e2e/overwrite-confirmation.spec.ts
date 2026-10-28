@@ -34,7 +34,7 @@ test.describe('Overwrite confirmation on new file / layout', () => {
     await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
     await expect(page.getByText('Plate 1')).toBeVisible();
     await expect(page.getByText(/e2e-sample-small\.csv/)).toBeVisible();
-    await expect(page.getByText(/672 samples/)).not.toBeVisible();
+    await expect(page.getByText(/672 samples/)).toBeHidden();
   });
 
   test('Choose File over a design prompts, and confirming clears and loads the new file', async ({ page }) => {
@@ -45,7 +45,7 @@ test.describe('Overwrite confirmation on new file / layout', () => {
     await page.locator('#file-upload').setInputFiles(OTHER_CSV);
 
     // The old design is gone; the new file is loaded but not yet randomized.
-    await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeHidden();
     await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeVisible();
     await expect(page.getByText(/e2e-sample-full\.csv/)).toBeVisible();
     await expect(page.getByText(/672 samples/)).toBeVisible();
@@ -61,7 +61,7 @@ test.describe('Overwrite confirmation on new file / layout', () => {
     await page.locator('#layout-upload').setInputFiles(OTHER_CSV);
 
     await expect(page.getByText(/not a saved Octopus layout/)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
-    await expect(page.getByText('Plate 1')).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeHidden();
+    await expect(page.getByText('Plate 1')).toBeHidden();
   });
 });

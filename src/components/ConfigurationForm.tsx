@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faRectangleList, faFileLines } from '@fortawesome/free-regular-svg-icons';
-import { RandomizationAlgorithm, getAlgorithmName, getAlgorithmDescription, getAlgorithmsInDisplayOrder, GroupingConstraint, GroupValidationResult, SubjectGroup, NaPolicy } from '../utils/types';
+import { RandomizationAlgorithm, getAlgorithmName, getAlgorithmDescription, getAlgorithmsInDisplayOrder, GroupingConstraint, GroupValidationResult, SubjectGroup, NaPolicy, SearchData } from '../utils/types';
 import { NaDetectionResult } from '../utils/utils';
 
 interface ConfigurationFormProps {
@@ -10,7 +10,7 @@ interface ConfigurationFormProps {
   isLayoutFile: boolean;
   selectedIdColumn: string;
   onIdColumnChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
-  searches: any[];
+  searches: SearchData[];
   selectedCovariates: string[];
   onCovariateChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
   qcColumn: string;
@@ -47,11 +47,11 @@ const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   searches,
   selectedCovariates,
   onCovariateChange,
-  qcColumn: qcColumn,
-  onQcColumnChange: onQcColumnChange,
-  qcColumnValues: qcColumnValues,
-  selectedQcValues: selectedQcValues,
-  onQcValueToggle: onQcValueToggle,
+  qcColumn,
+  onQcColumnChange,
+  qcColumnValues,
+  selectedQcValues,
+  onQcValueToggle,
   naDetection,
   naPolicy,
   onNaPolicyToggle,

@@ -1,5 +1,5 @@
 import * as fc from 'fast-check';
-import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization, covariateImbalanceScore, computeGlobalProportions, distributeQcByCovariate, PackingError } from '../algorithms/repeatedMeasuresDistribution';
+import { buildSubjectGroups, validateSubjectGroups, distributeGroupsToPlates, distributeGroupsToRows, groupAwareRandomization, covariateImbalanceScore, distributeQcByCovariate, PackingError } from '../algorithms/repeatedMeasuresDistribution';
 import { SearchData, SubjectGroup, RepeatedMeasuresConfig } from '../utils/types';
 
 // Helper: create a sample with a subject column value
@@ -1626,8 +1626,8 @@ describe('Bug Condition Exploration: Greedy FFD fails on valid packings', () => 
       try {
         const result = distributeGroupsToRows(groups, rowCapacities, DRUG_PLACEBO_PROPORTIONS);
         assertValidDistribution(groups, rowCapacities, result);
-      } catch (e: any) {
-        failures.push(`Run ${i + 1}: ${e.message}`);
+      } catch (e) {
+        failures.push(`Run ${i + 1}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
@@ -2707,10 +2707,7 @@ describe('Edge case: plate-level packing failure (edge-case-plate-infeasible)', 
     const result = groupAwareRandomization(samples, ['Treatment'], config, false, 3, 12);
     expect(result.plates.length).toBe(2);
 
-    let totalPlaced = 0;
-    for (const plate of result.plates) {
-      plate.forEach(row => row.forEach(cell => { if (cell) totalPlaced++; }));
-    }
+    const totalPlaced = result.plates.flat(2).filter(Boolean).length;
     expect(totalPlaced).toBe(47);
   });
 

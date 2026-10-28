@@ -1,4 +1,4 @@
-import { ALGORITHM_CONFIG, QUALITY_LEVEL_CONFIG, QualityLevel, isDeveloperMode } from './configs';
+import { ALGORITHM_CONFIG, QualityLevel, isDeveloperMode } from './configs';
 
 // Block types for distribution algorithms
 export enum BlockType {

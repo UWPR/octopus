@@ -1,6 +1,6 @@
 name: CI
 
-# Runs the type check and the unit tests on every pull request and on every push to main.
+# Runs the type check, the lint and the unit tests on every pull request and on every push to main.
 # The Playwright end-to-end tests are not run here.
 on:
   # Merges and direct pushes to main.
@@ -31,6 +31,9 @@ jobs:
 
       - name: Type check
         run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
 
       - name: Unit tests
         run: npm run test:ci

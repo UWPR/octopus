@@ -239,9 +239,20 @@ describe('sequenceExport - unit tests', () => {
         totalSampleCount: 1,
       };
       const csv = formatThermoCSV(sequence);
-      const lines = csv.split('\n');
-      // The quoted field spans the newline, so splitting on \n gives us the first part
-      expect(csv).toContain('"line1\nline2"');
+      expect(csv).toBe('Bracket Type=4,,,,\nFile Name,Path,Instrument Method,Position,Inj Vol\n"line1\nline2",D:\\Data,C:\\m.meth,B:A1,3');
+    });
+
+    it('quotes fields containing carriage returns', () => {
+      const sequence: GeneratedSequence = {
+        rows: [
+          { fileName: 'line1\rline2', path: 'D:\\Data', instrumentMethod: 'C:\\m.meth', position: 'B:A1', injectionVolume: 3, category: 'Experimental', runNumber: 1, originalSampleId: 'S1', plateNumber: 1, wellPosition: 'A01' },
+        ],
+        categoryCounts: { Experimental: 1 },
+        totalRuns: 1,
+        totalSampleCount: 1,
+      };
+      const csv = formatThermoCSV(sequence);
+      expect(csv).toBe('Bracket Type=4,,,,\nFile Name,Path,Instrument Method,Position,Inj Vol\n"line1\rline2",D:\\Data,C:\\m.meth,B:A1,3');
     });
 
     it('derives Bracket Type header from column count', () => {

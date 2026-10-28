@@ -37,8 +37,8 @@ test.describe('Choose File validation', () => {
     await page.locator('#file-upload').setInputFiles(XLSX_FILE);
 
     await expect(page.getByText(/is not a CSV or JSON file/)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
-    await expect(page.getByText('Plate 1')).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeHidden();
+    await expect(page.getByText('Plate 1')).toBeHidden();
     await expect(page.locator('#idColumn option')).toHaveCount(0);
   });
 
@@ -54,7 +54,7 @@ test.describe('Choose File validation', () => {
 
     expect(sawDialog).toBe(false);
     await expect(page.getByText(/is not a CSV or JSON file/)).toBeVisible();
-    await expect(page.getByText(/e2e-sample-small\.csv/)).not.toBeVisible();
+    await expect(page.getByText(/e2e-sample-small\.csv/)).toBeHidden();
     await expect(page.locator('#idColumn option')).toHaveCount(0);
   });
 
@@ -116,9 +116,9 @@ test.describe('Choose File validation', () => {
     // It loaded cleanly: the two real columns are offered, the blank trailing one is dropped,
     // and no structural error or partial-row warning is shown.
     await expect(page.locator('#idColumn option')).toHaveCount(2);
-    await expect(page.getByText(/has empty column headings/)).not.toBeVisible();
-    await expect(page.getByText(/more values than there are column headers/)).not.toBeVisible();
-    await expect(page.getByText(/fewer values than the header/)).not.toBeVisible();
+    await expect(page.getByText(/has empty column headings/)).toBeHidden();
+    await expect(page.getByText(/more values than there are column headers/)).toBeHidden();
+    await expect(page.getByText(/fewer values than the header/)).toBeHidden();
   });
 
   test('rejects a .csv whose trailing-comma column contains a value in any row', async ({ page }) => {
@@ -205,7 +205,7 @@ test.describe('Choose File validation', () => {
 
     // Switching to a column with unique values clears the error.
     await page.locator('#idColumn').selectOption('Well');
-    await expect(page.getByText(/has repeated values/)).not.toBeVisible();
+    await expect(page.getByText(/has repeated values/)).toBeHidden();
   });
 
   test('blocks Generate when the selected ID column has blank or whitespace-only values', async ({ page }) => {
@@ -220,6 +220,36 @@ test.describe('Choose File validation', () => {
     await expect(page.getByText(/has \d+ blank value/)).toBeVisible();
     await page.locator('#covariates').selectOption(['Condition']);
     await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeDisabled();
+  });
+
+  test('changing the ID column recounts the samples and the blank IDs', async ({ page }) => {
+    // Sample ID has 1 blank, Alt ID has 2, and Tube has none. A row with a blank ID is not a sample.
+    const csv =
+      'Sample ID,Alt ID,Tube,Condition\n' +
+      'S1,A1,T1,Treated\nS2,,T2,Control\n,,T3,Treated\n' +
+      'S4,A4,T4,Control\nS5,A5,T5,Treated\nS6,A6,T6,Control\n';
+    await page.locator('#file-upload').setInputFiles({
+      name: 'blank-ids.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+
+    // 'Sample ID' auto-selects (its name matches).
+    await expect(page.locator('#idColumn')).toHaveValue('Sample ID');
+    await expect(page.getByText('(5 samples)')).toBeVisible();
+    await expect(page.getByText('"Sample ID" has 1 blank value(s)')).toBeVisible();
+
+    await page.locator('#idColumn').selectOption('Alt ID');
+    await expect(page.getByText('(4 samples)')).toBeVisible();
+    await expect(page.getByText('"Alt ID" has 2 blank value(s)')).toBeVisible();
+
+    await page.locator('#idColumn').selectOption('Tube');
+    await expect(page.getByText('(6 samples)')).toBeVisible();
+    await expect(page.getByText(/blank value/)).toBeHidden();
+
+    await page.locator('#idColumn').selectOption('Sample ID');
+    await expect(page.getByText('(5 samples)')).toBeVisible();
+    await expect(page.getByText('"Sample ID" has 1 blank value(s)')).toBeVisible();
   });
 
   test('warns about a CSV with a partial row (fewer values than the header) but still loads it', async ({ page }) => {
@@ -265,8 +295,8 @@ test.describe('Choose File validation', () => {
     });
 
     // The previous design is replaced even though the new file has no samples.
-    await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
-    await expect(page.getByText('Plate 1')).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeHidden();
+    await expect(page.getByText('Plate 1')).toBeHidden();
     await expect(page.getByText(/headers-only\.csv/)).toBeVisible();
   });
 });

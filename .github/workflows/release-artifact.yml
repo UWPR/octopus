@@ -2,7 +2,7 @@ name: Release artifact
 
 # When a release is published in the GitHub UI, this
 # - checks that the released commit is on main
-# - runs the type check and the unit tests
+# - runs the type check, the lint and the unit tests
 # - builds a self-contained single-file offline copy (octopus-<version>.html)
 #   and the hosted site from the released commit
 # - deploys the hosted site to GitHub Pages, except for a pre-release
@@ -53,14 +53,17 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Lint
+        run: npm run lint
+
       - name: Unit tests
         run: npm run test:ci
 
       # Both builds run before anything is published, so a build failure leaves
       # the site and the release unchanged. Both write to build/, so the
       # single-file app is moved out before the hosted build.
-      # CI=false so pre-existing lint warnings do not fail either build, matching
-      # the behavior of a local build.
+      # CI=false so the builds do not treat lint warnings as errors, matching a local
+      # build. The Lint step above already fails on any warning.
       - name: Build the single-file offline app
         run: |
           npm run build:singlefile

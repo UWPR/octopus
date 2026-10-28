@@ -131,4 +131,5 @@ export interface IdMapping {
 }
 
 /** Regex matching characters unsafe for Windows filenames (includes ASCII control chars). */
+// eslint-disable-next-line no-control-regex
 export const UNSAFE_FILENAME_CHARS = /[/\\:*?"<>|\x00-\x1F]/;

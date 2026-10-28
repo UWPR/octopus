@@ -34,6 +34,7 @@
     "test": "react-scripts test",
     "test:all": "react-scripts test --watchAll=false",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint --config eslint-strict.json --max-warnings 0 \"src/**/*.{ts,tsx}\"",
     "test:ci": "react-scripts test --watchAll=false --forceExit --testPathIgnorePatterns=\"<rootDir>/src/tests/e2e/\"",
     "test:greedyPlacement": "react-scripts test --watchAll=false --testPathPattern=greedySpatialPlacement",
     "test:blockCapacities": "react-scripts test --watchAll=false --testPathPattern=assignBlockCapacities",
@@ -74,6 +75,7 @@
     "@playwright/test": "^1.58.2",
     "@types/papaparse": "^5.3.14",
     "cross-env": "^10.1.0",
+    "eslint-plugin-playwright": "2.12.1",
     "fast-check": "^3.23.2",
     "gh-pages": "^6.1.1"
   }

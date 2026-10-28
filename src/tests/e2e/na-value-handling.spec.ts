@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import path from 'path';
 import { openExportMenu } from './helpers';
 
@@ -16,7 +16,7 @@ const DEMO = path.join(__dirname, '../../../test-data/na-value-handling-demo.csv
 // With na/NA/n/a folded into N/A and blank kept distinct, this data forms 11 covariate groups.
 const FOLDED_GROUPS = 11;
 
-async function configureDemo(page: import('@playwright/test').Page): Promise<void> {
+async function configureDemo(page: Page): Promise<void> {
   await page.locator('#file-upload').setInputFiles(DEMO);
   await page.locator('#qcColumn').selectOption('QC');
   await page.getByRole('checkbox', { name: 'BatchQC' }).check();
@@ -37,7 +37,6 @@ test.describe('N/A values save/load', () => {
     // Keep genuinely-blank cells distinct: uncheck (blank). na/NA/n/a still fold into N/A.
     await page.getByRole('checkbox', { name: 'Treat (blank) as N/A' }).uncheck();
     await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
-    await page.waitForTimeout(1000);
 
     // The folded policy yields 11 groups before saving.
     await expect(

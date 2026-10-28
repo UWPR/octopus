@@ -112,7 +112,6 @@ const App: React.FC = () => {
 
   // Drag and drop hook
   const {
-    draggedSearch,
     handleDragStart,
     handleDragOver,
     handleDrop,
@@ -121,12 +120,10 @@ const App: React.FC = () => {
   // Quality metrics hook
   const {
     metrics,
-    isCalculating,
     showMetrics,
     calculateMetrics,
     resetMetrics,
     toggleMetrics,
-    qualitySummary
   } = useQualityMetrics();
 
 
@@ -202,6 +199,8 @@ const App: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Non-blocking notice about the loaded file (e.g. some rows had formatting problems).
   const [loadWarning, setLoadWarning] = useState<string | null>(null);
+  // Error from the last Excel export, shown under the Export menu.
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Set true for one render while a saved layout is being loaded, so the new-file reset
   // effect does not wipe the settings we are restoring.
@@ -249,7 +248,7 @@ const App: React.FC = () => {
   // Calculate quality metrics when randomization completes or plates change
   useEffect(() => {
     if (isProcessed && randomizedPlates.length > 0 && plateAssignments && selectedCovariates.length > 0) {
-      calculateMetrics(
+      void calculateMetrics(
         searches,
         randomizedPlates,
         plateAssignments,
@@ -277,6 +276,7 @@ const App: React.FC = () => {
     resetRandomization();
     setRandomizationError(null);
     setLoadError(null);
+    setExportError(null);
     resetColors();
     resetMetrics();
     resetModalPosition();
@@ -360,6 +360,7 @@ const App: React.FC = () => {
   const resetCovariateState = () => {
     resetRandomization();
     setRandomizationError(null);
+    setExportError(null);
     resetColors();
     resetMetrics();
     setShowSummary(false);
@@ -572,6 +573,7 @@ const App: React.FC = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
       // Clear any previous error
       setRandomizationError(null);
+      setExportError(null);
 
       // Process metadata and set the covariateKey
       processMetadata(searches);
@@ -612,8 +614,8 @@ const App: React.FC = () => {
             naPolicy
           );
         }
-      } catch (err: any) {
-        setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
+      } catch (err) {
+        setRandomizationError((err instanceof Error && err.message) || 'An unexpected error occurred during randomization.');
       }
     }
   };
@@ -736,6 +738,7 @@ const App: React.FC = () => {
     setRandomizationError(null);
     setLoadError(null);
     setLoadWarning(null);
+    setExportError(null);
   };
 
   // Confirm before replacing a displayed plate layout. Returns false when the user cancels (so
@@ -885,26 +888,34 @@ const App: React.FC = () => {
     }
   };
 
-  // Actual export after covariate selection
+  // Actual export after covariate selection. The modal closes without waiting, so a failure is
+  // displayed on the main page.
   const handleExcelExport = async (exportCovariates: string[]) => {
-    await exportToExcel({
-      searches,
-      randomizedPlates,
-      covariateColors,
-      treatmentCovariates: selectedCovariates, // Original treatment covariates for color lookup
-      exportCovariates: exportCovariates, // User-selected covariates to display
-      numRows: plateRows,
-      numColumns: plateColumns,
-      inputFileName: selectedFileName,
-      qcColumn: qcColumn || undefined,
-      naPolicy
-    });
+    setExportError(null);
+    try {
+      await exportToExcel({
+        searches,
+        randomizedPlates,
+        covariateColors,
+        treatmentCovariates: selectedCovariates, // Original treatment covariates for color lookup
+        exportCovariates: exportCovariates, // User-selected covariates to display
+        numRows: plateRows,
+        numColumns: plateColumns,
+        inputFileName: selectedFileName,
+        qcColumn: qcColumn || undefined,
+        naPolicy
+      });
+    } catch (e) {
+      console.error('Excel export failed:', e);
+      setExportError(`Could not create the Excel file. ${e instanceof Error ? e.message : String(e)}`);
+    }
   };
 
   // Re-randomization handler
   const handleReRandomize = () => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
       setRandomizationError(null);
+      setExportError(null);
 
       // Process metadata and set the covariateKey
       processMetadata(searches);
@@ -929,8 +940,8 @@ const App: React.FC = () => {
         // Clear highlighting since plate layout changed
         setSelectedCombination(null);
         setSelectedSubject(null);
-      } catch (err: any) {
-        setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
+      } catch (err) {
+        setRandomizationError((err instanceof Error && err.message) || 'An unexpected error occurred during randomization.');
       }
     }
   };
@@ -939,6 +950,7 @@ const App: React.FC = () => {
   const handleReRandomizePlate = (plateIndex: number) => {
     if (selectedIdColumn && selectedCovariates.length > 0 && searches.length > 0) {
       setRandomizationError(null);
+      setExportError(null);
 
       // Process metadata and set the covariateKey
       processMetadata(searches);
@@ -963,8 +975,8 @@ const App: React.FC = () => {
         // Clear highlighting since plate layout changed
         setSelectedCombination(null);
         setSelectedSubject(null);
-      } catch (err: any) {
-        setRandomizationError(err.message || 'An unexpected error occurred during randomization.');
+      } catch (err) {
+        setRandomizationError((err instanceof Error && err.message) || 'An unexpected error occurred during randomization.');
       }
       // Quality metrics will be recalculated automatically via useEffect
     }
@@ -1047,7 +1059,8 @@ const App: React.FC = () => {
     && (!subjectColumn || groupingConstraint !== 'none');
 
   // A colored notice banner - red for errors, amber for warnings. Shared by the load error/warning
-  // (top), the ID-column checks, and the randomization error so they all stay visually consistent.
+  // (top), the ID-column checks, the randomization error and the Excel export error so they all stay
+  // visually consistent.
   const renderBanner = (message: string, tone: 'error' | 'warning' = 'error') => {
     const palette = tone === 'warning'
       ? { bg: '#fffbeb', border: '#fde68a', text: '#92400e' }
@@ -1265,6 +1278,9 @@ const App: React.FC = () => {
                 />
               </div>
 
+              {/* The export modal has closed by the time this appears, so it is announced */}
+              <div role="alert">{exportError && renderBanner(exportError)}</div>
+
               <SummaryPanel
                 summaryData={summaryData}
                 showSummary={showSummary}
@@ -1343,7 +1359,7 @@ const App: React.FC = () => {
         <ExcelExportModal
           isOpen={showExcelExportModal}
           onClose={() => setShowExcelExportModal(false)}
-          onExport={handleExcelExport}
+          onExport={(covariates) => void handleExcelExport(covariates)}
           availableCovariates={availableColumns}
           treatmentCovariates={selectedCovariates}
           searches={searches}

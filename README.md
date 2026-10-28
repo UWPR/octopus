@@ -43,6 +43,11 @@ This opens the app at http://localhost:3000 with hot reload.
 ## Testing
 
 - `npm run typecheck` runs the TypeScript type check.
+- `npm run lint` runs ESLint with the rules in `package.json` plus the stricter rules in
+  `eslint-strict.json`, which check for unhandled promises, for `any` types and for
+  mistakes in the end-to-end tests. Only `src/tests/layoutIO.test.ts` may use `any`. A
+  warning fails the lint like an error. The dev server and editors use only the rules in
+  `package.json`.
 - `npm run test:ci` runs the unit tests once, without the end-to-end tests.
 - `npx playwright test` runs the end-to-end tests in Google Chrome, which must be
   installed. It starts the dev server on port 3000, or uses one that is already running.
@@ -50,8 +55,9 @@ This opens the app at http://localhost:3000 with hot reload.
 Use `npm run test:ci` rather than `npm test`. `npm test` also picks up the end-to-end
 tests in `src/tests/e2e/`, which fail under the unit test runner.
 
-Every pull request runs `npm run typecheck` and `npm run test:ci` on GitHub, and the
-result is shown as a check on the pull request. The end-to-end tests do not run there.
+Every pull request runs `npm run typecheck`, `npm run lint` and `npm run test:ci` on
+GitHub, and the result is shown as a check on the pull request. A lint error or warning
+fails the check. The end-to-end tests do not run there.
 
 ## Hosted app and offline copy
 
@@ -71,8 +77,8 @@ The hosted site and the offline copy are updated only by publishing a release.
    shown in the documentation.
 3. Publish a release on GitHub with a tag on a commit on `main`.
 
-The release workflow then checks that the commit is on `main`, runs the type check and
-the unit tests, builds the hosted site and the offline copy, deploys the hosted site to
+The release workflow then checks that the commit is on `main`, runs the type check, the
+lint and the unit tests, builds the hosted site and the offline copy, deploys the hosted site to
 GitHub Pages, and attaches `octopus-<version>.html` to the release. A pre-release gets
 the offline copy but does not update the hosted site.
 
@@ -86,7 +92,7 @@ clean checkout of `main`.
 - `npm start` runs the dev server at http://localhost:3000.
 - `npm run build` creates the production build in `build/`, to check a build locally.
 - `npm run build:singlefile` creates a single self-contained `build/octopus-<version>.html` that runs offline from a local file, with all JavaScript, CSS, icons, and the logo inlined.
-- `npm run typecheck` and `npm run test:ci` are described under Testing.
+- `npm run typecheck`, `npm run lint` and `npm run test:ci` are described under Testing.
 
 Octopus is a Create React App, so `npm run eject` (one-way config ejection) is also
 available. It is not recommended.

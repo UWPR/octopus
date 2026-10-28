@@ -12,10 +12,11 @@ import {
  * UI Interaction Tests
  *
  * Tests interactive features beyond the happy path:
- * 1. Covariate highlighting — click summary card, verify correct samples highlighted
- * 2. Reset on new file upload — verify all state clears
+ * 1. Covariate highlighting - click summary card, verify correct samples highlighted
+ * 2. Reset on new file upload - verify all state clears
  * 3. Configuration changes reset plates
  * 4. Full-size view shows correct sample metadata
+ * 5. Plate details modal lists every group with its penalty and the plate balance
  */
 
 test.describe('UI Interactions', () => {
@@ -46,14 +47,13 @@ test.describe('UI Interactions', () => {
     await targetCard.click();
 
     // Count highlighted wells
-    const highlightedCells = await page.locator('[class^="well-highlighted"]').count();
-    expect(highlightedCells).toBe(expectedCount);
+    const highlightedCells = page.locator('[class^="well-highlighted"]');
+    await expect(highlightedCells).toHaveCount(expectedCount);
 
-    // Click the same card again to deselect — no cells should be highlighted
+    // Click the same card again to deselect - no cells should be highlighted
     await targetCard.click();
 
-    const highlightedAfterDeselect = await page.locator('[class^="well-highlighted"]').count();
-    expect(highlightedAfterDeselect).toBe(0);
+    await expect(highlightedCells).toHaveCount(0);
   });
 
   test('uploading a new file resets all state', async ({ page }) => {
@@ -69,11 +69,10 @@ test.describe('UI Interactions', () => {
     const differentFilePath = path.join(__dirname, '../../../test-data/e2e-sample-full.csv');
     page.once('dialog', dialog => dialog.accept());
     await page.locator('#file-upload').setInputFiles(differentFilePath);
-    await page.waitForTimeout(500);
 
-    // Plates should be gone — state was reset
-    await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Export', exact: true })).not.toBeVisible();
+    // Plates should be gone - state was reset
+    await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeHidden();
 
     // The "Generate Randomized Plates" button should be visible but disabled
     // (covariates haven't been re-selected)
@@ -84,12 +83,8 @@ test.describe('UI Interactions', () => {
     await expect(page.getByText(/672 samples/)).toBeVisible();
 
     // Re-configure with the original small file and generate to prove app is functional after reset
-    const smallFilePath = path.join(__dirname, '../../../test-data/e2e-sample-small.csv');
-    await page.locator('#file-upload').setInputFiles(smallFilePath);
-    await page.waitForTimeout(500);
     await uploadAndConfigure(page);
     await page.getByRole('button', { name: 'Generate Randomized Plates' }).click();
-    await page.waitForTimeout(2000);
 
     await expect(page.getByText('Plate 1')).toBeVisible();
     await expect(page.getByText('Plate 2')).toBeVisible();
@@ -102,12 +97,11 @@ test.describe('UI Interactions', () => {
     // Plates are visible
     await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeVisible();
 
-    // Change covariate selection — deselect one covariate
+    // Change covariate selection - deselect one covariate
     await page.locator('#covariates').selectOption(['Condition', 'Radiaion Dose_cGy']);
-    await page.waitForTimeout(300);
 
     // Plates should be gone (state resets on covariate change)
-    await expect(page.getByRole('button', { name: 'Re-randomize' })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Re-randomize' })).toBeHidden();
 
     // Generate button should be available again
     await expect(page.getByRole('button', { name: 'Generate Randomized Plates' })).toBeVisible();
@@ -118,39 +112,37 @@ test.describe('UI Interactions', () => {
 
     // Switch to full-size view
     await page.getByRole('button', { name: 'Full Size View' }).click();
-    await page.waitForTimeout(1000);
+    // Wait for the full-size cards, which show the sample name in an h3
+    await expect(page.locator('[draggable="true"] h3').first()).toBeVisible();
 
     // In full-size view, each sample card has an h3 with the sample name
     // and div elements showing covariate values
     const sampleCards = page.locator('[draggable="true"]');
-    const cardCount = await sampleCards.count();
-    expect(cardCount).toBe(TOTAL_SAMPLES);
+    await expect(sampleCards).toHaveCount(TOTAL_SAMPLES);
 
     // Verify a sample card shows all 3 selected covariates
     const firstCard = sampleCards.first();
-    const cardText = await firstCard.textContent();
 
     // Every card should show all 3 covariate labels
-    expect(cardText).toContain('Condition:');
-    expect(cardText).toContain('Radiaion Dose_cGy:');
-    expect(cardText).toContain('Focus Area:');
+    await expect(firstCard).toContainText('Condition:');
+    await expect(firstCard).toContainText('Radiaion Dose_cGy:');
+    await expect(firstCard).toContainText('Focus Area:');
 
     // Verify the card has a sample name (h3 element)
-    const sampleName = await firstCard.locator('h3').textContent();
-    expect(sampleName).toBeTruthy();
-    expect(sampleName!.startsWith('E2E-')).toBe(true);
+    const sampleNameHeading = firstCard.locator('h3');
+    await expect(sampleNameHeading).toHaveText(/^E2E-/);
+    const sampleName = (await sampleNameHeading.textContent())!;
 
     // Switch back to compact view and verify the same sample name appears in the tooltip
     await page.getByRole('button', { name: 'Compact View' }).click();
-    await page.waitForTimeout(500);
 
     // In compact view, h3 elements should not be visible (compact cells are just colored squares)
     await expect(page.locator('[draggable="true"] h3')).toHaveCount(0);
 
     // The first plate cell's tooltip should contain the same sample name from full-size view
-    const firstCellTooltip = await page.locator('[data-testid="plate-grid-0"] [title]').first().getAttribute('title');
-    expect(firstCellTooltip).toBeTruthy();
-    expect(firstCellTooltip!).toContain(sampleName!);
+    const escapedName = sampleName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await expect(page.locator('[data-testid="plate-grid-0"] [title]').first())
+      .toHaveAttribute('title', new RegExp(escapedName));
   });
 
   test('plate details modal lists every group with its penalty to the plate score', async ({ page }) => {
@@ -186,7 +178,7 @@ test.describe('UI Interactions', () => {
     await expect(modal.getByText('Plate balance = 100 - Total penalty, rounded and at least 0')).toBeVisible();
 
     // Close modal
-    await page.getByRole('button', { name: '×' }).first().click();
-    await expect(page.getByText('Plate 1 Details')).not.toBeVisible();
+    await modal.getByRole('button', { name: '×' }).click();
+    await expect(page.getByText('Plate 1 Details')).toBeHidden();
   });
 });

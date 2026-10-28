@@ -1,0 +1,28 @@
+{
+  "parserOptions": { "project": "./tsconfig.json" },
+  "rules": {
+    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/await-thenable": "error",
+    "@typescript-eslint/no-explicit-any": "error"
+  },
+  "overrides": [
+    {
+      // These tests corrupt parsed layouts with values of the wrong type to check that loading
+      // rejects them, which needs any
+      "files": ["src/tests/layoutIO.test.ts"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off"
+      }
+    },
+    {
+      "files": ["src/tests/e2e/**/*.{ts,tsx}"],
+      "extends": ["plugin:playwright/recommended"],
+      "rules": {
+        "playwright/no-wait-for-timeout": "error",
+        "jest/valid-expect": "off",
+        "jest/no-identical-title": "off"
+      }
+    }
+  ]
+}

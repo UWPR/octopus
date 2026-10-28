@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import path from 'path';
 
 /**
@@ -20,7 +20,7 @@ const PLATE_INFEASIBLE_FILE = path.join(__dirname, '../../../test-data/edge-case
  * select Treatment as covariate, and configure plate dimensions.
  */
 async function uploadAndConfigureRepeatedMeasures(
-  page: import('@playwright/test').Page,
+  page: Page,
   filePath: string,
   constraint: 'same-row' | 'same-plate',
   rows: number,
@@ -49,14 +49,13 @@ test.describe('Infeasible packing error messages', () => {
     await expect(page.getByRole('heading', { name: 'Octopus' })).toBeVisible();
   });
 
-  test('row-infeasible: 4×7 same-row shows shape-aware error after Generate', async ({ page }) => {
+  test('row-infeasible: 4x7 same-row shows shape-aware error after Generate', async ({ page }) => {
     await uploadAndConfigureRepeatedMeasures(page, ROW_INFEASIBLE_FILE, 'same-row', 4, 7);
 
     // Generate button should be enabled (pre-validation passes)
     const generateButton = page.getByRole('button', { name: 'Generate Randomized Plates' });
     await expect(generateButton).toBeEnabled();
     await generateButton.click();
-    await page.waitForTimeout(2000);
 
     // Error message should appear in the UI
     const errorText = page.locator('text=Unable to fit all subject groups into available rows');
@@ -73,7 +72,7 @@ test.describe('Infeasible packing error messages', () => {
     await expect(page.locator('text=/Same Plate constraint/')).toBeVisible();
 
     // No plates should be rendered
-    await expect(page.getByText('Plate 1')).not.toBeVisible();
+    await expect(page.getByText('Plate 1')).toBeHidden();
   });
 
   test('row-infeasible: switching to Same Plate constraint resolves the error', async ({ page }) => {
@@ -82,11 +81,10 @@ test.describe('Infeasible packing error messages', () => {
     const generateButton = page.getByRole('button', { name: 'Generate Randomized Plates' });
     await expect(generateButton).toBeEnabled();
     await generateButton.click();
-    await page.waitForTimeout(2000);
 
-    // Should succeed — plates rendered, no error
+    // Should succeed - plates rendered, no error
     await expect(page.getByText('Plate 1')).toBeVisible();
-    await expect(page.locator('text=Unable to fit')).not.toBeVisible();
+    await expect(page.locator('text=Unable to fit')).toBeHidden();
   });
 
   test('row-infeasible: widening to 8 columns resolves the error', async ({ page }) => {
@@ -95,20 +93,18 @@ test.describe('Infeasible packing error messages', () => {
     const generateButton = page.getByRole('button', { name: 'Generate Randomized Plates' });
     await expect(generateButton).toBeEnabled();
     await generateButton.click();
-    await page.waitForTimeout(2000);
 
-    // Should succeed — plates rendered, no error
+    // Should succeed - plates rendered, no error
     await expect(page.getByText('Plate 1')).toBeVisible();
-    await expect(page.locator('text=Unable to fit')).not.toBeVisible();
+    await expect(page.locator('text=Unable to fit')).toBeHidden();
   });
 
-  test('plate-infeasible: 2×12 same-row shows shape-aware error after Generate', async ({ page }) => {
+  test('plate-infeasible: 2x12 same-row shows shape-aware error after Generate', async ({ page }) => {
     await uploadAndConfigureRepeatedMeasures(page, PLATE_INFEASIBLE_FILE, 'same-row', 2, 12);
 
     const generateButton = page.getByRole('button', { name: 'Generate Randomized Plates' });
     await expect(generateButton).toBeEnabled();
     await generateButton.click();
-    await page.waitForTimeout(2000);
 
     // Error message should appear in the UI
     const errorText = page.locator('text=Unable to fit all subject groups into available plates');
@@ -125,23 +121,22 @@ test.describe('Infeasible packing error messages', () => {
     await expect(page.locator('text=/Same Plate constraint/')).toBeVisible();
 
     // No plates should be rendered
-    await expect(page.getByText('Plate 1')).not.toBeVisible();
+    await expect(page.getByText('Plate 1')).toBeHidden();
   });
 
-  test('plate-infeasible: adding more rows (3×12) resolves the error', async ({ page }) => {
+  test('plate-infeasible: adding more rows (3x12) resolves the error', async ({ page }) => {
     await uploadAndConfigureRepeatedMeasures(page, PLATE_INFEASIBLE_FILE, 'same-row', 3, 12);
 
     const generateButton = page.getByRole('button', { name: 'Generate Randomized Plates' });
     await expect(generateButton).toBeEnabled();
     await generateButton.click();
-    await page.waitForTimeout(2000);
 
-    // Should succeed — plates rendered, no error
+    // Should succeed - plates rendered, no error
     await expect(page.getByText('Plate 1')).toBeVisible();
-    await expect(page.locator('text=Unable to fit')).not.toBeVisible();
+    await expect(page.locator('text=Unable to fit')).toBeHidden();
   });
 
-  test('plate-infeasible: 4×6 same-row shows pre-validation error (size-9 exceeds row capacity of 6)', async ({ page }) => {
+  test('plate-infeasible: 4x6 same-row shows pre-validation error (size-9 exceeds row capacity of 6)', async ({ page }) => {
     await uploadAndConfigureRepeatedMeasures(page, PLATE_INFEASIBLE_FILE, 'same-row', 4, 6);
 
     // Pre-validation catches this: size-9 groups exceed row capacity of 6.
