@@ -34,7 +34,7 @@
     "test": "react-scripts test",
     "test:all": "react-scripts test --watchAll=false",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint --config eslint-strict.json \"src/**/*.{ts,tsx}\"",
+    "lint": "eslint --config eslint-strict.json --max-warnings 0 \"src/**/*.{ts,tsx}\"",
     "test:ci": "react-scripts test --watchAll=false --forceExit --testPathIgnorePatterns=\"<rootDir>/src/tests/e2e/\"",
     "test:greedyPlacement": "react-scripts test --watchAll=false --testPathPattern=greedySpatialPlacement",
     "test:blockCapacities": "react-scripts test --watchAll=false --testPathPattern=assignBlockCapacities",
