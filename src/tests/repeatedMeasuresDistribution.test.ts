@@ -584,6 +584,25 @@ describe('distributeGroupsToRows', () => {
       expect(singletons.length).toBe(2);
     });
   });
+
+  it('packs groups by best fit when the recipe search runs out of steps and the greedy placement fails', () => {
+    // The 46 subjects are cut from 16 rows of 12, so they fill every well. The recipe search reaches its
+    // step limit without a recipe, and the greedy placement leaves a group without a row.
+    const sizes = [4, 4, 4, 3, 5, 4, 4, 3, 5, 3, 2, 5, 2, 7, 5, 6, 6, 4, 4, 4, 7, 5, 4, 3, 5, 7, 5, 3, 7, 2, 3, 4, 5,
+      4, 2, 2, 4, 7, 3, 2, 7, 2, 3, 3, 4, 5];
+    const treatments = 'PDDPPPPDDPDDDPDDPDPPDPDPDDPPPDDPPPPDPDPDDPDPPP';
+    const groups = sizes.map((size, i) => makeGroup(`S${i}`, size, treatments[i] === 'D' ? 'Drug' : 'Placebo'));
+    const rowCapacities = new Array<number>(16).fill(12);
+
+    for (let run = 0; run < 3; run++) {
+      const result = distributeGroupsToRows(groups, rowCapacities, DRUG_PLACEBO_PROPORTIONS);
+
+      const assignedIds = Array.from(result.values()).flat().map(g => g.subjectId).sort();
+      expect(assignedIds).toEqual(groups.map(g => g.subjectId).sort());
+      const rowTotals = rowCapacities.map((_, r) => result.get(r)!.reduce((sum, g) => sum + g.size, 0));
+      expect(rowTotals).toEqual(rowCapacities);
+    }
+  });
 });
 
 
