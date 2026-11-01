@@ -57,7 +57,7 @@ tests in `src/tests/e2e/`, which fail under the unit test runner.
 
 Every pull request runs `npm run typecheck`, `npm run lint` and `npm run test:ci` on
 GitHub, and the result is shown as a check on the pull request. A lint error or warning
-fails the check. The end-to-end tests do not run there.
+fails the check. Pull requests also run `npx playwright test` as a separate check.
 
 ## Hosted app and offline copy
 
