@@ -41,6 +41,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out the commit
         uses: actions/checkout@v4
