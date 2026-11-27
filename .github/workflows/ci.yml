@@ -40,7 +40,8 @@ jobs:
         run: npm run test:ci
 
   e2e:
-    runs-on: ubuntu-latest
+    # Playwright 1.58 does not install on Ubuntu 26.04, which ubuntu-latest selects.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Check out the commit
